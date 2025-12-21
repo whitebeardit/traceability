@@ -18,11 +18,15 @@ namespace Traceability.Extensions
             this System.Net.Http.HttpClient client,
             HttpRequestMessage request)
         {
-            var correlationId = CorrelationContext.Current;
-            if (!string.IsNullOrEmpty(correlationId))
+            // Tenta obter correlation-id sem criar um novo (evita criar indesejadamente)
+            if (CorrelationContext.TryGetValue(out var correlationId) && !string.IsNullOrEmpty(correlationId))
             {
-                request.Headers.Remove("X-Correlation-Id");
-                request.Headers.Add("X-Correlation-Id", correlationId);
+                const string headerName = "X-Correlation-Id";
+                if (request.Headers.Contains(headerName))
+                {
+                    request.Headers.Remove(headerName);
+                }
+                request.Headers.Add(headerName, correlationId);
             }
             return client;
         }

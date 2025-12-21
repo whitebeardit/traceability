@@ -91,11 +91,18 @@ namespace Traceability.Middleware
             var response = context.Response;
 
             var headerName = CorrelationIdHeader;
-            // Adiciona o correlation-id no header da resposta
-            var correlationId = CorrelationContext.Current;
-            if (!string.IsNullOrEmpty(correlationId))
+            // Tenta obter correlation-id sem criar um novo (evita criar indesejadamente)
+            if (CorrelationContext.TryGetValue(out var correlationId) && !string.IsNullOrEmpty(correlationId))
             {
-                response.Headers[headerName] = correlationId;
+                try
+                {
+                    // PreSendRequestHeaders é chamado antes de enviar headers, então ainda podemos modificá-los
+                    response.Headers[headerName] = correlationId;
+                }
+                catch
+                {
+                    // Ignora exceções ao adicionar header (pode ocorrer em casos raros)
+                }
             }
         }
 

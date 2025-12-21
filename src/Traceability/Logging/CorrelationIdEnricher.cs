@@ -19,7 +19,13 @@ namespace Traceability.Logging
         /// </summary>
         public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
         {
-            var correlationId = CorrelationContext.Current;
+            // Tenta obter correlation-id sem criar um novo (evita criar indesejadamente)
+            if (!CorrelationContext.TryGetValue(out var correlationId) || string.IsNullOrEmpty(correlationId))
+            {
+                // Se não houver correlation-id, não adiciona nada ao log
+                return;
+            }
+
             var cached = _cache.Value;
             
             // Reutiliza propriedade se o correlation-id não mudou

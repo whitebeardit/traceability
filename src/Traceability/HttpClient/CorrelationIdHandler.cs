@@ -37,21 +37,16 @@ namespace Traceability.HttpClient
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            // Verifica se existe correlation-id antes de adicionar (evita criar indesejadamente)
-            if (CorrelationContext.HasValue)
+            // Tenta obter correlation-id sem criar um novo (evita criar indesejadamente)
+            if (CorrelationContext.TryGetValue(out var correlationId) && !string.IsNullOrEmpty(correlationId))
             {
-                var correlationId = CorrelationContext.Current;
-                
-                if (!string.IsNullOrEmpty(correlationId))
+                var headerName = CorrelationIdHeader;
+                // Verifica se o header existe antes de remover (evita operação desnecessária)
+                if (request.Headers.Contains(headerName))
                 {
-                    var headerName = CorrelationIdHeader;
-                    // Verifica se o header existe antes de remover (evita operação desnecessária)
-                    if (request.Headers.Contains(headerName))
-                    {
-                        request.Headers.Remove(headerName);
-                    }
-                    request.Headers.Add(headerName, correlationId);
+                    request.Headers.Remove(headerName);
                 }
+                request.Headers.Add(headerName, correlationId);
             }
 
             return base.SendAsync(request, cancellationToken);
@@ -66,21 +61,16 @@ namespace Traceability.HttpClient
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            // Verifica se existe correlation-id antes de adicionar (evita criar indesejadamente)
-            if (CorrelationContext.HasValue)
+            // Tenta obter correlation-id sem criar um novo (evita criar indesejadamente)
+            if (CorrelationContext.TryGetValue(out var correlationId) && !string.IsNullOrEmpty(correlationId))
             {
-                var correlationId = CorrelationContext.Current;
-                
-                if (!string.IsNullOrEmpty(correlationId))
+                var headerName = CorrelationIdHeader;
+                // Verifica se o header existe antes de remover (evita operação desnecessária)
+                if (request.Headers.Contains(headerName))
                 {
-                    var headerName = CorrelationIdHeader;
-                    // Verifica se o header existe antes de remover (evita operação desnecessária)
-                    if (request.Headers.Contains(headerName))
-                    {
-                        request.Headers.Remove(headerName);
-                    }
-                    request.Headers.Add(headerName, correlationId);
+                    request.Headers.Remove(headerName);
                 }
+                request.Headers.Add(headerName, correlationId);
             }
 
             return base.Send(request, cancellationToken);
