@@ -322,36 +322,63 @@ var client = new HttpClient(handler);
 ```csharp
 public class TraceableHttpClientFactory
 {
+    // ⚠️ OBSOLETO - Pode causar socket exhaustion
+    [Obsolete]
     public static HttpClient Create(string? baseAddress = null);
+    
+    [Obsolete]
     public static HttpClient CreateWithPolicy(
         IAsyncPolicy<HttpResponseMessage> policy,
         string? baseAddress = null);
+    
+    // ✅ RECOMENDADO - Previne socket exhaustion (.NET 8)
+    public static HttpClient CreateFromFactory(
+        IHttpClientFactory factory,
+        string? clientName = null,
+        string? baseAddress = null);
 }
+
+// Método de extensão para IServiceCollection (.NET 8)
+public static IHttpClientBuilder AddTraceableHttpClient(
+    this IServiceCollection services,
+    string clientName,
+    Action<HttpClient>? configureClient = null);
 ```
 
 **Dependências**:
 - `Polly`
 - `Traceability.HttpClient.CorrelationIdHandler`
+- `.NET 8`: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInjection`
 
 **Comportamento**:
-- Cria `HttpClient` com `CorrelationIdHandler` configurado
-- Suporta políticas Polly via `PolicyDelegatingHandler` interno
-- Configura `BaseAddress` se fornecido
+- Métodos obsoletos criam `HttpClient` diretamente (podem causar socket exhaustion)
+- Métodos recomendados usam `IHttpClientFactory` que gerencia pool de conexões
+- Suporta políticas Polly via `PolicyDelegatingHandler` interno ou `.AddPolicyHandler()`
 
-**Exemplo de Uso**:
+**⚠️ IMPORTANTE - Socket Exhaustion**:
+- Métodos `Create()` e `CreateWithPolicy()` estão obsoletos
+- Sempre use `IHttpClientFactory` em aplicações de produção
+- Use `AddTraceableHttpClient()` para configurar no DI
+
+**Exemplo de Uso Recomendado**:
 ```csharp
-// Básico
-var client = TraceableHttpClientFactory.Create("https://api.example.com/");
+// ✅ RECOMENDADO - Previne socket exhaustion
+// Program.cs
+builder.Services.AddTraceableHttpClient("ExternalApi", client =>
+{
+    client.BaseAddress = new Uri("https://api.example.com/");
+    client.Timeout = TimeSpan.FromSeconds(30);
+})
+.AddPolicyHandler(retryPolicy); // Com Polly
 
-// Com Polly
-var retryPolicy = HttpPolicyExtensions
-    .HandleTransientHttpError()
-    .WaitAndRetryAsync(3, retryAttempt => 
-        TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
-        
-var client = TraceableHttpClientFactory.CreateWithPolicy(
-    retryPolicy,
-    "https://api.example.com/");
+// No serviço ou controller
+var client = _httpClientFactory.CreateClient("ExternalApi");
+```
+
+**Exemplo de Uso Obsoleto (apenas para testes/prototipos)**:
+```csharp
+// ⚠️ OBSOLETO - Apenas para testes ou prototipação
+var client = TraceableHttpClientFactory.Create("https://api.example.com/");
 ```
 
 ### 7. CorrelationIdEnricher (Serilog)
@@ -869,9 +896,10 @@ await SomeAsyncMethod(); // Valor preservado
 
 ### Trade-offs e Limitações Conhecidas
 
-1. **Limitação**: `TraceabilityOptions` não está totalmente integrado
-   - Header está hardcoded como `"X-Correlation-Id"`
-   - `AlwaysGenerateNew` não é usado
+1. **✅ RESOLVIDO**: `TraceabilityOptions` agora está totalmente integrado
+   - Header pode ser customizado via `HeaderName`
+   - `AlwaysGenerateNew` é usado nos middlewares/handlers
+   - `ValidateCorrelationIdFormat` adicionado para validação opcional
 
 2. **Limitação**: `ITraceableHttpClient` interface existe mas não há implementação
    - Interface definida mas não utilizada
@@ -886,6 +914,12 @@ await SomeAsyncMethod(); // Valor preservado
 5. **Trade-off**: GUID simples ao invés de IDs mais informativos
    - Benefício: Simples, único, sem colisões
    - Custo: Não contém informação semântica
+
+6. **⚠️ IMPORTANTE - Socket Exhaustion**: Métodos estáticos `TraceableHttpClientFactory.Create()` e `CreateWithPolicy()` estão obsoletos
+   - **Problema**: Criar `HttpClient` diretamente causa socket exhaustion em aplicações de alta carga
+   - **Solução**: Sempre usar `IHttpClientFactory` com `AddTraceableHttpClient()` ou `AddHttpMessageHandler<CorrelationIdHandler>()`
+   - **Métodos seguros disponíveis**: `CreateFromFactory()` e `AddTraceableHttpClient()` (extensão)
+   - **Status**: Métodos obsoletos marcados com `[Obsolete]` e documentação atualizada
 
 ## GUIA DE MODIFICAÇÃO PARA LLMs
 

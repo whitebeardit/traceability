@@ -117,17 +117,41 @@ builder.Services.AddLogging(builder =>
 });
 ```
 
-### 4. HttpClient com Correlation-id
+### 4. HttpClient com Correlation-id (RECOMENDADO - Previne Socket Exhaustion)
 
 ```csharp
+// Program.cs - Configure o HttpClient no DI
+using Traceability.Extensions;
 using Traceability.HttpClient;
 
-// Criar HttpClient que automaticamente adiciona correlation-id
-var httpClient = TraceableHttpClientFactory.Create("https://api.example.com/");
+builder.Services.AddTraceableHttpClient("ExternalApi", client =>
+{
+    client.BaseAddress = new Uri("https://api.example.com/");
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 
-// O correlation-id é automaticamente adicionado ao header X-Correlation-Id
-var response = await httpClient.GetAsync("endpoint");
+// Controller ou Serviço
+public class MyService
+{
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    public MyService(IHttpClientFactory httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory;
+    }
+
+    public async Task<string> CallApiAsync()
+    {
+        // IHttpClientFactory gerencia o pool de HttpClient, prevenindo socket exhaustion
+        var client = _httpClientFactory.CreateClient("ExternalApi");
+        // O correlation-id é automaticamente adicionado ao header X-Correlation-Id
+        var response = await client.GetAsync("endpoint");
+        return await response.Content.ReadAsStringAsync();
+    }
+}
 ```
+
+**⚠️ Importante**: Para aplicações de produção, sempre use `IHttpClientFactory` com `AddTraceableHttpClient()` ou `AddHttpMessageHandler<CorrelationIdHandler>()`. Os métodos estáticos `TraceableHttpClientFactory.Create()` estão obsoletos e podem causar socket exhaustion.
 
 ### 5. HttpClient com Dependency Injection (ASP.NET Core)
 
@@ -159,9 +183,11 @@ public class MyController : ControllerBase
 }
 ```
 
-### 6. HttpClient com Polly
+### 6. HttpClient com Polly (RECOMENDADO)
 
 ```csharp
+// Program.cs
+using Traceability.Extensions;
 using Traceability.HttpClient;
 using Polly;
 using Polly.Extensions.Http;
@@ -171,9 +197,15 @@ var retryPolicy = HttpPolicyExtensions
     .WaitAndRetryAsync(3, retryAttempt => 
         TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
 
-var httpClient = TraceableHttpClientFactory.CreateWithPolicy(
-    retryPolicy,
-    "https://api.example.com/");
+// Configure com IHttpClientFactory para prevenir socket exhaustion
+builder.Services.AddTraceableHttpClient("ExternalApi", client =>
+{
+    client.BaseAddress = new Uri("https://api.example.com/");
+})
+.AddPolicyHandler(retryPolicy);
+
+// No controller ou serviço
+var client = _httpClientFactory.CreateClient("ExternalApi");
 ```
 
 ### 7. Uso Manual do CorrelationContext
@@ -304,9 +336,13 @@ HttpModule para aplicações ASP.NET tradicionais.
 
 Factory para criar HttpClient com correlation-id.
 
-**Métodos:**
-- `Create(string baseAddress = null)`: Cria HttpClient básico com correlation-id.
-- `CreateWithPolicy(IAsyncPolicy<HttpResponseMessage> policy, string baseAddress = null)`: Cria HttpClient com política Polly.
+**⚠️ Métodos Obsoletos (podem causar socket exhaustion):**
+- `Create(string baseAddress = null)`: ⚠️ OBSOLETO - Use `IHttpClientFactory` com `AddTraceableHttpClient()`.
+- `CreateWithPolicy(...)`: ⚠️ OBSOLETO - Use `IHttpClientFactory` com `AddTraceableHttpClient()` e `.AddPolicyHandler()`.
+
+**✅ Métodos Recomendados (.NET 8):**
+- `CreateFromFactory(IHttpClientFactory factory, string? clientName = null, string? baseAddress = null)`: Cria HttpClient usando IHttpClientFactory (previne socket exhaustion).
+- `AddTraceableHttpClient(this IServiceCollection services, string clientName, Action<HttpClient>? configureClient = null)`: Método de extensão para configurar no DI.
 
 ### CorrelationIdHandler
 
@@ -343,12 +379,75 @@ builder.Services.AddLogging(builder =>
 });
 ```
 
+## Prevenção de Socket Exhaustion
+
+### O Problema
+
+Socket exhaustion ocorre quando muitos `HttpClient` são criados e não são descartados corretamente. Cada `HttpClient` mantém uma conexão TCP que pode demorar a ser liberada (TIME_WAIT), esgotando os sockets disponíveis.
+
+### ❌ Código Problemático
+
+```csharp
+// ❌ PROBLEMA: Cria novo HttpClient a cada chamada
+for (int i = 0; i < 1000; i++)
+{
+    var client = TraceableHttpClientFactory.Create("https://api.example.com/");
+    await client.GetAsync("endpoint");
+    // HttpClient.Dispose() fecha o socket, mas ele fica em TIME_WAIT
+    // Após muitas chamadas, sockets se esgotam
+}
+```
+
+### ✅ Solução Recomendada
+
+```csharp
+// ✅ CORRETO: Usa IHttpClientFactory que gerencia o pool
+// Program.cs
+builder.Services.AddTraceableHttpClient("ExternalApi", client =>
+{
+    client.BaseAddress = new Uri("https://api.example.com/");
+});
+
+// No serviço ou controller
+public class MyService
+{
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    public MyService(IHttpClientFactory httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory;
+    }
+
+    public async Task CallApiAsync()
+    {
+        // IHttpClientFactory reutiliza conexões, prevenindo socket exhaustion
+        var client = _httpClientFactory.CreateClient("ExternalApi");
+        await client.GetAsync("endpoint");
+    }
+}
+```
+
+### Quando Usar Métodos Obsoletos
+
+Os métodos `TraceableHttpClientFactory.Create()` e `CreateWithPolicy()` estão obsoletos, mas ainda funcionam para:
+- Aplicações console de uso único
+- Testes unitários
+- Prototipação rápida
+
+**Nunca use em aplicações web ou de alta carga.**
+
+## Limitações
+
+1. **Socket Exhaustion**: Métodos estáticos `Create()` e `CreateWithPolicy()` podem causar socket exhaustion. Sempre use `IHttpClientFactory` em produção.
+2. **.NET Framework 4.8**: Não tem DI nativo, então `TraceabilityOptions` deve ser configurado via métodos estáticos `Configure()` em `CorrelationIdHttpModule` e `CorrelationIdMessageHandler`.
+3. **Validação de Formato**: A validação de formato do correlation-id é opcional e deve ser habilitada via `TraceabilityOptions.ValidateCorrelationIdFormat`.
+
 ## Troubleshooting
 
 ### O correlation-id não está sendo propagado
 
 1. Certifique-se de que o middleware/handler está configurado corretamente.
-2. Verifique se está usando `TraceableHttpClientFactory` ou `CorrelationIdHandler` para chamadas HTTP.
+2. Verifique se está usando `IHttpClientFactory` com `AddTraceableHttpClient()` ou `AddHttpMessageHandler<CorrelationIdHandler>()` para chamadas HTTP.
 3. Em aplicações assíncronas, certifique-se de que o contexto assíncrono está sendo preservado.
 
 ### Correlation-id não aparece nos logs
@@ -362,6 +461,7 @@ builder.Services.AddLogging(builder =>
 1. Certifique-se de que as versões corretas das dependências estão instaladas.
 2. Para Web API, adicione o `CorrelationIdMessageHandler` no `Global.asax.cs`.
 3. Para ASP.NET tradicional, configure o `CorrelationIdHttpModule` no `web.config`.
+4. Para configurar opções, use `CorrelationIdHttpModule.Configure()` ou `CorrelationIdMessageHandler.Configure()` antes de usar.
 
 ## Contribuindo
 
