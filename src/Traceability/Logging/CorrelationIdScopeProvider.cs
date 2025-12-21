@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Traceability;
@@ -8,12 +7,10 @@ namespace Traceability.Logging
 {
     /// <summary>
     /// Provider de scope para Microsoft.Extensions.Logging que adiciona correlation-id.
-    /// Usa cache para reduzir alocações quando o mesmo correlation-id é usado múltiplas vezes.
     /// </summary>
     public class CorrelationIdScopeProvider : IExternalScopeProvider
     {
         private readonly IExternalScopeProvider? _innerProvider;
-        private static readonly ConcurrentDictionary<string, Dictionary<string, object>> _scopeCache = new();
 
         /// <summary>
         /// Cria uma nova instância do CorrelationIdScopeProvider.
@@ -25,15 +22,14 @@ namespace Traceability.Logging
         }
 
         /// <summary>
-        /// Obtém ou cria um Dictionary de scope para o correlation-id especificado.
-        /// Usa cache para reduzir alocações.
+        /// Cria um Dictionary de scope para o correlation-id especificado.
         /// </summary>
-        private static Dictionary<string, object> GetOrCreateScope(string correlationId)
+        private static Dictionary<string, object> CreateScope(string correlationId)
         {
-            return _scopeCache.GetOrAdd(correlationId, id => new Dictionary<string, object>
+            return new Dictionary<string, object>
             {
-                { "CorrelationId", id }
-            });
+                { "CorrelationId", correlationId }
+            };
         }
 
         /// <summary>
@@ -41,11 +37,12 @@ namespace Traceability.Logging
         /// </summary>
         public void ForEachScope<TState>(Action<object?, TState> callback, TState state)
         {
-            // Adiciona correlation-id ao scope usando cache
-            var correlationId = CorrelationContext.Current;
-            var correlationIdScope = GetOrCreateScope(correlationId);
-
-            callback(correlationIdScope, state);
+            // Tenta obter correlation-id sem criar um novo (evita criar indesejadamente)
+            if (CorrelationContext.TryGetValue(out var correlationId) && !string.IsNullOrEmpty(correlationId))
+            {
+                var correlationIdScope = CreateScope(correlationId);
+                callback(correlationIdScope, state);
+            }
 
             // Chama o provider interno se existir
             _innerProvider?.ForEachScope(callback, state);
@@ -56,12 +53,16 @@ namespace Traceability.Logging
         /// </summary>
         public IDisposable Push(object? state)
         {
-            var correlationId = CorrelationContext.Current;
-            var correlationIdScope = GetOrCreateScope(correlationId);
+            // Tenta obter correlation-id sem criar um novo (evita criar indesejadamente)
+            if (CorrelationContext.TryGetValue(out var correlationId) && !string.IsNullOrEmpty(correlationId))
+            {
+                var correlationIdScope = CreateScope(correlationId);
+                var innerScope = _innerProvider?.Push(correlationIdScope);
+                return new CorrelationIdScope(innerScope, correlationIdScope);
+            }
 
-            var innerScope = _innerProvider?.Push(correlationIdScope);
-            
-            return new CorrelationIdScope(innerScope, correlationIdScope);
+            // Se não houver correlation-id, apenas retorna o scope interno
+            return _innerProvider?.Push(state) ?? new NullScope();
         }
     }
 
@@ -82,6 +83,17 @@ namespace Traceability.Logging
         public void Dispose()
         {
             _innerScope?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Scope nulo que não faz nada (usado quando não há correlation-id).
+    /// </summary>
+    internal class NullScope : IDisposable
+    {
+        public void Dispose()
+        {
+            // Nada a fazer
         }
     }
 }
