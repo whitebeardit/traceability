@@ -14,6 +14,7 @@ namespace Traceability
         /// <summary>
         /// Obtém ou define o correlation-id atual no contexto assíncrono.
         /// Se não existir, cria automaticamente um novo GUID.
+        /// Thread-safe: AsyncLocal já é thread-safe por design.
         /// </summary>
         public static string Current
         {
@@ -51,7 +52,7 @@ namespace Traceability
         /// </summary>
         public static void Clear()
         {
-            _correlationId.Value = null!;
+            _correlationId.Value = null;
         }
 
         /// <summary>
