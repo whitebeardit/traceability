@@ -2,6 +2,7 @@
 using System;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Traceability.HttpClient;
 using Traceability.Configuration;
 
@@ -22,10 +23,17 @@ namespace Traceability.Extensions
             this IServiceCollection services,
             Action<TraceabilityOptions>? configureOptions = null)
         {
-            var options = new TraceabilityOptions();
-            configureOptions?.Invoke(options);
+            // Registra TraceabilityOptions usando o padrão Options
+            if (configureOptions != null)
+            {
+                services.Configure(configureOptions);
+            }
+            else
+            {
+                // Registra com valores padrão se não houver configuração
+                services.Configure<TraceabilityOptions>(_ => { });
+            }
             
-            services.AddSingleton(options);
             services.AddTransient<CorrelationIdHandler>();
             
             return services;
@@ -56,6 +64,48 @@ namespace Traceability.Extensions
             .AddHttpMessageHandler<CorrelationIdHandler>();
             
             return services;
+        }
+
+        /// <summary>
+        /// Adiciona um HttpClient traceable nomeado ao container de DI.
+        /// Previne socket exhaustion ao usar IHttpClientFactory que gerencia o pool de HttpClient.
+        /// </summary>
+        /// <param name="services">A coleção de serviços.</param>
+        /// <param name="clientName">Nome do cliente HTTP (obrigatório).</param>
+        /// <param name="configureClient">Ação para configurar o HttpClient (opcional).</param>
+        /// <returns>IHttpClientBuilder para configuração adicional (ex: políticas Polly).</returns>
+        /// <exception cref="ArgumentNullException">Lançado quando services é null.</exception>
+        /// <exception cref="ArgumentException">Lançado quando clientName é null ou vazio.</exception>
+        /// <remarks>
+        /// Este método configura um HttpClient nomeado com CorrelationIdHandler automaticamente.
+        /// O IHttpClientFactory gerencia o ciclo de vida do HttpClient, prevenindo socket exhaustion.
+        /// 
+        /// Exemplo de uso:
+        /// <code>
+        /// services.AddTraceableHttpClient("ExternalApi", client => {
+        ///     client.BaseAddress = new Uri("https://api.example.com/");
+        ///     client.Timeout = TimeSpan.FromSeconds(30);
+        /// });
+        /// 
+        /// // No controller ou serviço:
+        /// var client = _httpClientFactory.CreateClient("ExternalApi");
+        /// </code>
+        /// </remarks>
+        public static IHttpClientBuilder AddTraceableHttpClient(
+            this IServiceCollection services,
+            string clientName,
+            Action<HttpClient>? configureClient = null)
+        {
+            if (services == null)
+                throw new ArgumentNullException(nameof(services));
+            if (string.IsNullOrEmpty(clientName))
+                throw new ArgumentException("Client name cannot be null or empty", nameof(clientName));
+
+            return services.AddHttpClient(clientName, client =>
+            {
+                configureClient?.Invoke(client);
+            })
+            .AddHttpMessageHandler<CorrelationIdHandler>();
         }
     }
 }
