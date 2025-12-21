@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Traceability;
@@ -7,10 +8,12 @@ namespace Traceability.Logging
 {
     /// <summary>
     /// Provider de scope para Microsoft.Extensions.Logging que adiciona correlation-id.
+    /// Usa cache para reduzir alocações quando o mesmo correlation-id é usado múltiplas vezes.
     /// </summary>
     public class CorrelationIdScopeProvider : IExternalScopeProvider
     {
         private readonly IExternalScopeProvider? _innerProvider;
+        private static readonly ConcurrentDictionary<string, Dictionary<string, object>> _scopeCache = new();
 
         /// <summary>
         /// Cria uma nova instância do CorrelationIdScopeProvider.
@@ -22,16 +25,25 @@ namespace Traceability.Logging
         }
 
         /// <summary>
+        /// Obtém ou cria um Dictionary de scope para o correlation-id especificado.
+        /// Usa cache para reduzir alocações.
+        /// </summary>
+        private static Dictionary<string, object> GetOrCreateScope(string correlationId)
+        {
+            return _scopeCache.GetOrAdd(correlationId, id => new Dictionary<string, object>
+            {
+                { "CorrelationId", id }
+            });
+        }
+
+        /// <summary>
         /// Executa um callback com um scope que inclui o correlation-id.
         /// </summary>
         public void ForEachScope<TState>(Action<object?, TState> callback, TState state)
         {
-            // Adiciona correlation-id ao scope
+            // Adiciona correlation-id ao scope usando cache
             var correlationId = CorrelationContext.Current;
-            var correlationIdScope = new Dictionary<string, object>
-            {
-                { "CorrelationId", correlationId }
-            };
+            var correlationIdScope = GetOrCreateScope(correlationId);
 
             callback(correlationIdScope, state);
 
@@ -45,10 +57,7 @@ namespace Traceability.Logging
         public IDisposable Push(object? state)
         {
             var correlationId = CorrelationContext.Current;
-            var correlationIdScope = new Dictionary<string, object>
-            {
-                { "CorrelationId", correlationId }
-            };
+            var correlationIdScope = GetOrCreateScope(correlationId);
 
             var innerScope = _innerProvider?.Push(correlationIdScope);
             
