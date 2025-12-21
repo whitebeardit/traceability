@@ -75,8 +75,19 @@ namespace Traceability.Middleware
                 CorrelationContext.Current = correlationId;
             }
 
-            // Adiciona o correlation-id no header da resposta
-            context.Response.Headers[headerName] = correlationId;
+            // Adiciona o correlation-id no header da resposta (antes de chamar o próximo middleware)
+            // Verifica se ainda é possível modificar headers
+            if (!context.Response.HasStarted)
+            {
+                try
+                {
+                    context.Response.Headers[headerName] = correlationId;
+                }
+                catch
+                {
+                    // Ignora exceções ao adicionar header (pode ocorrer se headers já foram enviados)
+                }
+            }
 
             // Continua o pipeline
             await _next(context);

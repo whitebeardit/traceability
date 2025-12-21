@@ -94,7 +94,19 @@ namespace Traceability.WebApi
             // Adiciona o correlation-id no header da resposta
             if (response != null && !string.IsNullOrEmpty(correlationId))
             {
-                response.Headers.Add(headerName, correlationId);
+                try
+                {
+                    // Verifica se o header já existe antes de adicionar
+                    if (response.Headers.Contains(headerName))
+                    {
+                        response.Headers.Remove(headerName);
+                    }
+                    response.Headers.Add(headerName, correlationId);
+                }
+                catch
+                {
+                    // Ignora exceções ao adicionar header (pode ocorrer se headers já foram enviados)
+                }
             }
 
             return response;
