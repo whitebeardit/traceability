@@ -1,0 +1,41 @@
+root = true
+
+# Configurações padrão para todos os arquivos
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Arquivos de código C#
+[*.{cs,csx,vb,vbx}]
+indent_style = space
+indent_size = 4
+
+# Arquivos de projeto
+[*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj}]
+indent_style = space
+indent_size = 2
+
+# Arquivos JSON
+[*.json]
+indent_style = space
+indent_size = 2
+
+# Arquivos XML
+[*.{xml,config,props,targets,nuspec,resx,vsixmanifest,vsct}]
+indent_style = space
+indent_size = 2
+
+# Arquivos Markdown
+[*.md]
+trim_trailing_whitespace = false
+
+# Scripts Windows (mantém CRLF)
+[*.{bat,cmd,ps1}]
+end_of_line = crlf
+
+# Scripts Linux/Unix (mantém LF)
+[*.{sh,bash}]
+end_of_line = lf
+

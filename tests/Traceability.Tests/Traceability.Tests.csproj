@@ -5,6 +5,7 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings Condition="'$(TargetFramework)' == 'net8.0'">enable</ImplicitUsings>
+    <Charset>utf-8</Charset>
 
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
