@@ -1,5 +1,6 @@
 #if NET8_0
 using System;
+using System.Net.Http;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -94,7 +95,7 @@ namespace Traceability.Extensions
         public static IHttpClientBuilder AddTraceableHttpClient(
             this IServiceCollection services,
             string clientName,
-            Action<HttpClient>? configureClient = null)
+            Action<System.Net.Http.HttpClient>? configureClient = null)
         {
             if (services == null)
                 throw new ArgumentNullException(nameof(services));
