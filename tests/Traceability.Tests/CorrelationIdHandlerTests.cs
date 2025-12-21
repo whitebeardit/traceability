@@ -70,8 +70,39 @@ namespace Traceability.Tests
             await httpClient.SendAsync(request);
 
             // Assert
-            // O CorrelationContext.Current gera automaticamente, então deve adicionar
-            request.Headers.Contains("X-Correlation-Id").Should().BeTrue();
+            // O handler não deve adicionar header quando não há correlation-id (não cria GUID indesejadamente)
+            request.Headers.Contains("X-Correlation-Id").Should().BeFalse();
+            CorrelationContext.HasValue.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task SendAsync_ShouldNotCreateCorrelationIdWhenNotExists()
+        {
+            // Arrange
+            CorrelationContext.Clear();
+
+            var mockHandler = new Mock<HttpMessageHandler>();
+            mockHandler.Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .ReturnsAsync(new HttpResponseMessage());
+
+            var handler = new CorrelationIdHandler
+            {
+                InnerHandler = mockHandler.Object
+            };
+
+            var httpClient = new System.Net.Http.HttpClient(handler);
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com");
+
+            // Act
+            await httpClient.SendAsync(request);
+
+            // Assert
+            // Verifica que não criou correlation-id indesejadamente
+            CorrelationContext.HasValue.Should().BeFalse();
         }
 
         [Fact]

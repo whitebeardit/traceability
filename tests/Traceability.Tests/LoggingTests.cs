@@ -79,6 +79,93 @@ namespace Traceability.Tests
             // Cleanup
             scope.Dispose();
         }
+
+        [Fact]
+        public void CorrelationIdEnricher_WhenNoCorrelationId_ShouldNotAddToLogEvent()
+        {
+            // Arrange
+            CorrelationContext.Clear();
+
+            var enricher = new CorrelationIdEnricher();
+            var logEvent = new LogEvent(
+                DateTimeOffset.Now,
+                LogEventLevel.Information,
+                null,
+                MessageTemplate.Empty,
+                new List<LogEventProperty>());
+
+            // Act
+            var mockPropertyFactory = new MockPropertyFactory();
+            enricher.Enrich(logEvent, mockPropertyFactory);
+
+            // Assert
+            logEvent.Properties.Should().NotContainKey("CorrelationId");
+            CorrelationContext.HasValue.Should().BeFalse();
+        }
+
+        [Fact]
+        public void CorrelationIdEnricher_ShouldNotCreateCorrelationIdWhenNotExists()
+        {
+            // Arrange
+            CorrelationContext.Clear();
+
+            var enricher = new CorrelationIdEnricher();
+            var logEvent = new LogEvent(
+                DateTimeOffset.Now,
+                LogEventLevel.Information,
+                null,
+                MessageTemplate.Empty,
+                new List<LogEventProperty>());
+
+            // Act
+            var mockPropertyFactory = new MockPropertyFactory();
+            enricher.Enrich(logEvent, mockPropertyFactory);
+
+            // Assert
+            // Verifica que não criou correlation-id indesejadamente
+            CorrelationContext.HasValue.Should().BeFalse();
+        }
+
+        [Fact]
+        public void CorrelationIdScopeProvider_WhenNoCorrelationId_ShouldNotAddToScope()
+        {
+            // Arrange
+            CorrelationContext.Clear();
+
+            var provider = new CorrelationIdScopeProvider();
+            var scopes = new List<object>();
+
+            // Act
+            provider.ForEachScope<object?>((scope, state) =>
+            {
+                scopes.Add(scope);
+            }, null);
+
+            // Assert
+            // Se não houver correlation-id, apenas o provider interno (se existir) adiciona scopes
+            // Como não há provider interno, não deve adicionar nada relacionado a correlation-id
+            CorrelationContext.HasValue.Should().BeFalse();
+        }
+
+        [Fact]
+        public void CorrelationIdScopeProvider_Push_WhenNoCorrelationId_ShouldReturnNullScope()
+        {
+            // Arrange
+            CorrelationContext.Clear();
+
+            var provider = new CorrelationIdScopeProvider();
+
+            // Act
+            var scope = provider.Push(new { Test = "value" });
+
+            // Assert
+            scope.Should().NotBeNull();
+            scope.Should().BeAssignableTo<IDisposable>();
+            CorrelationContext.HasValue.Should().BeFalse();
+
+            // Cleanup
+            scope.Dispose();
+        }
     }
 
     // Helper class para criar ILogEventPropertyFactory

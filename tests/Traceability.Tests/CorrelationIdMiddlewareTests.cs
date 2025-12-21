@@ -21,12 +21,15 @@ namespace Traceability.Tests
 
             var httpContext = new DefaultHttpContext();
             httpContext.Request.Headers["X-Correlation-Id"] = expectedCorrelationId;
+            string? correlationIdInNext = null;
 
             var nextCalled = false;
-            RequestDelegate next = (context) =>
+            RequestDelegate next = async (context) =>
             {
                 nextCalled = true;
-                return Task.CompletedTask;
+                // Verifica o correlation-id dentro do contexto do middleware
+                correlationIdInNext = CorrelationContext.Current;
+                await Task.CompletedTask;
             };
 
             var middleware = new CorrelationIdMiddleware(next);
@@ -35,8 +38,11 @@ namespace Traceability.Tests
             await middleware.InvokeAsync(httpContext);
 
             // Assert
-            CorrelationContext.Current.Should().Be(expectedCorrelationId);
-            httpContext.Response.Headers["X-Correlation-Id"].ToString().Should().Be(expectedCorrelationId);
+            // Verifica que o header da resposta contém o correlation-id esperado
+            var responseHeader = httpContext.Response.Headers["X-Correlation-Id"].ToString();
+            responseHeader.Should().Be(expectedCorrelationId);
+            // Verifica que o correlation-id no contexto do middleware é o mesmo do header
+            correlationIdInNext.Should().Be(expectedCorrelationId);
             nextCalled.Should().BeTrue();
         }
 
@@ -47,12 +53,15 @@ namespace Traceability.Tests
             CorrelationContext.Clear();
 
             var httpContext = new DefaultHttpContext();
+            string? correlationIdInNext = null;
 
             var nextCalled = false;
-            RequestDelegate next = (context) =>
+            RequestDelegate next = async (context) =>
             {
                 nextCalled = true;
-                return Task.CompletedTask;
+                // Verifica o correlation-id dentro do contexto do middleware
+                correlationIdInNext = CorrelationContext.Current;
+                await Task.CompletedTask;
             };
 
             var middleware = new CorrelationIdMiddleware(next);
@@ -61,9 +70,13 @@ namespace Traceability.Tests
             await middleware.InvokeAsync(httpContext);
 
             // Assert
-            var correlationId = CorrelationContext.Current;
-            correlationId.Should().NotBeNullOrEmpty();
-            httpContext.Response.Headers["X-Correlation-Id"].ToString().Should().Be(correlationId);
+            // O header da resposta deve conter um correlation-id gerado
+            var responseHeader = httpContext.Response.Headers["X-Correlation-Id"].ToString();
+            responseHeader.Should().NotBeNullOrEmpty();
+            responseHeader.Length.Should().Be(32); // GUID sem hífens tem 32 caracteres
+            // O correlation-id no contexto do middleware deve ser o mesmo do header
+            correlationIdInNext.Should().NotBeNullOrEmpty();
+            correlationIdInNext.Should().Be(responseHeader);
             nextCalled.Should().BeTrue();
         }
 
