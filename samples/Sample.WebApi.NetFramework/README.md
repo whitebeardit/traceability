@@ -44,13 +44,28 @@ public class ApiController : ApiController
 
 ### 3. Usar HttpClient com Correlation-id
 
+Para .NET Framework 4.8, você precisa gerenciar o HttpClient manualmente. Use `CorrelationIdHandler` para adicionar o correlation-id automaticamente:
+
 ```csharp
+using System.Net.Http;
 using Traceability.HttpClient;
 
-var httpClient = TraceableHttpClientFactory.Create("https://api.example.com/");
+// Configure o HttpClient uma vez (reutilize para evitar socket exhaustion)
+var handler = new CorrelationIdHandler
+{
+    InnerHandler = new HttpClientHandler()
+};
+var httpClient = new HttpClient(handler)
+{
+    BaseAddress = new Uri("https://api.example.com/")
+};
+
+// Use o mesmo HttpClient para múltiplas requisições
 var response = await httpClient.GetAsync("endpoint");
 // O correlation-id é automaticamente adicionado ao header
 ```
+
+**Importante**: Reutilize o mesmo `HttpClient` para múltiplas requisições. Não crie um novo `HttpClient` a cada chamada para evitar socket exhaustion.
 
 ## Notas
 

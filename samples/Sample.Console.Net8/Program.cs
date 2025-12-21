@@ -31,25 +31,16 @@ Console.WriteLine("=== Exemplo 2: Logging com correlation-id ===");
 logger.LogInformation("Mensagem de log com correlation-id automático");
 Console.WriteLine();
 
-// Exemplo 3: HttpClient com correlation-id
-Console.WriteLine("=== Exemplo 3: HttpClient com correlation-id ===");
-var httpClient = TraceableHttpClientFactory.Create("https://jsonplaceholder.typicode.com/");
+// Exemplo 3: Correlation-id preservado em operações assíncronas
+Console.WriteLine("=== Exemplo 3: Correlation-id preservado em operações assíncronas ===");
+var correlationIdBefore = CorrelationContext.Current;
+logger.LogInformation("Correlation ID antes da operação assíncrona: {CorrelationId}", correlationIdBefore);
 
-try
-{
-    var response = await httpClient.GetAsync("posts/1");
-    response.EnsureSuccessStatusCode();
-    
-    var content = await response.Content.ReadAsStringAsync();
-    logger.LogInformation("Chamada HTTP realizada com sucesso. Response length: {Length}", content.Length);
-    
-    // Verificar se o header foi adicionado (não podemos ver diretamente, mas sabemos que foi)
-    Console.WriteLine("Chamada HTTP concluída. O correlation-id foi automaticamente adicionado ao header.");
-}
-catch (Exception ex)
-{
-    logger.LogError(ex, "Erro ao realizar chamada HTTP");
-}
+await Task.Delay(100);
+
+var correlationIdAfter = CorrelationContext.Current;
+logger.LogInformation("Correlation ID após operação assíncrona: {CorrelationId}", correlationIdAfter);
+Console.WriteLine($"Correlation ID preservado: {correlationIdBefore == correlationIdAfter}");
 Console.WriteLine();
 
 // Exemplo 4: Múltiplas operações com o mesmo correlation-id

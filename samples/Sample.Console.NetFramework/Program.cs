@@ -1,8 +1,6 @@
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Traceability;
-using Traceability.HttpClient;
 
 namespace Sample.Console.NetFramework
 {
@@ -17,23 +15,16 @@ namespace Sample.Console.NetFramework
             Console.WriteLine($"Correlation ID atual: {CorrelationContext.Current}");
             Console.WriteLine();
 
-            // Exemplo 2: HttpClient com correlation-id
-            Console.WriteLine("=== Exemplo 2: HttpClient com correlation-id ===");
-            var httpClient = TraceableHttpClientFactory.Create("https://jsonplaceholder.typicode.com/");
+            // Exemplo 2: Correlation-id preservado em operações assíncronas
+            Console.WriteLine("=== Exemplo 2: Correlation-id preservado em operações assíncronas ===");
+            var correlationIdBefore = CorrelationContext.Current;
+            Console.WriteLine($"Correlation ID antes da operação assíncrona: {correlationIdBefore}");
 
-            try
-            {
-                var response = await httpClient.GetAsync("posts/1");
-                response.EnsureSuccessStatusCode();
+            await Task.Delay(100);
 
-                var content = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Chamada HTTP realizada com sucesso. Response length: {content.Length}");
-                Console.WriteLine("O correlation-id foi automaticamente adicionado ao header.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Erro ao realizar chamada HTTP: {ex.Message}");
-            }
+            var correlationIdAfter = CorrelationContext.Current;
+            Console.WriteLine($"Correlation ID após operação assíncrona: {correlationIdAfter}");
+            Console.WriteLine($"Correlation ID preservado: {correlationIdBefore == correlationIdAfter}");
             Console.WriteLine();
 
             // Exemplo 3: Múltiplas operações com o mesmo correlation-id
