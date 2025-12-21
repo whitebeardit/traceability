@@ -316,21 +316,12 @@ var client = new HttpClient(handler);
 
 **Localização**: `src/Traceability/HttpClient/TraceableHttpClientFactory.cs`
 
-**Responsabilidade**: Factory para criar HttpClient configurado com correlation-id e políticas Polly.
+**Responsabilidade**: Factory para criar HttpClient configurado com correlation-id usando IHttpClientFactory. Previne socket exhaustion ao reutilizar conexões HTTP.
 
 **API Pública**:
 ```csharp
 public class TraceableHttpClientFactory
 {
-    // ⚠️ OBSOLETO - Pode causar socket exhaustion
-    [Obsolete]
-    public static HttpClient Create(string? baseAddress = null);
-    
-    [Obsolete]
-    public static HttpClient CreateWithPolicy(
-        IAsyncPolicy<HttpResponseMessage> policy,
-        string? baseAddress = null);
-    
     // ✅ RECOMENDADO - Previne socket exhaustion (.NET 8)
     public static HttpClient CreateFromFactory(
         IHttpClientFactory factory,
@@ -346,21 +337,15 @@ public static IHttpClientBuilder AddTraceableHttpClient(
 ```
 
 **Dependências**:
-- `Polly`
 - `Traceability.HttpClient.CorrelationIdHandler`
 - `.NET 8`: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInjection`
 
 **Comportamento**:
-- Métodos obsoletos criam `HttpClient` diretamente (podem causar socket exhaustion)
-- Métodos recomendados usam `IHttpClientFactory` que gerencia pool de conexões
-- Suporta políticas Polly via `PolicyDelegatingHandler` interno ou `.AddPolicyHandler()`
+- Usa `IHttpClientFactory` que gerencia pool de conexões HTTP
+- Reutiliza sockets, prevenindo socket exhaustion
+- Suporta políticas Polly via `.AddPolicyHandler()` do IHttpClientBuilder
 
-**⚠️ IMPORTANTE - Socket Exhaustion**:
-- Métodos `Create()` e `CreateWithPolicy()` estão obsoletos
-- Sempre use `IHttpClientFactory` em aplicações de produção
-- Use `AddTraceableHttpClient()` para configurar no DI
-
-**Exemplo de Uso Recomendado**:
+**Exemplo de Uso**:
 ```csharp
 // ✅ RECOMENDADO - Previne socket exhaustion
 // Program.cs
@@ -373,12 +358,6 @@ builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 
 // No serviço ou controller
 var client = _httpClientFactory.CreateClient("ExternalApi");
-```
-
-**Exemplo de Uso Obsoleto (apenas para testes/prototipos)**:
-```csharp
-// ⚠️ OBSOLETO - Apenas para testes ou prototipação
-var client = TraceableHttpClientFactory.Create("https://api.example.com/");
 ```
 
 ### 7. CorrelationIdEnricher (Serilog)
@@ -915,11 +894,10 @@ await SomeAsyncMethod(); // Valor preservado
    - Benefício: Simples, único, sem colisões
    - Custo: Não contém informação semântica
 
-6. **⚠️ IMPORTANTE - Socket Exhaustion**: Métodos estáticos `TraceableHttpClientFactory.Create()` e `CreateWithPolicy()` estão obsoletos
-   - **Problema**: Criar `HttpClient` diretamente causa socket exhaustion em aplicações de alta carga
-   - **Solução**: Sempre usar `IHttpClientFactory` com `AddTraceableHttpClient()` ou `AddHttpMessageHandler<CorrelationIdHandler>()`
-   - **Métodos seguros disponíveis**: `CreateFromFactory()` e `AddTraceableHttpClient()` (extensão)
-   - **Status**: Métodos obsoletos marcados com `[Obsolete]` e documentação atualizada
+6. **✅ RESOLVIDO - Socket Exhaustion**: Métodos que causavam socket exhaustion foram removidos
+   - **Solução implementada**: Todos os métodos de criação de HttpClient usam `IHttpClientFactory`
+   - **Métodos disponíveis**: `CreateFromFactory()` e `AddTraceableHttpClient()` (extensão)
+   - **Status**: API limpa que força uso de boas práticas desde o início
 
 ## GUIA DE MODIFICAÇÃO PARA LLMs
 
@@ -1133,23 +1111,28 @@ public class MyController : ControllerBase
 }
 ```
 
-### Exemplo 4: HttpClient com Factory
+### Exemplo 4: HttpClient com IHttpClientFactory
 
 ```csharp
+// Program.cs - Configure o HttpClient
+using Traceability.Extensions;
 using Traceability.HttpClient;
+using Polly;
+using Polly.Extensions.Http;
 
-// Criar HttpClient básico
-var client = TraceableHttpClientFactory.Create("https://api.example.com/");
-
-// Criar com política Polly
 var retryPolicy = HttpPolicyExtensions
     .HandleTransientHttpError()
     .WaitAndRetryAsync(3, retryAttempt => 
         TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
 
-var clientWithPolicy = TraceableHttpClientFactory.CreateWithPolicy(
-    retryPolicy,
-    "https://api.example.com/");
+builder.Services.AddTraceableHttpClient("ExternalApi", client =>
+{
+    client.BaseAddress = new Uri("https://api.example.com/");
+})
+.AddPolicyHandler(retryPolicy);
+
+// No serviço ou controller
+var client = _httpClientFactory.CreateClient("ExternalApi");
 ```
 
 ### Exemplo 5: Teste Unitário

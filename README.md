@@ -151,8 +151,6 @@ public class MyService
 }
 ```
 
-**⚠️ Importante**: Para aplicações de produção, sempre use `IHttpClientFactory` com `AddTraceableHttpClient()` ou `AddHttpMessageHandler<CorrelationIdHandler>()`. Os métodos estáticos `TraceableHttpClientFactory.Create()` estão obsoletos e podem causar socket exhaustion.
-
 ### 5. HttpClient com Dependency Injection (ASP.NET Core)
 
 ```csharp
@@ -334,15 +332,23 @@ HttpModule para aplicações ASP.NET tradicionais.
 
 ### TraceableHttpClientFactory
 
-Factory para criar HttpClient com correlation-id.
+Factory para criar HttpClient com correlation-id usando IHttpClientFactory. Previne socket exhaustion ao reutilizar conexões HTTP.
 
-**⚠️ Métodos Obsoletos (podem causar socket exhaustion):**
-- `Create(string baseAddress = null)`: ⚠️ OBSOLETO - Use `IHttpClientFactory` com `AddTraceableHttpClient()`.
-- `CreateWithPolicy(...)`: ⚠️ OBSOLETO - Use `IHttpClientFactory` com `AddTraceableHttpClient()` e `.AddPolicyHandler()`.
+**Métodos (.NET 8):**
+- `CreateFromFactory(IHttpClientFactory factory, string? clientName = null, string? baseAddress = null)`: Cria HttpClient usando IHttpClientFactory que gerencia o pool de conexões.
+- `AddTraceableHttpClient(this IServiceCollection services, string clientName, Action<HttpClient>? configureClient = null)`: Método de extensão para configurar HttpClient no DI com CorrelationIdHandler automaticamente.
 
-**✅ Métodos Recomendados (.NET 8):**
-- `CreateFromFactory(IHttpClientFactory factory, string? clientName = null, string? baseAddress = null)`: Cria HttpClient usando IHttpClientFactory (previne socket exhaustion).
-- `AddTraceableHttpClient(this IServiceCollection services, string clientName, Action<HttpClient>? configureClient = null)`: Método de extensão para configurar no DI.
+**Exemplo de uso:**
+```csharp
+// Configure no Program.cs
+builder.Services.AddTraceableHttpClient("ExternalApi", client =>
+{
+    client.BaseAddress = new Uri("https://api.example.com/");
+});
+
+// Use no serviço ou controller
+var client = _httpClientFactory.CreateClient("ExternalApi");
+```
 
 ### CorrelationIdHandler
 
@@ -381,34 +387,25 @@ builder.Services.AddLogging(builder =>
 
 ## Prevenção de Socket Exhaustion
 
-### O Problema
+Este pacote foi projetado para prevenir socket exhaustion desde o início. Todos os métodos de criação de HttpClient usam `IHttpClientFactory`, que gerencia o pool de conexões HTTP e reutiliza sockets, evitando o esgotamento.
 
-Socket exhaustion ocorre quando muitos `HttpClient` são criados e não são descartados corretamente. Cada `HttpClient` mantém uma conexão TCP que pode demorar a ser liberada (TIME_WAIT), esgotando os sockets disponíveis.
+### Como Funciona
 
-### ❌ Código Problemático
+O `IHttpClientFactory` gerencia o ciclo de vida dos `HttpClient`:
+- Reutiliza conexões HTTP quando possível
+- Gerencia o pool de sockets automaticamente
+- Previne socket exhaustion mesmo em alta carga
 
-```csharp
-// ❌ PROBLEMA: Cria novo HttpClient a cada chamada
-for (int i = 0; i < 1000; i++)
-{
-    var client = TraceableHttpClientFactory.Create("https://api.example.com/");
-    await client.GetAsync("endpoint");
-    // HttpClient.Dispose() fecha o socket, mas ele fica em TIME_WAIT
-    // Após muitas chamadas, sockets se esgotam
-}
-```
-
-### ✅ Solução Recomendada
+### Uso Correto
 
 ```csharp
-// ✅ CORRETO: Usa IHttpClientFactory que gerencia o pool
-// Program.cs
+// Configure no Program.cs
 builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 {
     client.BaseAddress = new Uri("https://api.example.com/");
 });
 
-// No serviço ou controller
+// Use no serviço ou controller
 public class MyService
 {
     private readonly IHttpClientFactory _httpClientFactory;
@@ -427,20 +424,11 @@ public class MyService
 }
 ```
 
-### Quando Usar Métodos Obsoletos
-
-Os métodos `TraceableHttpClientFactory.Create()` e `CreateWithPolicy()` estão obsoletos, mas ainda funcionam para:
-- Aplicações console de uso único
-- Testes unitários
-- Prototipação rápida
-
-**Nunca use em aplicações web ou de alta carga.**
-
 ## Limitações
 
-1. **Socket Exhaustion**: Métodos estáticos `Create()` e `CreateWithPolicy()` podem causar socket exhaustion. Sempre use `IHttpClientFactory` em produção.
-2. **.NET Framework 4.8**: Não tem DI nativo, então `TraceabilityOptions` deve ser configurado via métodos estáticos `Configure()` em `CorrelationIdHttpModule` e `CorrelationIdMessageHandler`.
-3. **Validação de Formato**: A validação de formato do correlation-id é opcional e deve ser habilitada via `TraceabilityOptions.ValidateCorrelationIdFormat`.
+1. **.NET Framework 4.8**: Não tem DI nativo, então `TraceabilityOptions` deve ser configurado via métodos estáticos `Configure()` em `CorrelationIdHttpModule` e `CorrelationIdMessageHandler`.
+2. **Validação de Formato**: A validação de formato do correlation-id é opcional e deve ser habilitada via `TraceabilityOptions.ValidateCorrelationIdFormat`.
+3. **IHttpClientFactory**: Os métodos de criação de HttpClient requerem `IHttpClientFactory` (disponível apenas em .NET 8 para este pacote). Para .NET Framework, use `CorrelationIdHandler` diretamente com seu próprio gerenciamento de HttpClient.
 
 ## Troubleshooting
 
