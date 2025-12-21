@@ -1,7 +1,10 @@
 #if NET8_0
+using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 using Traceability;
+using Traceability.Configuration;
 
 namespace Traceability.Middleware
 {
@@ -12,16 +15,36 @@ namespace Traceability.Middleware
     /// </summary>
     public class CorrelationIdMiddleware
     {
-        private const string CorrelationIdHeader = "X-Correlation-Id";
         private readonly RequestDelegate _next;
+        private readonly TraceabilityOptions _options;
 
         /// <summary>
         /// Cria uma nova instância do CorrelationIdMiddleware.
         /// </summary>
         /// <param name="next">O próximo middleware no pipeline.</param>
-        public CorrelationIdMiddleware(RequestDelegate next)
+        /// <param name="options">Opções de configuração (opcional, usa padrão se não fornecido).</param>
+        public CorrelationIdMiddleware(RequestDelegate next, IOptions<TraceabilityOptions>? options = null)
         {
             _next = next;
+            _options = options?.Value ?? new TraceabilityOptions();
+        }
+
+        /// <summary>
+        /// Valida o formato do correlation-id se a validação estiver habilitada.
+        /// </summary>
+        private bool IsValidCorrelationId(string? correlationId)
+        {
+            if (!_options.ValidateCorrelationIdFormat)
+                return true;
+
+            if (string.IsNullOrEmpty(correlationId))
+                return false;
+
+            // Valida tamanho máximo (128 caracteres)
+            if (correlationId.Length > 128)
+                return false;
+
+            return true;
         }
 
         /// <summary>
@@ -29,11 +52,20 @@ namespace Traceability.Middleware
         /// </summary>
         public async Task InvokeAsync(HttpContext context)
         {
-            // Tenta obter o correlation-id do header da requisição
-            var correlationId = context.Request.Headers[CorrelationIdHeader].FirstOrDefault();
+            var headerName = _options.HeaderName;
             
-            // Se não existir, gera um novo
-            if (string.IsNullOrEmpty(correlationId))
+            // Tenta obter o correlation-id do header da requisição
+            var correlationId = context.Request.Headers[headerName].FirstOrDefault();
+            
+            // Valida formato se habilitado
+            if (!string.IsNullOrEmpty(correlationId) && !IsValidCorrelationId(correlationId))
+            {
+                // Se inválido, ignora o header e gera novo
+                correlationId = null;
+            }
+            
+            // Se não existir ou AlwaysGenerateNew estiver habilitado, gera um novo
+            if (string.IsNullOrEmpty(correlationId) || _options.AlwaysGenerateNew)
             {
                 correlationId = CorrelationContext.GetOrCreate();
             }
@@ -44,7 +76,7 @@ namespace Traceability.Middleware
             }
 
             // Adiciona o correlation-id no header da resposta
-            context.Response.Headers[CorrelationIdHeader] = correlationId;
+            context.Response.Headers[headerName] = correlationId;
 
             // Continua o pipeline
             await _next(context);
