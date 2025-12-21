@@ -1,0 +1,6 @@
+@Sample.WebApi.Net8_HostAddress = http://localhost:5122
+
+GET {{Sample.WebApi.Net8_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
