@@ -35,6 +35,17 @@ namespace Traceability
         public static bool HasValue => _correlationId.Value != null;
 
         /// <summary>
+        /// Tenta obter o correlation-id existente sem criar um novo se não existir.
+        /// </summary>
+        /// <param name="value">O correlation-id se existir, caso contrário null.</param>
+        /// <returns>true se um correlation-id existe, false caso contrário.</returns>
+        public static bool TryGetValue(out string? value)
+        {
+            value = _correlationId.Value;
+            return value != null;
+        }
+
+        /// <summary>
         /// Obtém o correlation-id existente ou cria um novo se não existir.
         /// </summary>
         /// <returns>O correlation-id atual ou um novo se não existir.</returns>

@@ -158,6 +158,55 @@ namespace Traceability.Tests
             // Assert
             result.Should().Be(expectedId);
         }
+
+        [Fact]
+        public void TryGetValue_WhenNoValue_ShouldReturnFalseAndNull()
+        {
+            // Arrange
+            CorrelationContext.Clear();
+
+            // Act
+            var result = CorrelationContext.TryGetValue(out var value);
+
+            // Assert
+            result.Should().BeFalse();
+            value.Should().BeNull();
+            CorrelationContext.HasValue.Should().BeFalse();
+        }
+
+        [Fact]
+        public void TryGetValue_WhenValueExists_ShouldReturnTrueAndValue()
+        {
+            // Arrange
+            var expectedId = Guid.NewGuid().ToString("N");
+            CorrelationContext.Current = expectedId;
+
+            // Act
+            var result = CorrelationContext.TryGetValue(out var value);
+
+            // Assert
+            result.Should().BeTrue();
+            value.Should().Be(expectedId);
+        }
+
+        [Fact]
+        public void TryGetValue_ShouldNotCreateNewValue()
+        {
+            // Arrange
+            CorrelationContext.Clear();
+
+            // Act
+            var result1 = CorrelationContext.TryGetValue(out var value1);
+            var hasValueAfterTryGet = CorrelationContext.HasValue;
+            var result2 = CorrelationContext.TryGetValue(out var value2);
+
+            // Assert
+            result1.Should().BeFalse();
+            result2.Should().BeFalse();
+            value1.Should().BeNull();
+            value2.Should().BeNull();
+            hasValueAfterTryGet.Should().BeFalse();
+        }
     }
 }
 
