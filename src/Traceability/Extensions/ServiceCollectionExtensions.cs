@@ -17,6 +17,43 @@ namespace Traceability.Extensions
     /// </summary>
     public static class ServiceCollectionExtensions
     {
+        private static void AddOrDecorateExternalScopeProvider(
+            IServiceCollection services,
+            Func<IServiceProvider, IExternalScopeProvider?, IExternalScopeProvider> decorator)
+        {
+            // Evita recursão/ciclo de DI: não resolvemos IExternalScopeProvider via GetService<IExternalScopeProvider>()
+            // dentro do próprio registration. Em vez disso, capturamos o ServiceDescriptor existente e o materializamos.
+            var existingDescriptor = services.LastOrDefault(s => s.ServiceType == typeof(IExternalScopeProvider));
+
+            if (existingDescriptor == null)
+            {
+                services.AddSingleton<IExternalScopeProvider>(sp => decorator(sp, null));
+                return;
+            }
+
+            services.Remove(existingDescriptor);
+
+            services.AddSingleton<IExternalScopeProvider>(sp =>
+            {
+                IExternalScopeProvider? inner = null;
+
+                if (existingDescriptor.ImplementationInstance is IExternalScopeProvider instance)
+                {
+                    inner = instance;
+                }
+                else if (existingDescriptor.ImplementationFactory != null)
+                {
+                    inner = existingDescriptor.ImplementationFactory(sp) as IExternalScopeProvider;
+                }
+                else if (existingDescriptor.ImplementationType != null)
+                {
+                    inner = (IExternalScopeProvider)ActivatorUtilities.CreateInstance(sp, existingDescriptor.ImplementationType);
+                }
+
+                return decorator(sp, inner);
+            });
+        }
+
         /// <summary>
         /// Adiciona os serviços de traceability ao container de DI.
         /// Configura automaticamente todos os componentes (logging, HttpClient, etc.) por padrão.
@@ -70,24 +107,18 @@ namespace Traceability.Extensions
             // Registra CorrelationIdHandler
             services.AddTransient<CorrelationIdHandler>();
 
-            // Configura Microsoft.Extensions.Logging com scope providers
-            // IMPORTANTE: não podemos resolver IExternalScopeProvider dentro do próprio factory,
-            // senão criamos recursão/ciclo de DI (causa hang/StackOverflow no testhost).
-            var hasExternalScopeProvider = services.Any(s => s.ServiceType == typeof(IExternalScopeProvider));
-            if (!hasExternalScopeProvider)
+            // Configura Microsoft.Extensions.Logging com scope providers (decorando o provider existente quando houver)
+            AddOrDecorateExternalScopeProvider(services, (_, inner) =>
             {
                 if (!string.IsNullOrWhiteSpace(tempOptions.Source))
                 {
-                    // Se Source está definido, registra SourceScopeProvider com CorrelationIdScopeProvider como inner
-                    services.AddSingleton<IExternalScopeProvider>(_ =>
-                        new SourceScopeProvider(tempOptions.Source!, new CorrelationIdScopeProvider()));
+                    return new SourceScopeProvider(
+                        tempOptions.Source!,
+                        new CorrelationIdScopeProvider(inner));
                 }
-                else
-                {
-                    // Se Source não está definido, registra apenas CorrelationIdScopeProvider
-                    services.AddSingleton<IExternalScopeProvider>(_ => new CorrelationIdScopeProvider());
-                }
-            }
+
+                return new CorrelationIdScopeProvider(inner);
+            });
 
             // Garante que IHttpClientFactory está disponível
             if (!services.Any(s => s.ServiceType == typeof(IHttpClientFactory)))
@@ -265,13 +296,8 @@ namespace Traceability.Extensions
 
             // Registra SourceScopeProvider para Microsoft.Extensions.Logging
             // O usuário ainda precisa configurar o logger para usar este provider
-            // IMPORTANTE: evitar resolver IExternalScopeProvider dentro do próprio factory (recursão/ciclo)
-            var hasExternalScopeProvider = services.Any(s => s.ServiceType == typeof(IExternalScopeProvider));
-            if (!hasExternalScopeProvider)
-            {
-                services.AddSingleton<IExternalScopeProvider>(_ =>
-                    new SourceScopeProvider(source, new CorrelationIdScopeProvider()));
-            }
+            AddOrDecorateExternalScopeProvider(services, (_, inner) =>
+                new SourceScopeProvider(source, new CorrelationIdScopeProvider(inner)));
 
             return services;
         }
