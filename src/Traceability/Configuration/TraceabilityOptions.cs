@@ -1,3 +1,5 @@
+using Serilog.Events;
+
 namespace Traceability.Configuration
 {
     /// <summary>
@@ -45,7 +47,29 @@ namespace Traceability.Configuration
         /// <summary>
         /// Nome da origem/serviço que está gerando os logs (opcional, mas recomendado).
         /// Este valor será adicionado a todos os logs para identificar a origem em ambientes distribuídos.
+        /// Se não especificado, será lido da variável de ambiente TRACEABILITY_SERVICENAME.
+        /// Se nem esta propriedade nem a variável de ambiente estiverem definidas, uma exceção será lançada
+        /// para forçar o padrão único de logs.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A prioridade de configuração para Source é:
+        /// 1. Parâmetro source (se fornecido explicitamente nos métodos de extensão) - prioridade máxima
+        /// 2. Esta propriedade Source (se definida)
+        /// 3. Variável de ambiente TRACEABILITY_SERVICENAME
+        /// Se nenhum estiver disponível, uma exceção será lançada para garantir uniformização de logs.
+        /// </para>
+        /// <para>
+        /// Exemplo de uso da variável de ambiente:
+        /// <code>
+        /// // Linux/Mac
+        /// export TRACEABILITY_SERVICENAME="UserService"
+        /// 
+        /// // Windows PowerShell
+        /// $env:TRACEABILITY_SERVICENAME="UserService"
+        /// </code>
+        /// </para>
+        /// </remarks>
         public string? Source { get; set; }
 
         /// <summary>
@@ -87,6 +111,24 @@ namespace Traceability.Configuration
         /// Se deve incluir Exception nos logs (padrão: true).
         /// </summary>
         public bool LogIncludeException { get; set; } = true;
+
+        /// <summary>
+        /// Nível mínimo de log para filtrar eventos.
+        /// Se não especificado, será lido da variável de ambiente LOG_LEVEL (prioridade máxima)
+        /// ou usado Information como padrão.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// A prioridade de configuração é:
+        /// 1. Variável de ambiente LOG_LEVEL (prioridade máxima - permite alteração fácil em produção)
+        /// 2. Esta propriedade MinimumLogLevel (usado apenas se env var não estiver presente)
+        /// 3. Information (padrão)
+        /// </para>
+        /// <para>
+        /// Valores aceitos para LOG_LEVEL (case-insensitive): Verbose, Debug, Information, Warning, Error, Fatal
+        /// </para>
+        /// </remarks>
+        public LogEventLevel? MinimumLogLevel { get; set; }
     }
 }
 
