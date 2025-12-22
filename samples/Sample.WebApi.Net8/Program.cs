@@ -16,18 +16,21 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// Adicionar serviços de traceability
+// Adicionar serviços de traceability - ZERO CONFIGURAÇÃO!
+// - Middleware é registrado automaticamente via IStartupFilter
+// - HttpClient é configurado automaticamente com CorrelationIdHandler
+// - Source vem de TRACEABILITY_SERVICENAME ou assembly name
 builder.Services.AddTraceability();
 
 // Adicionar controllers
 builder.Services.AddControllers();
 
-// Adicionar HttpClient traceable
+// HttpClient já está configurado automaticamente com CorrelationIdHandler!
+// Não precisa de .AddHttpMessageHandler<CorrelationIdHandler>()
 builder.Services.AddHttpClient("ExternalApi", client =>
 {
     client.BaseAddress = new Uri("https://jsonplaceholder.typicode.com/");
-})
-.AddHttpMessageHandler<Traceability.HttpClient.CorrelationIdHandler>();
+});
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -44,8 +47,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Adicionar middleware de correlation-id (deve ser adicionado antes dos controllers)
-app.UseCorrelationId();
+// Middleware já está registrado automaticamente via IStartupFilter!
+// Não precisa de app.UseCorrelationId()
 
 // Adicionar controllers
 app.MapControllers();

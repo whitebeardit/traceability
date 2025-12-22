@@ -61,31 +61,35 @@ dotnet add package Traceability
 
 ## Quick Start
 
-### ASP.NET Core (.NET 8) - Configuração Completa
+### ASP.NET Core (.NET 8) - Zero Configuração
 
 **1. Instale o pacote:**
 ```bash
 dotnet add package Traceability
 ```
 
-**2. Configure no `Program.cs`:**
+**2. Configure no `Program.cs` (uma única linha!):**
 
 ```csharp
 using Traceability.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Adicionar traceability com Source (recomendado para logs)
-builder.Services.AddTraceability("MyService");
+// Zero configuração - tudo é automático!
+// Source vem de TRACEABILITY_SERVICENAME ou assembly name
+// Middleware é registrado automaticamente
+// HttpClient é configurado automaticamente
+builder.Services.AddTraceability();
 builder.Services.AddControllers();
 
 var app = builder.Build();
-
-// Adicionar middleware (deve ser antes dos controllers)
-app.UseCorrelationId();
-
 app.MapControllers();
 app.Run();
+```
+
+**Com Source explícito (opcional):**
+```csharp
+builder.Services.AddTraceability("MyService");
 ```
 
 **3. Use em um Controller:**
@@ -147,7 +151,8 @@ info: MyApp.ValuesController[0]
 ```csharp
 // Program.cs
 builder.Services.AddTraceability("MyService");
-builder.Services.AddTraceableHttpClient("ExternalApi", client =>
+// HttpClient já está configurado automaticamente com CorrelationIdHandler!
+builder.Services.AddHttpClient("ExternalApi", client =>
 {
     client.BaseAddress = new Uri("https://api.example.com/");
 });
@@ -165,11 +170,27 @@ public class MyService
     public async Task<string> CallExternalApiAsync()
     {
         // Correlation-id é automaticamente adicionado no header
+        // Não precisa de .AddHttpMessageHandler<CorrelationIdHandler>()!
         var client = _httpClientFactory.CreateClient("ExternalApi");
         var response = await client.GetAsync("endpoint");
         return await response.Content.ReadAsStringAsync();
     }
 }
+```
+
+**Opt-out (quando necessário):**
+
+Se precisar de controle manual sobre a ordem do middleware ou configuração de HttpClient:
+
+```csharp
+builder.Services.AddTraceability("MyService", options =>
+{
+    options.AutoRegisterMiddleware = false;  // Desabilita auto-registro do middleware
+    options.AutoConfigureHttpClient = false; // Desabilita auto-configuração de HttpClient
+});
+
+var app = builder.Build();
+app.UseCorrelationId(); // Agora você controla a ordem manualmente
 ```
 
 **Resultado:**
@@ -191,7 +212,8 @@ Define o nome do serviço/origem que está gerando os logs. Este valor será adi
 1. Parâmetro `source` fornecido explicitamente (prioridade máxima)
 2. `TraceabilityOptions.Source` definido nas opções
 3. Variável de ambiente `TRACEABILITY_SERVICENAME`
-4. Se nenhum estiver disponível, uma exceção será lançada para forçar o padrão único
+4. Assembly name (se `UseAssemblyNameAsFallback = true`, padrão: true)
+5. Se nenhum estiver disponível, uma exceção será lançada para forçar o padrão único
 
 #### `LOG_LEVEL`
 Define o nível mínimo de log (Verbose, Debug, Information, Warning, Error, Fatal).

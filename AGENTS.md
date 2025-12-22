@@ -649,6 +649,9 @@ public class TraceabilityOptions
     public bool LogIncludeMessage { get; set; } = true;
     public bool LogIncludeData { get; set; } = true;
     public bool LogIncludeException { get; set; } = true;
+    public bool AutoRegisterMiddleware { get; set; } = true;
+    public bool AutoConfigureHttpClient { get; set; } = true;
+    public bool UseAssemblyNameAsFallback { get; set; } = true;
 }
 ```
 
@@ -665,6 +668,9 @@ public class TraceabilityOptions
 - `LogIncludeMessage`: Se deve incluir Message nos logs (padrão: true)
 - `LogIncludeData`: Se deve incluir campo Data para objetos serializados nos logs (padrão: true)
 - `LogIncludeException`: Se deve incluir Exception nos logs (padrão: true)
+- `AutoRegisterMiddleware`: Se false, desabilita o registro automático do middleware via IStartupFilter (padrão: true)
+- `AutoConfigureHttpClient`: Se false, desabilita a configuração automática de todos os HttpClients com CorrelationIdHandler (padrão: true)
+- `UseAssemblyNameAsFallback`: Se false, desabilita o uso do assembly name como fallback para Source (padrão: true)
 
 ### 14. Variáveis de Ambiente e Prioridade de Configuração
 
@@ -687,10 +693,13 @@ graph TD
     C -->|Sim| D[Usar Options.Source]
     C -->|Não| E[Ler TRACEABILITY_SERVICENAME]
     E -->|Existe| F[Usar env var]
-    E -->|Não existe| G[Lançar InvalidOperationException]
-    B --> H[Configurar Logger]
-    D --> H
-    F --> H
+    E -->|Não existe| G{UseAssemblyNameAsFallback?}
+    G -->|true| H[Usar Assembly Name]
+    G -->|false| I[Lançar InvalidOperationException]
+    B --> J[Configurar Logger]
+    D --> J
+    F --> J
+    H --> J
 ```
 
 **Prioridade de Configuração**:
@@ -699,6 +708,7 @@ graph TD
    - Prioridade 1: Parâmetro `source` fornecido explicitamente (prioridade máxima)
    - Prioridade 2: `TraceabilityOptions.Source` definido nas opções
    - Prioridade 3: Variável de ambiente `TRACEABILITY_SERVICENAME`
+   - Prioridade 4: Assembly name (se `UseAssemblyNameAsFallback = true`, padrão: true)
    - Se nenhum estiver disponível, uma exceção `InvalidOperationException` será lançada para forçar o padrão único
 
 2. **LogLevel**:
@@ -775,9 +785,13 @@ public static IServiceCollection AddTraceabilityLogging(
 
 **Comportamento**:
 - `AddTraceability()` e `AddTraceabilityLogging()` agora aceitam `source` como opcional
-- Se `source` não for fornecido, será lido de `TraceabilityOptions.Source` ou variável de ambiente `TRACEABILITY_SERVICENAME`
+- Se `source` não for fornecido, será lido de `TraceabilityOptions.Source`, variável de ambiente `TRACEABILITY_SERVICENAME`, ou assembly name (se `UseAssemblyNameAsFallback = true`)
 - Se nenhum source estiver disponível, uma exceção `InvalidOperationException` será lançada
-- Prioridade: Parâmetro > Options.Source > Env Var > Erro
+- Prioridade: Parâmetro > Options.Source > Env Var > Assembly Name > Erro
+- **Auto-configuração**: Por padrão, `AddTraceability()` automaticamente:
+  - Registra o middleware `CorrelationIdMiddleware` via `IStartupFilter` (se `AutoRegisterMiddleware = true`)
+  - Configura todos os HttpClients criados via `IHttpClientFactory` com `CorrelationIdHandler` (se `AutoConfigureHttpClient = true`)
+- **Opt-out**: Defina `AutoRegisterMiddleware = false` ou `AutoConfigureHttpClient = false` nas opções para desabilitar auto-configuração
 
 public static IServiceCollection AddTraceableHttpClient<TClient>(
     this IServiceCollection services,
@@ -1489,7 +1503,7 @@ var id = CorrelationContext.GetOrCreate();
 CorrelationContext.Clear();
 ```
 
-### Exemplo 2: ASP.NET Core - Configuração Completa
+### Exemplo 2: ASP.NET Core - Zero Configuração
 
 ```csharp
 // Program.cs
@@ -1507,11 +1521,15 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// AddTraceability configura defaults automaticamente (logging scopes + IHttpClientFactory + handler)
+// Zero configuração - tudo é automático!
+// - Middleware é registrado automaticamente via IStartupFilter
+// - HttpClient é configurado automaticamente com CorrelationIdHandler
+// - Source vem de TRACEABILITY_SERVICENAME ou assembly name
 builder.Services.AddTraceability("UserService");
 
-// Adicionar HttpClient traceable
-builder.Services.AddTraceableHttpClient("ExternalApi", client =>
+// HttpClient já está configurado automaticamente!
+// Não precisa de .AddHttpMessageHandler<CorrelationIdHandler>()
+builder.Services.AddHttpClient("ExternalApi", client =>
 {
     client.BaseAddress = new Uri("https://api.example.com/");
 });
@@ -1520,8 +1538,8 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// Adicionar middleware (antes dos controllers)
-app.UseCorrelationId();
+// Middleware já está registrado automaticamente!
+// Não precisa de app.UseCorrelationId()
 
 app.MapControllers();
 app.Run();
