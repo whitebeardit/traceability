@@ -86,7 +86,8 @@ jobs:
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_TOKEN: ${{ secrets.NUGET_TOKEN || secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ secrets.NUGET_TOKEN || secrets.NUGET_API_KEY }}
           RELEASE_BRANCH_NAME: ${{ github.ref_name }}
           NUGET_PACKAGE_ID: ${{ github.ref_name == 'staging' && 'Traceability.Staging' || 'Traceability' }}
         run: npx semantic-release
