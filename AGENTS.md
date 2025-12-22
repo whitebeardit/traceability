@@ -187,7 +187,7 @@ CorrelationContext.Clear();
 ```csharp
 public class CorrelationIdMiddleware
 {
-    public CorrelationIdMiddleware(RequestDelegate next);
+    public CorrelationIdMiddleware(RequestDelegate next, IOptions<TraceabilityOptions>? options = null);
     public Task InvokeAsync(HttpContext context);
 }
 ```
@@ -222,6 +222,7 @@ app.UseCorrelationId();
 ```csharp
 public class CorrelationIdMessageHandler : DelegatingHandler
 {
+    public static void Configure(TraceabilityOptions options);
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken);
@@ -232,12 +233,19 @@ public class CorrelationIdMessageHandler : DelegatingHandler
 - `System.Net.Http`
 - `System.Web.Http`
 - `Traceability.CorrelationContext`
+- `Traceability.Configuration`
 
-**Comportamento**: Similar ao Middleware, mas adaptado para o pipeline do Web API.
+**Comportamento**: Similar ao Middleware, mas adaptado para o pipeline do Web API. Como .NET Framework não tem DI nativo, usa configuração estática via `Configure()`.
 
 **Exemplo de Uso**:
 ```csharp
-// Global.asax.cs
+// Global.asax.cs - Configurar opções (opcional)
+CorrelationIdMessageHandler.Configure(new TraceabilityOptions
+{
+    HeaderName = "X-Correlation-Id",
+    ValidateCorrelationIdFormat = true
+});
+
 GlobalConfiguration.Configure(config =>
 {
     config.MessageHandlers.Add(new CorrelationIdMessageHandler());
@@ -256,6 +264,7 @@ GlobalConfiguration.Configure(config =>
 ```csharp
 public class CorrelationIdHttpModule : IHttpModule
 {
+    public static void Configure(TraceabilityOptions options);
     public void Init(HttpApplication context);
     public void Dispose();
 }
@@ -264,10 +273,20 @@ public class CorrelationIdHttpModule : IHttpModule
 **Dependências**:
 - `System.Web`
 - `Traceability.CorrelationContext`
+- `Traceability.Configuration`
 
-**Comportamento**: Intercepta eventos `BeginRequest` e `PreSendRequestHeaders` do pipeline do IIS.
+**Comportamento**: Intercepta eventos `BeginRequest` e `PreSendRequestHeaders` do pipeline do IIS. Como .NET Framework não tem DI nativo, usa configuração estática via `Configure()`.
 
 **Exemplo de Uso**:
+```csharp
+// Global.asax.cs - Configurar opções (opcional, antes do módulo ser usado)
+CorrelationIdHttpModule.Configure(new TraceabilityOptions
+{
+    HeaderName = "X-Correlation-Id",
+    ValidateCorrelationIdFormat = true
+});
+```
+
 ```xml
 <!-- web.config -->
 <system.webServer>
@@ -288,6 +307,9 @@ public class CorrelationIdHttpModule : IHttpModule
 ```csharp
 public class CorrelationIdHandler : DelegatingHandler
 {
+    // .NET 8.0 apenas
+    public CorrelationIdHandler(IOptions<TraceabilityOptions>? options = null);
+    
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken);
@@ -302,11 +324,12 @@ public class CorrelationIdHandler : DelegatingHandler
 **Dependências**:
 - `System.Net.Http`
 - `Traceability.CorrelationContext`
+- `.NET 8`: `Microsoft.Extensions.Options`, `Traceability.Configuration`
 
 **Comportamento**:
-- Obtém `CorrelationContext.Current`
+- Usa `CorrelationContext.TryGetValue()` para obter correlation-id sem criar um novo se não existir
 - Remove header existente (se houver)
-- Adiciona `X-Correlation-Id` ao header da requisição
+- Adiciona `X-Correlation-Id` ao header da requisição apenas se correlation-id existir no contexto
 
 **Exemplo de Uso**:
 ```csharp
@@ -535,8 +558,15 @@ public class TraceabilityOptions
 
 **Métodos**:
 ```csharp
+// Sobrecarga 1: Configuração via Action
 public static IServiceCollection AddTraceability(
     this IServiceCollection services,
+    Action<TraceabilityOptions>? configureOptions = null);
+
+// Sobrecarga 2: Configuração com Source direto (conveniência)
+public static IServiceCollection AddTraceability(
+    this IServiceCollection services,
+    string source,
     Action<TraceabilityOptions>? configureOptions = null);
 
 public static IServiceCollection AddTraceabilityLogging(
@@ -575,6 +605,32 @@ public static IApplicationBuilder UseCorrelationId(this IApplicationBuilder app)
 public static HttpClient AddCorrelationIdHeader(
     this HttpClient client,
     HttpRequestMessage request);
+```
+
+#### LoggerConfigurationExtensions
+
+**Localização**: `src/Traceability/Extensions/LoggerConfigurationExtensions.cs`
+
+**Responsabilidade**: Extensões para LoggerConfiguration do Serilog que facilitam a configuração de traceability.
+
+**Métodos**:
+```csharp
+public static LoggerConfiguration WithTraceability(
+    this LoggerConfiguration config,
+    string source);
+```
+
+**Comportamento**:
+- Adiciona automaticamente `SourceEnricher` e `CorrelationIdEnricher` ao Serilog
+- Source é obrigatório (não pode ser null ou vazio)
+- Facilita configuração de traceability em uma única chamada
+
+**Exemplo de Uso**:
+```csharp
+Log.Logger = new LoggerConfiguration()
+    .WithTraceability("UserService")
+    .WriteTo.Console()
+    .CreateLogger();
 ```
 
 ## PADRÕES DE IMPLEMENTAÇÃO
@@ -702,6 +758,7 @@ src/Traceability/
 ├── Extensions/
 │   ├── ApplicationBuilderExtensions.cs  # Extensão para IApplicationBuilder (.NET 8)
 │   ├── HttpClientExtensions.cs          # Extensões para HttpClient
+│   ├── LoggerConfigurationExtensions.cs # Extensão para LoggerConfiguration (Serilog)
 │   └── ServiceCollectionExtensions.cs   # Extensão para IServiceCollection (.NET 8)
 │
 ├── HttpClient/
@@ -854,9 +911,12 @@ graph LR
 ```mermaid
 graph TD
     A[Log.Information] --> B[CorrelationIdEnricher]
-    B --> C[CorrelationContext.Current]
-    C --> D[Adicionar CorrelationId property]
-    D --> E[Log Event com CorrelationId]
+    B --> C[CorrelationContext.TryGetValue]
+    C --> D{CorrelationId existe?}
+    D -->|Sim| E[Adicionar CorrelationId property]
+    D -->|Não| F[Não adiciona nada]
+    E --> G[Log Event com CorrelationId]
+    F --> H[Log Event sem CorrelationId]
 ```
 
 #### Microsoft.Extensions.Logging
@@ -864,9 +924,12 @@ graph TD
 ```mermaid
 graph TD
     A[logger.LogInformation] --> B[CorrelationIdScopeProvider]
-    B --> C[CorrelationContext.Current]
-    C --> D[Push Scope com CorrelationId]
-    D --> E[Log com CorrelationId no scope]
+    B --> C[CorrelationContext.TryGetValue]
+    C --> D{CorrelationId existe?}
+    D -->|Sim| E[Push Scope com CorrelationId]
+    D -->|Não| F[Não adiciona scope]
+    E --> G[Log com CorrelationId no scope]
+    F --> H[Log sem CorrelationId]
 ```
 
 ## REGRAS E CONSTRAINTS PARA LLMs
