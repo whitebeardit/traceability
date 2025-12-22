@@ -197,10 +197,12 @@ public class CorrelationIdMiddleware
 - `Traceability.CorrelationContext`
 
 **Comportamento**:
-1. Lê header `X-Correlation-Id` da requisição
-2. Se existir, usa o valor e armazena em `CorrelationContext`
-3. Se não existir, gera novo via `CorrelationContext.GetOrCreate()`
+1. Lê header `X-Correlation-Id` da requisição (ou header customizado via `HeaderName`)
+2. Se existir, valida formato (se `ValidateCorrelationIdFormat = true`) e usa o valor
+3. Se não existir ou for inválido, gera novo via `CorrelationContext.GetOrCreate()`
 4. Adiciona correlation-id no header da resposta
+- **Validação de HeaderName**: Se `HeaderName` for null ou vazio, usa "X-Correlation-Id" como padrão
+- **Validação de CorrelationId**: Se habilitada, valida tamanho máximo (128 caracteres)
 
 **Header Padrão**: `X-Correlation-Id`
 
@@ -330,6 +332,7 @@ public class CorrelationIdHandler : DelegatingHandler
 - Usa `CorrelationContext.TryGetValue()` para obter correlation-id sem criar um novo se não existir
 - Remove header existente (se houver)
 - Adiciona `X-Correlation-Id` ao header da requisição apenas se correlation-id existir no contexto
+- **Validação de HeaderName**: Se `HeaderName` for null ou vazio, usa "X-Correlation-Id" como padrão
 
 **Exemplo de Uso**:
 ```csharp
@@ -479,6 +482,7 @@ public class SourceEnricher : ILogEventEnricher
 - Sempre adiciona propriedade `Source` a todos os eventos de log
 - Usa cache para reduzir alocações (similar ao `CorrelationIdEnricher`)
 - Source é obrigatório no construtor (não pode ser null ou vazio)
+- **Sanitização automática**: Source é automaticamente sanitizado para remover caracteres inválidos e limitar tamanho (100 caracteres)
 
 **Exemplo de Uso**:
 ```csharp
@@ -515,6 +519,7 @@ public class SourceScopeProvider : IExternalScopeProvider
 - Sempre adiciona `Source` ao scope de logging
 - Suporta provider interno para encadeamento (decorator pattern)
 - Source é obrigatório no construtor (não pode ser null ou vazio)
+- **Sanitização automática**: Source é automaticamente sanitizado para remover caracteres inválidos e limitar tamanho (100 caracteres)
 
 **Exemplo de Uso**:
 ```csharp
@@ -550,6 +555,10 @@ public class DataEnricher : ILogEventEnricher
 - Ignora propriedades conhecidas (Source, CorrelationId, Message, etc.)
 - Serializa objetos complexos em um campo `data`
 - Se múltiplos objetos, combina em um único objeto `data`
+- **Proteções implementadas**:
+  - Limite de profundidade: 10 níveis (previne stack overflow)
+  - Limite de tamanho: 1000 elementos por coleção (previne OutOfMemoryException)
+  - Detecção de ciclos: identifica referências circulares e as marca como "[Circular reference detected]"
 
 **Exemplo de Uso**:
 ```csharp
@@ -589,6 +598,10 @@ public class JsonFormatter : ITextFormatter
 - Respeita as opções de `TraceabilityOptions` para incluir/excluir campos
 - Suporta JSON compacto ou indentado
 - Inclui automaticamente: Timestamp, Level, Source, CorrelationId, Message, Data, Exception (conforme configuração)
+- **Proteções implementadas**:
+  - Limite de profundidade em exceções: 10 níveis de InnerException (previne stack overflow)
+  - Escape JSON robusto: suporta caracteres Unicode, incluindo surrogate pairs
+  - Validação de estrutura JSON: verifica balanceamento de chaves/colchetes antes de incluir no output
 
 **Exemplo de Uso**:
 ```csharp
@@ -620,7 +633,42 @@ Log.Logger = new LoggerConfiguration()
 }
 ```
 
-### 13. TraceabilityOptions
+### 13. TraceabilityUtilities
+
+**Localização**: `src/Traceability/Utilities/TraceabilityUtilities.cs`
+
+**Responsabilidade**: Utilitários compartilhados para o pacote Traceability, incluindo lógica centralizada para obtenção e sanitização de Source.
+
+**API Pública**:
+```csharp
+internal static class TraceabilityUtilities
+{
+    public static string GetServiceName(string? source, TraceabilityOptions? options = null);
+    public static string SanitizeSource(string source);
+}
+```
+
+**Dependências**:
+- `System.Reflection` (para Assembly.GetEntryAssembly)
+- `Traceability.Configuration`
+
+**Comportamento**:
+- `GetServiceName()`: Centraliza a lógica de obtenção de Source seguindo ordem de prioridade (parâmetro > options > env var > assembly name)
+- `SanitizeSource()`: Remove caracteres inválidos, substitui espaços por underscore, limita tamanho máximo (100 caracteres)
+- Source é automaticamente sanitizado quando obtido via `GetServiceName()`
+
+**Exemplo de Uso**:
+```csharp
+// Usado internamente por ServiceCollectionExtensions e LoggerConfigurationExtensions
+// Não é necessário uso direto - a sanitização é automática
+```
+
+**Decisões de Design**:
+- Classe `internal` pois é utilitário interno do pacote
+- Sanitização automática garante segurança em logs e headers HTTP
+- Lógica centralizada previne duplicação e divergência
+
+### 14. TraceabilityOptions
 
 **Localização**: `src/Traceability/Configuration/TraceabilityOptions.cs`
 
@@ -672,7 +720,7 @@ public class TraceabilityOptions
 - `AutoConfigureHttpClient`: Se false, desabilita a configuração automática de todos os HttpClients com CorrelationIdHandler (padrão: true)
 - `UseAssemblyNameAsFallback`: Se false, desabilita o uso do assembly name como fallback para Source (padrão: true)
 
-### 14. Variáveis de Ambiente e Prioridade de Configuração
+### 15. Variáveis de Ambiente e Prioridade de Configuração
 
 **Localização**: Implementado em `src/Traceability/Extensions/LoggerConfigurationExtensions.cs` e `src/Traceability/Extensions/ServiceCollectionExtensions.cs`
 
@@ -788,6 +836,7 @@ public static IServiceCollection AddTraceabilityLogging(
 - Se `source` não for fornecido, será lido de `TraceabilityOptions.Source`, variável de ambiente `TRACEABILITY_SERVICENAME`, ou assembly name (se `UseAssemblyNameAsFallback = true`)
 - Se nenhum source estiver disponível, uma exceção `InvalidOperationException` será lançada
 - Prioridade: Parâmetro > Options.Source > Env Var > Assembly Name > Erro
+- **Sanitização automática**: Source é automaticamente sanitizado via `TraceabilityUtilities.SanitizeSource()` para garantir segurança
 - **Auto-configuração**: Por padrão, `AddTraceability()` automaticamente:
   - Registra o middleware `CorrelationIdMiddleware` via `IStartupFilter` (se `AutoRegisterMiddleware = true`)
   - Configura todos os HttpClients criados via `IHttpClientFactory` com `CorrelationIdHandler` (se `AutoConfigureHttpClient = true`)
@@ -796,7 +845,7 @@ public static IServiceCollection AddTraceabilityLogging(
 public static IServiceCollection AddTraceableHttpClient<TClient>(
     this IServiceCollection services,
     string? baseAddress = null)
-    where TClient : class, ITraceableHttpClient;
+    where TClient : class;
 
 public static IHttpClientBuilder AddTraceableHttpClient(
     this IServiceCollection services,
@@ -1016,8 +1065,10 @@ src/Traceability/
 │
 ├── HttpClient/
 │   ├── CorrelationIdHandler.cs          # DelegatingHandler para HttpClient
-│   ├── ITraceableHttpClient.cs          # Interface (não implementada)
 │   └── TraceableHttpClientFactory.cs    # Factory para criar HttpClient
+│
+├── Utilities/
+│   └── TraceabilityUtilities.cs         # Utilitários compartilhados (GetServiceName, SanitizeSource)
 │
 ├── Logging/
 │   ├── CorrelationIdEnricher.cs        # Enricher para Serilog
@@ -1309,7 +1360,8 @@ await SomeAsyncMethod(); // Valor preservado
 4. **Fluxo de Decisão para Source**:
    - **Razão**: Permitir múltiplas formas de configuração mantendo prioridade clara
    - **Benefício**: Flexibilidade para diferentes cenários (desenvolvimento, testes, produção)
-   - **Implementação**: Método `GetServiceName()` centraliza a lógica de decisão
+   - **Implementação**: Método `TraceabilityUtilities.GetServiceName()` centraliza a lógica de decisão
+   - **Sanitização**: Source é automaticamente sanitizado via `TraceabilityUtilities.SanitizeSource()` para garantir segurança
 
 **Exemplo do Problema Resolvido**:
 ```csharp
@@ -1347,8 +1399,9 @@ Log.Logger = new LoggerConfiguration()
    - `AlwaysGenerateNew` é usado nos middlewares/handlers
    - `ValidateCorrelationIdFormat` adicionado para validação opcional
 
-2. **Limitação**: `ITraceableHttpClient` interface existe mas não há implementação
-   - Interface definida mas não utilizada
+2. **✅ RESOLVIDO**: `ITraceableHttpClient` interface foi removida
+   - Interface não utilizada foi removida para simplificar a API
+   - `AddTraceableHttpClient<TClient>` agora funciona com qualquer classe (sem constraint de interface)
 
 3. **Trade-off**: Conditional compilation aumenta complexidade
    - Benefício: Suporte multi-framework
@@ -1702,6 +1755,7 @@ Ao fazer modificações no código, verificar:
 - MessageHandler: `src/Traceability/WebApi/CorrelationIdMessageHandler.cs`
 - HttpClient Handler: `src/Traceability/HttpClient/CorrelationIdHandler.cs`
 - Factory: `src/Traceability/HttpClient/TraceableHttpClientFactory.cs`
+- Utilities: `src/Traceability/Utilities/TraceabilityUtilities.cs`
 - Serilog CorrelationId: `src/Traceability/Logging/CorrelationIdEnricher.cs`
 - Serilog Source: `src/Traceability/Logging/SourceEnricher.cs`
 - Serilog Data: `src/Traceability/Logging/DataEnricher.cs`
@@ -1721,4 +1775,24 @@ Ao fazer modificações no código, verificar:
 ---
 
 **Última atualização**: Baseado na versão 1.0.0 do projeto Traceability
+
+## Melhorias de Segurança e Robustez Implementadas
+
+### Proteções contra Stack Overflow
+- **JsonFormatter**: Limite de 10 níveis em cadeias de InnerException
+- **DataEnricher**: Limite de 10 níveis de profundidade em objetos aninhados
+- **DataEnricher**: Detecção automática de referências circulares
+
+### Proteções contra OutOfMemoryException
+- **DataEnricher**: Limite de 1000 elementos por coleção (Dictionary, Structure, Sequence)
+- Mensagens informativas quando limites são atingidos
+
+### Validação e Sanitização
+- **HeaderName**: Validação automática com fallback para "X-Correlation-Id" padrão
+- **Source**: Sanitização automática para remover caracteres inválidos e limitar tamanho (100 caracteres)
+- **CorrelationId**: Validação opcional de formato (tamanho máximo 128 caracteres)
+
+### Thread-Safety
+- **.NET Framework**: Configuração estática agora usa `volatile` e `lock` para garantir thread-safety
+- **CorrelationContext**: Melhorias na implementação para garantir thread-safety em todos os cenários
 
