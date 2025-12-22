@@ -52,7 +52,10 @@ namespace Traceability.Middleware
         /// </summary>
         public async Task InvokeAsync(HttpContext context)
         {
-            var headerName = _options.HeaderName;
+            // Valida e obtém o nome do header (usa padrão se null/vazio)
+            var headerName = string.IsNullOrWhiteSpace(_options.HeaderName) 
+                ? "X-Correlation-Id" 
+                : _options.HeaderName;
             
             // Tenta obter o correlation-id do header da requisição
             var correlationId = context.Request.Headers[headerName].FirstOrDefault();

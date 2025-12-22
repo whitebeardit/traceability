@@ -16,7 +16,18 @@ namespace Traceability.HttpClient
     {
 #if NET8_0
         private readonly TraceabilityOptions? _options;
-        private string CorrelationIdHeader => _options?.HeaderName ?? "X-Correlation-Id";
+        private string CorrelationIdHeader
+        {
+            get
+            {
+                var headerName = _options?.HeaderName;
+                if (string.IsNullOrWhiteSpace(headerName))
+                {
+                    return "X-Correlation-Id";
+                }
+                return headerName;
+            }
+        }
 
         /// <summary>
         /// Cria uma nova instância do CorrelationIdHandler.

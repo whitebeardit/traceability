@@ -13,19 +13,33 @@ namespace Traceability.Middleware
     /// </summary>
     public class CorrelationIdHttpModule : IHttpModule
     {
-        private static TraceabilityOptions _options = new TraceabilityOptions();
-        private string CorrelationIdHeader => _options.HeaderName;
+        private static volatile TraceabilityOptions _options = new TraceabilityOptions();
+        private static readonly object _optionsLock = new object();
+        
+        private string CorrelationIdHeader
+        {
+            get
+            {
+                var headerName = _options.HeaderName;
+                return string.IsNullOrWhiteSpace(headerName) ? "X-Correlation-Id" : headerName;
+            }
+        }
 
         /// <summary>
         /// Configura as opções do módulo (deve ser chamado antes do módulo ser usado).
         /// Como .NET Framework não tem DI nativo, usamos configuração estática.
+        /// Thread-safe: usa lock para garantir consistência em cenários multi-threaded.
         /// </summary>
         /// <param name="options">Opções de configuração.</param>
         public static void Configure(TraceabilityOptions options)
         {
             if (options == null)
                 throw new ArgumentNullException(nameof(options));
-            _options = options;
+            
+            lock (_optionsLock)
+            {
+                _options = options;
+            }
         }
 
         /// <summary>
