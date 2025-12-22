@@ -114,13 +114,87 @@ namespace Traceability.Logging
             if (value == null)
                 return "null";
 
-            // Se já é uma string JSON, retorna diretamente (removendo aspas externas)
-            var str = value.ToString();
-            if (str.StartsWith("{") || str.StartsWith("["))
-                return str;
+            try
+            {
+                var str = value.ToString();
+                
+                // Remove aspas externas se existirem
+                str = str.Trim('"');
+                
+                // Verifica se já é JSON válido (objeto ou array)
+                if ((str.StartsWith("{") && str.EndsWith("}")) || 
+                    (str.StartsWith("[") && str.EndsWith("]")))
+                {
+                    // Valida que é JSON bem formado (verifica balanceamento de chaves/colchetes)
+                    if (IsValidJsonStructure(str))
+                    {
+                        return str;
+                    }
+                }
 
-            // Caso contrário, escapa como string
-            return EscapeJson(str.Trim('"'));
+                // Se não for JSON válido, escapa como string
+                return EscapeJson(str);
+            }
+            catch
+            {
+                // Em caso de erro, retorna string vazia escapada
+                return "\"\"";
+            }
+        }
+
+        private static bool IsValidJsonStructure(string json)
+        {
+            if (string.IsNullOrEmpty(json))
+                return false;
+
+            int braceCount = 0;
+            int bracketCount = 0;
+            bool inString = false;
+            char? escapeChar = null;
+
+            foreach (var c in json)
+            {
+                if (escapeChar.HasValue)
+                {
+                    escapeChar = null;
+                    continue;
+                }
+
+                if (c == '\\')
+                {
+                    escapeChar = c;
+                    continue;
+                }
+
+                if (c == '"' && !escapeChar.HasValue)
+                {
+                    inString = !inString;
+                    continue;
+                }
+
+                if (inString)
+                    continue;
+
+                switch (c)
+                {
+                    case '{':
+                        braceCount++;
+                        break;
+                    case '}':
+                        braceCount--;
+                        if (braceCount < 0) return false;
+                        break;
+                    case '[':
+                        bracketCount++;
+                        break;
+                    case ']':
+                        bracketCount--;
+                        if (bracketCount < 0) return false;
+                        break;
+                }
+            }
+
+            return braceCount == 0 && bracketCount == 0 && !inString;
         }
 
         private static string FormatPropertyValue(LogEventPropertyValue value)
@@ -141,8 +215,19 @@ namespace Traceability.Logging
 
         private static string FormatException(Exception exception)
         {
+            return FormatException(exception, maxDepth: 10);
+        }
+
+        private static string FormatException(Exception exception, int maxDepth)
+        {
             if (exception == null)
                 return "null";
+
+            // Previne stack overflow limitando a profundidade de InnerExceptions
+            if (maxDepth <= 0)
+            {
+                return "{\"Type\":\"Exception\",\"Message\":\"Maximum exception depth reached\"}";
+            }
 
             var sb = new StringBuilder();
             sb.Append('{');
@@ -156,7 +241,7 @@ namespace Traceability.Logging
 
             if (exception.InnerException != null)
             {
-                sb.Append($",\"InnerException\":{FormatException(exception.InnerException)}");
+                sb.Append($",\"InnerException\":{FormatException(exception.InnerException, maxDepth - 1)}");
             }
 
             sb.Append('}');
@@ -219,7 +304,7 @@ namespace Traceability.Logging
             if (string.IsNullOrEmpty(value))
                 return string.Empty;
 
-            var sb = new StringBuilder(value.Length);
+            var sb = new StringBuilder(value.Length * 2); // Pre-aloca espaço extra para caracteres escapados
             foreach (var c in value)
             {
                 switch (c)
@@ -246,9 +331,26 @@ namespace Traceability.Logging
                         sb.Append("\\t");
                         break;
                     default:
+                        // Caracteres de controle (0x00-0x1F) e caracteres Unicode não-ASCII problemáticos
                         if (c < 0x20)
                         {
+                            // Caracteres de controle: escape como \uXXXX
                             sb.AppendFormat("\\u{0:X4}", (int)c);
+                        }
+                        else if (c > 0x7F && c <= 0xFFFF)
+                        {
+                            // Caracteres Unicode no BMP: escape como \uXXXX se necessário
+                            // Para compatibilidade, mantém caracteres Unicode válidos como estão
+                            // mas escapa se for problemático para JSON
+                            sb.Append(c);
+                        }
+                        else if (c > 0xFFFF)
+                        {
+                            // Caracteres Unicode fora do BMP: converte para surrogate pair
+                            var codePoint = (int)c;
+                            var highSurrogate = 0xD800 + ((codePoint - 0x10000) >> 10);
+                            var lowSurrogate = 0xDC00 + ((codePoint - 0x10000) & 0x3FF);
+                            sb.AppendFormat("\\u{0:X4}\\u{1:X4}", highSurrogate, lowSurrogate);
                         }
                         else
                         {
