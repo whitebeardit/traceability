@@ -1,0 +1,41 @@
+{
+  "branches": [
+    {
+      "name": "main",
+      "prerelease": false
+    },
+    {
+      "name": "staging",
+      "prerelease": "alpha"
+    }
+  ],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/changelog",
+      {
+        "changelogFile": "CHANGELOG.md"
+      }
+    ],
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "chmod +x scripts/update-version.sh && scripts/update-version.sh ${nextRelease.version} && dotnet build src/Traceability/Traceability.csproj --configuration Release --no-restore && dotnet pack src/Traceability/Traceability.csproj --configuration Release --no-build --output ./artifacts",
+        "publishCmd": "dotnet nuget push ./artifacts/*.nupkg --api-key ${process.env.NUGET_API_KEY} --source https://api.nuget.org/v3/index.json --skip-duplicate"
+      }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "assets": [
+          "CHANGELOG.md",
+          "src/Traceability/Traceability.csproj"
+        ],
+        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+      }
+    ],
+    "@semantic-release/github"
+  ]
+}
+
