@@ -22,10 +22,10 @@ jobs:
         run: dotnet restore
       
       - name: Build
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build --configuration Release --framework net8.0 --no-restore
       
       - name: Test
-        run: dotnet test --configuration Release --no-build --verbosity normal
+        run: dotnet test --configuration Release --framework net8.0 --no-build --verbosity normal
 
   build-and-test-net48:
     runs-on: windows-latest
