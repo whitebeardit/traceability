@@ -135,6 +135,7 @@ public static class CorrelationContext
     public static bool HasValue { get; }
     
     // Métodos
+    public static bool TryGetValue(out string? value);
     public static string GetOrCreate();
     public static void Clear();
 }
@@ -157,6 +158,12 @@ var correlationId = CorrelationContext.Current;
 if (CorrelationContext.HasValue)
 {
     var id = CorrelationContext.Current;
+}
+
+// Tentar obter sem criar (recomendado para evitar criação indesejada)
+if (CorrelationContext.TryGetValue(out var correlationId))
+{
+    // Usar correlationId
 }
 
 // Limpar contexto
@@ -379,8 +386,9 @@ public class CorrelationIdEnricher : ILogEventEnricher
 - `Traceability.CorrelationContext`
 
 **Comportamento**:
-- Adiciona propriedade `CorrelationId` a todos os eventos de log
-- Obtém valor de `CorrelationContext.Current`
+- Adiciona propriedade `CorrelationId` a todos os eventos de log se existir no contexto
+- Usa `CorrelationContext.TryGetValue()` para evitar criar correlation-id indesejadamente
+- Se não houver correlation-id no contexto, não adiciona nada ao log (não cria um novo)
 
 **Exemplo de Uso**:
 ```csharp
@@ -412,7 +420,9 @@ public class CorrelationIdScopeProvider : IExternalScopeProvider
 - `Traceability.CorrelationContext`
 
 **Comportamento**:
-- Adiciona `CorrelationId` ao scope de logging
+- Adiciona `CorrelationId` ao scope de logging se existir no contexto
+- Usa `CorrelationContext.TryGetValue()` para evitar criar correlation-id indesejadamente
+- Se não houver correlation-id no contexto, não adiciona ao scope (não cria um novo)
 - Suporta provider interno para encadeamento
 
 **Exemplo de Uso**:
@@ -424,7 +434,80 @@ builder.Services.AddLogging(builder =>
 });
 ```
 
-### 9. TraceabilityOptions
+### 9. SourceEnricher (Serilog)
+
+**Localização**: `src/Traceability/Logging/SourceEnricher.cs`
+
+**Responsabilidade**: Enricher do Serilog que adiciona o campo `Source` aos logs. O campo `Source` identifica a origem/serviço que está gerando os logs, essencial para unificar logs em ambientes distribuídos.
+
+**API Pública**:
+```csharp
+public class SourceEnricher : ILogEventEnricher
+{
+    public SourceEnricher(string source);
+    public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory);
+}
+```
+
+**Dependências**:
+- `Serilog`
+- Nenhuma dependência de `CorrelationContext` (Source sempre é adicionado)
+
+**Comportamento**:
+- Sempre adiciona propriedade `Source` a todos os eventos de log
+- Usa cache para reduzir alocações (similar ao `CorrelationIdEnricher`)
+- Source é obrigatório no construtor (não pode ser null ou vazio)
+
+**Exemplo de Uso**:
+```csharp
+Log.Logger = new LoggerConfiguration()
+    .Enrich.With(new SourceEnricher("UserService"))
+    .Enrich.With<CorrelationIdEnricher>()
+    .WriteTo.Console(
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}")
+    .CreateLogger();
+```
+
+**Nota**: O campo `Source` sempre será adicionado aos logs, independentemente da presença de correlation-id.
+
+### 10. SourceScopeProvider (Microsoft.Extensions.Logging)
+
+**Localização**: `src/Traceability/Logging/SourceScopeProvider.cs`
+
+**Responsabilidade**: Provider de scope para Microsoft.Extensions.Logging que adiciona o campo `Source`. O campo `Source` identifica a origem/serviço que está gerando os logs.
+
+**API Pública**:
+```csharp
+public class SourceScopeProvider : IExternalScopeProvider
+{
+    public SourceScopeProvider(string source, IExternalScopeProvider? innerProvider = null);
+    public void ForEachScope<TState>(Action<object?, TState> callback, TState state);
+    public IDisposable Push(object? state);
+}
+```
+
+**Dependências**:
+- `Microsoft.Extensions.Logging`
+- Nenhuma dependência de `CorrelationContext` (Source sempre é adicionado)
+
+**Comportamento**:
+- Sempre adiciona `Source` ao scope de logging
+- Suporta provider interno para encadeamento (decorator pattern)
+- Source é obrigatório no construtor (não pode ser null ou vazio)
+
+**Exemplo de Uso**:
+```csharp
+builder.Services.AddLogging(builder =>
+{
+    builder.AddConsole();
+    // SourceScopeProvider como externo, CorrelationIdScopeProvider como interno
+    builder.AddScopeProvider(new SourceScopeProvider("UserService", new CorrelationIdScopeProvider()));
+});
+```
+
+**Nota**: O campo `Source` sempre será adicionado ao scope, independentemente da presença de correlation-id.
+
+### 11. TraceabilityOptions
 
 **Localização**: `src/Traceability/Configuration/TraceabilityOptions.cs`
 
@@ -436,12 +519,16 @@ public class TraceabilityOptions
 {
     public string HeaderName { get; set; } = "X-Correlation-Id";
     public bool AlwaysGenerateNew { get; set; } = false;
+    public bool ValidateCorrelationIdFormat { get; set; } = false;
+    public string? Source { get; set; }
 }
 ```
 
-**Status**: Classe definida mas não totalmente utilizada no código atual. O header está hardcoded como `"X-Correlation-Id"` nos componentes.
-
-**Nota para LLMs**: Esta classe existe para futuras extensões, mas atualmente não é utilizada pelos middlewares/handlers.
+**Propriedades**:
+- `HeaderName`: Nome do header HTTP para correlation-id (padrão: "X-Correlation-Id")
+- `AlwaysGenerateNew`: Se true, gera um novo correlation-id mesmo se já existir um no contexto (padrão: false)
+- `ValidateCorrelationIdFormat`: Se true, valida o formato do correlation-id recebido no header (padrão: false)
+- `Source`: Nome da origem/serviço que está gerando os logs (opcional, mas recomendado para unificar logs distribuídos)
 
 ### 10. Extensions
 
@@ -457,10 +544,20 @@ public static IServiceCollection AddTraceability(
     this IServiceCollection services,
     Action<TraceabilityOptions>? configureOptions = null);
 
+public static IServiceCollection AddTraceabilityLogging(
+    this IServiceCollection services,
+    string source,
+    Action<TraceabilityOptions>? configureOptions = null);
+
 public static IServiceCollection AddTraceableHttpClient<TClient>(
     this IServiceCollection services,
     string? baseAddress = null)
     where TClient : class, ITraceableHttpClient;
+
+public static IHttpClientBuilder AddTraceableHttpClient(
+    this IServiceCollection services,
+    string clientName,
+    Action<HttpClient>? configureClient = null);
 ```
 
 #### ApplicationBuilderExtensions
@@ -619,7 +716,9 @@ src/Traceability/
 │
 ├── Logging/
 │   ├── CorrelationIdEnricher.cs        # Enricher para Serilog
-│   └── CorrelationIdScopeProvider.cs    # ScopeProvider para MEL
+│   ├── CorrelationIdScopeProvider.cs   # ScopeProvider para MEL
+│   ├── SourceEnricher.cs               # Enricher Source para Serilog
+│   └── SourceScopeProvider.cs          # ScopeProvider Source para MEL
 │
 ├── Middleware/
 │   ├── CorrelationIdHttpModule.cs      # HttpModule (.NET Framework)
@@ -1046,16 +1145,20 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar Serilog
+// Configurar Serilog com SourceEnricher e CorrelationIdEnricher
 Log.Logger = new LoggerConfiguration()
+    .Enrich.With(new SourceEnricher("UserService"))
     .Enrich.With<CorrelationIdEnricher>()
-    .WriteTo.Console()
+    .WriteTo.Console(
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}")
     .CreateLogger();
 
 builder.Host.UseSerilog();
 
-// Adicionar traceability
-builder.Services.AddTraceability();
+// Adicionar traceability com logging
+// Nota: AddTraceabilityLogging registra SourceScopeProvider para Microsoft.Extensions.Logging.
+// Para Serilog, configure SourceEnricher manualmente (veja acima).
+builder.Services.AddTraceabilityLogging("UserService");
 
 // Adicionar HttpClient traceable
 builder.Services.AddHttpClient("ExternalApi", client =>
@@ -1232,8 +1335,11 @@ Ao fazer modificações no código, verificar:
 - MessageHandler: `src/Traceability/WebApi/CorrelationIdMessageHandler.cs`
 - HttpClient Handler: `src/Traceability/HttpClient/CorrelationIdHandler.cs`
 - Factory: `src/Traceability/HttpClient/TraceableHttpClientFactory.cs`
-- Serilog: `src/Traceability/Logging/CorrelationIdEnricher.cs`
-- MEL: `src/Traceability/Logging/CorrelationIdScopeProvider.cs`
+- Serilog CorrelationId: `src/Traceability/Logging/CorrelationIdEnricher.cs`
+- Serilog Source: `src/Traceability/Logging/SourceEnricher.cs`
+- MEL CorrelationId: `src/Traceability/Logging/CorrelationIdScopeProvider.cs`
+- MEL Source: `src/Traceability/Logging/SourceScopeProvider.cs`
+- Configuration: `src/Traceability/Configuration/TraceabilityOptions.cs`
 
 ### Exemplos
 - ASP.NET Core: `samples/Sample.WebApi.Net8/`

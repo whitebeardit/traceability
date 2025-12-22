@@ -233,8 +233,8 @@ public class ValuesController : ControllerBase
 **1. Logs no Console (Serilog):**
 
 ```
-[14:23:45 INF] a1b2c3d4e5f6789012345678901234ab Processando requisição com CorrelationId: a1b2c3d4e5f6789012345678901234ab
-[14:23:46 INF] a1b2c3d4e5f6789012345678901234ab Requisição externa concluída
+[14:23:45 INF] UserService a1b2c3d4e5f6789012345678901234ab Processando requisição com CorrelationId: a1b2c3d4e5f6789012345678901234ab
+[14:23:46 INF] UserService a1b2c3d4e5f6789012345678901234ab Requisição externa concluída
 ```
 
 **2. Requisição HTTP (sem correlation-id):**
@@ -417,6 +417,12 @@ if (CorrelationContext.HasValue)
     var id = CorrelationContext.Current;
 }
 
+// Tentar obter sem criar (recomendado para evitar criação indesejada)
+if (CorrelationContext.TryGetValue(out var correlationId))
+{
+    // Usar correlationId
+}
+
 // Obter ou criar explicitamente
 var id = CorrelationContext.GetOrCreate();
 
@@ -437,12 +443,13 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
 
-// Configurar Serilog com CorrelationIdEnricher
+// Configurar Serilog com SourceEnricher e CorrelationIdEnricher
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
+    .Enrich.With(new SourceEnricher("ConsoleApp"))
     .Enrich.With<CorrelationIdEnricher>()
     .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId} {Message:lj}{NewLine}{Exception}")
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 
 var loggerFactory = LoggerFactory.Create(builder =>
@@ -987,7 +994,7 @@ Log.Logger = new LoggerConfiguration()
 [2024-01-15 14:23:46.789] [INF] [a1b2c3d4e5f6789012345678901234ab] Requisição concluída
 ```
 
-### Microsoft.Extensions.Logging com CorrelationIdScopeProvider
+### Microsoft.Extensions.Logging com CorrelationIdScopeProvider e SourceScopeProvider
 
 **Configuração (.NET 8):**
 
@@ -997,7 +1004,8 @@ using Traceability.Logging;
 builder.Services.AddLogging(builder =>
 {
     builder.AddConsole();
-    builder.AddScopeProvider(new CorrelationIdScopeProvider());
+    // SourceScopeProvider deve ser o provider externo, CorrelationIdScopeProvider como interno
+    builder.AddScopeProvider(new SourceScopeProvider("UserService", new CorrelationIdScopeProvider()));
 });
 ```
 
@@ -1016,19 +1024,22 @@ logger.LogInformation("Requisição concluída");
 
 ```
 info: MyApp.MyService[0]
+      => Source: UserService
       => CorrelationId: a1b2c3d4e5f6789012345678901234ab
       Processando requisição
 info: MyApp.MyService[0]
+      => Source: UserService
       => CorrelationId: a1b2c3d4e5f6789012345678901234ab
       Chamando serviço externo
 info: MyApp.MyService[0]
+      => Source: UserService
       => CorrelationId: a1b2c3d4e5f6789012345678901234ab
       Requisição concluída
 ```
 
 **Configuração (.NET Framework 4.8):**
 
-No .NET Framework 4.8, você pode usar Microsoft.Extensions.Logging com o CorrelationIdScopeProvider:
+No .NET Framework 4.8, você pode usar Microsoft.Extensions.Logging com o CorrelationIdScopeProvider e SourceScopeProvider:
 
 ```csharp
 using Traceability.Logging;
@@ -1037,7 +1048,7 @@ using Microsoft.Extensions.Logging;
 var loggerFactory = LoggerFactory.Create(builder =>
 {
     builder.AddConsole();
-    builder.AddScopeProvider(new CorrelationIdScopeProvider());
+    builder.AddScopeProvider(new SourceScopeProvider("UserService", new CorrelationIdScopeProvider()));
 });
 
 var logger = loggerFactory.CreateLogger<MyService>();
@@ -1050,6 +1061,7 @@ logger.LogInformation("Processando requisição");
 
 ```
 info: MyApp.MyService[0]
+      => Source: UserService
       => CorrelationId: f1e2d3c4b5a6978012345678901234cd
       Processando requisição
 ```
@@ -1059,13 +1071,14 @@ info: MyApp.MyService[0]
 **Serilog (Mais Compacto):**
 
 ```
-[14:23:45 INF] a1b2c3d4e5f6789012345678901234ab Processando requisição
+[14:23:45 INF] UserService a1b2c3d4e5f6789012345678901234ab Processando requisição
 ```
 
 **Microsoft.Extensions.Logging (Mais Detalhado):**
 
 ```
 info: MyApp.MyService[0]
+      => Source: UserService
       => CorrelationId: a1b2c3d4e5f6789012345678901234ab
       Processando requisição
 ```
@@ -1082,23 +1095,23 @@ Quando você tem uma cadeia de chamadas (Serviço A → Serviço B → Serviço 
 **Serviço A (Logs):**
 
 ```
-[14:23:45 INF] a1b2c3d4e5f6789012345678901234ab Recebendo requisição
-[14:23:45 INF] a1b2c3d4e5f6789012345678901234ab Chamando Serviço B
-[14:23:46 INF] a1b2c3d4e5f6789012345678901234ab Resposta recebida do Serviço B
+[14:23:45 INF] UserService a1b2c3d4e5f6789012345678901234ab Recebendo requisição
+[14:23:45 INF] UserService a1b2c3d4e5f6789012345678901234ab Chamando Serviço B
+[14:23:46 INF] UserService a1b2c3d4e5f6789012345678901234ab Resposta recebida do Serviço B
 ```
 
 **Serviço B (Logs):**
 
 ```
-[14:23:45 INF] a1b2c3d4e5f6789012345678901234ab Recebendo requisição do Serviço A
-[14:23:45 INF] a1b2c3d4e5f6789012345678901234ab Chamando Serviço C
-[14:23:46 INF] a1b2c3d4e5f6789012345678901234ab Resposta recebida do Serviço C
+[14:23:45 INF] OrderService a1b2c3d4e5f6789012345678901234ab Recebendo requisição do Serviço A
+[14:23:45 INF] OrderService a1b2c3d4e5f6789012345678901234ab Chamando Serviço C
+[14:23:46 INF] OrderService a1b2c3d4e5f6789012345678901234ab Resposta recebida do Serviço C
 ```
 
 **Serviço C (Logs):**
 
 ```
-[14:23:45 INF] a1b2c3d4e5f6789012345678901234ab Recebendo requisição do Serviço B
+[14:23:45 INF] PaymentService a1b2c3d4e5f6789012345678901234ab Recebendo requisição do Serviço B
 [14:23:46 INF] a1b2c3d4e5f6789012345678901234ab Processamento concluído
 ```
 
@@ -1145,6 +1158,7 @@ Classe estática para gerenciar o correlation-id no contexto assíncrono.
 
 #### Métodos
 
+- `TryGetValue(out string? value)`: Tenta obter o correlation-id existente sem criar um novo se não existir. Retorna `true` se existe, `false` caso contrário.
 - `GetOrCreate()`: Obtém o correlation-id existente ou cria um novo.
 - `Clear()`: Limpa o correlation-id do contexto.
 
@@ -1206,7 +1220,7 @@ services.AddHttpClient("MyClient")
 
 #### CorrelationIdEnricher (Serilog)
 
-Enricher que adiciona correlation-id aos logs do Serilog.
+Enricher que adiciona correlation-id aos logs do Serilog. **Importante**: Este enricher não cria um correlation-id se não existir no contexto (usa `TryGetValue` para evitar criação indesejada).
 
 **Uso:**
 ```csharp
@@ -1215,9 +1229,25 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 ```
 
+#### SourceEnricher (Serilog)
+
+Enricher que adiciona o campo `Source` aos logs do Serilog. O campo `Source` identifica a origem/serviço que está gerando os logs, essencial para unificar logs em ambientes distribuídos.
+
+**Uso:**
+```csharp
+Log.Logger = new LoggerConfiguration()
+    .Enrich.With(new SourceEnricher("UserService"))
+    .Enrich.With<CorrelationIdEnricher>()
+    .WriteTo.Console(
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}")
+    .CreateLogger();
+```
+
+**Nota:** O campo `Source` sempre será adicionado aos logs, independentemente da presença de correlation-id.
+
 #### CorrelationIdScopeProvider (Microsoft.Extensions.Logging)
 
-Provider que adiciona correlation-id ao scope de logging.
+Provider que adiciona correlation-id ao scope de logging. **Importante**: Este provider não cria um correlation-id se não existir no contexto (usa `TryGetValue` para evitar criação indesejada).
 
 **Uso:**
 ```csharp
@@ -1225,6 +1255,40 @@ builder.Services.AddLogging(builder =>
 {
     builder.AddScopeProvider(new CorrelationIdScopeProvider());
 });
+```
+
+#### SourceScopeProvider (Microsoft.Extensions.Logging)
+
+Provider que adiciona o campo `Source` ao scope de logging. O campo `Source` identifica a origem/serviço que está gerando os logs.
+
+**Uso:**
+```csharp
+builder.Services.AddLogging(builder =>
+{
+    builder.AddScopeProvider(new SourceScopeProvider("UserService"));
+});
+```
+
+**Nota:** O campo `Source` sempre será adicionado ao scope, independentemente da presença de correlation-id.
+
+#### AddTraceabilityLogging (Método de Extensão)
+
+Método de conveniência que configura traceability com logging, incluindo o campo `Source`.
+
+**Uso (.NET 8):**
+```csharp
+// Program.cs
+builder.Services.AddTraceabilityLogging("UserService", options =>
+{
+    options.HeaderName = "X-Correlation-Id";
+});
+
+// Para Serilog, ainda é necessário configurar o SourceEnricher manualmente:
+Log.Logger = new LoggerConfiguration()
+    .Enrich.With(new SourceEnricher("UserService"))
+    .Enrich.With<CorrelationIdEnricher>()
+    .WriteTo.Console()
+    .CreateLogger();
 ```
 
 ## Prevenção de Socket Exhaustion
@@ -1304,4 +1368,6 @@ MIT
 ## Versão
 
 1.0.0
+
+
 
