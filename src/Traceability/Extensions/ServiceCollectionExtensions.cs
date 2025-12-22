@@ -2,13 +2,13 @@
 using System;
 using System.Linq;
 using System.Net.Http;
-using System.Reflection;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Traceability.HttpClient;
 using Traceability.Configuration;
 using Traceability.Logging;
+using Traceability.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace Traceability.Extensions
@@ -18,56 +18,6 @@ namespace Traceability.Extensions
     /// </summary>
     public static class ServiceCollectionExtensions
     {
-        private const string ServiceNameEnvironmentVariable = "TRACEABILITY_SERVICENAME";
-
-        /// <summary>
-        /// Obtém o ServiceName (Source) seguindo a ordem de prioridade:
-        /// 1) Parâmetro source (se fornecido e não vazio)
-        /// 2) options.Source (se definido)
-        /// 3) Variável de ambiente TRACEABILITY_SERVICENAME
-        /// 4) Assembly name (se UseAssemblyNameAsFallback = true)
-        /// Se nenhum estiver disponível, lança InvalidOperationException.
-        /// </summary>
-        /// <param name="source">Source fornecido como parâmetro (opcional).</param>
-        /// <param name="options">Opções de traceability (opcional).</param>
-        /// <returns>O ServiceName configurado.</returns>
-        /// <exception cref="InvalidOperationException">Lançado quando nenhum source está disponível.</exception>
-        private static string GetServiceName(string? source, TraceabilityOptions? options = null)
-        {
-            // Prioridade 1: Parâmetro source (se fornecido e não vazio)
-            if (!string.IsNullOrWhiteSpace(source))
-            {
-                return source!; // Já validado acima
-            }
-
-            // Prioridade 2: options.Source (se definido)
-            if (options != null && !string.IsNullOrWhiteSpace(options.Source))
-            {
-                return options.Source!; // Já validado acima - não pode ser null após IsNullOrWhiteSpace
-            }
-
-            // Prioridade 3: Variável de ambiente TRACEABILITY_SERVICENAME
-            var envValue = Environment.GetEnvironmentVariable(ServiceNameEnvironmentVariable);
-            if (!string.IsNullOrWhiteSpace(envValue))
-            {
-                return envValue;
-            }
-
-            // Prioridade 4: Assembly name (se UseAssemblyNameAsFallback = true)
-            if (options == null || options.UseAssemblyNameAsFallback)
-            {
-                var assemblyName = Assembly.GetEntryAssembly()?.GetName().Name;
-                if (!string.IsNullOrWhiteSpace(assemblyName))
-                {
-                    return assemblyName!; // Null-forgiving: já validado com IsNullOrWhiteSpace
-                }
-            }
-
-            // Se nenhum estiver disponível, lançar erro
-            throw new InvalidOperationException(
-                $"Source (ServiceName) must be provided either as a parameter, in TraceabilityOptions.Source, via the {ServiceNameEnvironmentVariable} environment variable, or (if UseAssemblyNameAsFallback = true) it will use the assembly name. " +
-                "At least one of these must be specified to ensure uniform logging across all applications and services.");
-        }
 
         private static void AddOrDecorateExternalScopeProvider(
             IServiceCollection services,
@@ -164,7 +114,7 @@ namespace Traceability.Extensions
             configureOptions?.Invoke(tempOptions);
 
             // Obtém source seguindo a ordem de prioridade
-            var serviceName = GetServiceName(source, tempOptions);
+            var serviceName = TraceabilityUtilities.GetServiceName(source, tempOptions);
             tempOptions.Source = serviceName; // Garante que está definido
 
             // Registra TraceabilityOptions usando o padrão Options
@@ -228,7 +178,7 @@ namespace Traceability.Extensions
         public static IServiceCollection AddTraceableHttpClient<TClient>(
             this IServiceCollection services,
             string? baseAddress = null)
-            where TClient : class, ITraceableHttpClient
+            where TClient : class
         {
             if (services == null)
                 throw new ArgumentNullException(nameof(services));
@@ -341,7 +291,7 @@ namespace Traceability.Extensions
             configureOptions?.Invoke(tempOptions);
 
             // Obtém source seguindo a ordem de prioridade
-            var serviceName = GetServiceName(source, tempOptions);
+            var serviceName = TraceabilityUtilities.GetServiceName(source, tempOptions);
 
             // Configura TraceabilityOptions com Source
             services.Configure<TraceabilityOptions>(options =>
