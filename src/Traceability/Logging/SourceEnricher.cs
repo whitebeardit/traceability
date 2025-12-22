@@ -1,6 +1,7 @@
 using System;
 using Serilog.Core;
 using Serilog.Events;
+using Traceability.Utilities;
 
 namespace Traceability.Logging
 {
@@ -26,7 +27,8 @@ namespace Traceability.Logging
                 throw new ArgumentNullException(nameof(source), "Source cannot be null or empty");
             }
 
-            _source = source;
+            // Sanitiza o source para garantir segurança em logs
+            _source = TraceabilityUtilities.SanitizeSource(source);
         }
 
         /// <summary>
