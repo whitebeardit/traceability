@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, staging ]
   pull_request:
     branches: [ main ]
 
@@ -51,3 +51,42 @@ jobs:
       - name: Test
         run: dotnet test --configuration Release --framework net48 --no-build --verbosity normal
 
+  release:
+    needs:
+      - build-and-test-net8
+      - build-and-test-net48
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Setup .NET 8.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      
+      - name: Restore .NET dependencies
+        run: dotnet restore
+      
+      - name: Install semantic-release dependencies
+        run: npm install
+      
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          RELEASE_BRANCH_NAME: ${{ github.ref_name }}
+          NUGET_PACKAGE_ID: ${{ github.ref_name == 'staging' && 'Traceability.Staging' || 'Traceability' }}
+        run: npx semantic-release
