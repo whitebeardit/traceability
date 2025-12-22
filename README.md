@@ -652,6 +652,37 @@ info: Program[0]
 
 O pacote Traceability oferece suporte para template JSON padrão configurável que inclui automaticamente: Timestamp, Level, Source, CorrelationId, Message, Data (objetos serializados) e Exception.
 
+#### Uso Básico
+
+```csharp
+using Traceability.Extensions;
+using Traceability.Logging;
+using Serilog;
+
+// Configurar logger com template JSON
+Log.Logger = new LoggerConfiguration()
+    .WithTraceabilityJson("UserService")
+    .WriteTo.Console(new JsonFormatter())
+    .CreateLogger();
+
+// Exemplo 1: Log simples (sem objeto)
+Log.Information("Serviço iniciado");
+
+// Exemplo 2: Log com objeto (objeto será serializado automaticamente)
+var user = new { UserId = 123, UserName = "john.doe" };
+Log.Information("Processando requisição {@User}", user);
+```
+
+**Output Esperado - Exemplo 1 (sem objeto):**
+```json
+{"Timestamp":"2024-01-15T14:23:45.123Z","Level":"Information","Source":"UserService","CorrelationId":"a1b2c3d4e5f6789012345678901234ab","Message":"Serviço iniciado"}
+```
+
+**Output Esperado - Exemplo 2 (com objeto):**
+```json
+{"Timestamp":"2024-01-15T14:23:45.123Z","Level":"Information","Source":"UserService","CorrelationId":"a1b2c3d4e5f6789012345678901234ab","Message":"Processando requisição","Data":{"UserId":123,"UserName":"john.doe"}}
+```
+
 #### Configuração Básica
 
 ```csharp
@@ -665,12 +696,15 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new JsonFormatter())
     .CreateLogger();
 
-// Uso no código
+// Uso no código - Com objeto (objeto será serializado no campo "data")
 var user = new { UserId = 123, UserName = "john.doe" };
 Log.Information("Processando requisição {@User}", user);
+
+// Uso no código - Sem objeto (apenas mensagem)
+Log.Information("Requisição processada com sucesso");
 ```
 
-**Output Esperado (JSON):**
+**Output Esperado (JSON) - Com objeto:**
 
 ```json
 {
@@ -686,6 +720,18 @@ Log.Information("Processando requisição {@User}", user);
 }
 ```
 
+**Output Esperado (JSON) - Sem objeto:**
+
+```json
+{
+  "Timestamp": "2024-01-15T14:23:46.456Z",
+  "Level": "Information",
+  "Source": "UserService",
+  "CorrelationId": "a1b2c3d4e5f6789012345678901234ab",
+  "Message": "Requisição processada com sucesso"
+}
+```
+
 #### Configuração Customizada
 
 ```csharp
@@ -695,16 +741,45 @@ using Traceability.Logging;
 using Serilog;
 
 // Configuração com opções customizadas
+var options = new TraceabilityOptions
+{
+    Source = "UserService",
+    LogOutputFormat = LogOutputFormat.JsonIndented,
+    LogIncludeData = true,
+    LogIncludeTimestamp = true,
+    LogIncludeLevel = true
+};
+
 Log.Logger = new LoggerConfiguration()
-    .WithTraceabilityJson("UserService", options =>
+    .WithTraceabilityJson("UserService", opt =>
     {
-        options.LogOutputFormat = LogOutputFormat.JsonIndented;
-        options.LogIncludeData = true;
-        options.LogIncludeTimestamp = true;
-        options.LogIncludeLevel = true;
+        opt.LogOutputFormat = LogOutputFormat.JsonIndented;
+        opt.LogIncludeData = true;
+        opt.LogIncludeTimestamp = true;
+        opt.LogIncludeLevel = true;
     })
     .WriteTo.Console(new JsonFormatter(options, indent: true))
     .CreateLogger();
+
+// Uso
+var order = new { OrderId = 456, Total = 99.99 };
+Log.Information("Pedido processado {@Order}", order);
+```
+
+**Output Esperado (JSON Indentado):**
+
+```json
+{
+  "Timestamp": "2024-01-15T14:23:45.123Z",
+  "Level": "Information",
+  "Source": "UserService",
+  "CorrelationId": "a1b2c3d4e5f6789012345678901234ab",
+  "Message": "Pedido processado",
+  "Data": {
+    "OrderId": 456,
+    "Total": 99.99
+  }
+}
 ```
 
 #### Exemplo Completo - ASP.NET Core
@@ -801,7 +876,34 @@ O `TraceabilityOptions` oferece as seguintes opções para customizar o template
 2. **JsonFormatter**: Formata os logs em JSON estruturado com base nas opções configuradas
 3. **Serialização Automática**: Quando você passa um objeto usando `{@Objeto}`, o Serilog o serializa e o `DataEnricher` o move para o campo `data`
 
-**Nota**: O `DataEnricher` ignora propriedades primitivas (strings, números, etc.) e propriedades conhecidas (Source, CorrelationId, etc.), movendo apenas objetos complexos para o campo `data`.
+**Exemplos de Uso:**
+
+```csharp
+// Exemplo 1: Log apenas com mensagem (sem objeto)
+Log.Information("Serviço iniciado");
+// Output: JSON com Timestamp, Level, Source, CorrelationId, Message
+
+// Exemplo 2: Log com objeto (objeto será serializado em "Data")
+var user = new { UserId = 123, UserName = "john.doe" };
+Log.Information("Usuário autenticado {@User}", user);
+// Output: JSON com Timestamp, Level, Source, CorrelationId, Message, Data
+
+// Exemplo 3: Log com múltiplos objetos (todos serão agrupados em "Data")
+var user = new { UserId = 123, UserName = "john.doe" };
+var order = new { OrderId = 456, Total = 99.99 };
+Log.Information("Processando pedido {@User} {@Order}", user, order);
+// Output: JSON com Data contendo ambos os objetos
+
+// Exemplo 4: Log com exceção
+try {
+    // código
+} catch (Exception ex) {
+    Log.Error(ex, "Erro ao processar requisição");
+}
+// Output: JSON com Exception serializada
+```
+
+**Nota**: O `DataEnricher` ignora propriedades primitivas (strings, números, etc.) e propriedades conhecidas (Source, CorrelationId, etc.), movendo apenas objetos complexos para o campo `data`. Se não houver objetos complexos, o campo `Data` não será incluído no JSON.
 
 ### 10. ASP.NET Tradicional (.NET Framework 4.8)
 
