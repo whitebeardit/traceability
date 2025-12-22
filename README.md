@@ -153,31 +153,30 @@ Aqui está um exemplo completo com controller e output esperado:
 
 ```csharp
 using Traceability.Extensions;
-using Traceability.Logging;
 using Serilog;
-using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar Serilog com CorrelationIdEnricher
+// Configurar Serilog com Traceability (recomendado)
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
-    .Enrich.With<CorrelationIdEnricher>()
+    .WithTraceability("UserService") // Source + CorrelationId
     .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId} {Message:lj}{NewLine}{Exception}")
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 
 builder.Host.UseSerilog();
 
-builder.Services.AddTraceability();
+// AddTraceability() agora configura defaults e integrações automaticamente.
+// Use a sobrecarga com Source para padronizar logs em ambientes distribuídos.
+builder.Services.AddTraceability("UserService");
 builder.Services.AddControllers();
 
-// Configurar HttpClient com correlation-id
-builder.Services.AddHttpClient("ExternalApi", client =>
+// Configurar HttpClient traceable (CorrelationIdHandler é adicionado automaticamente)
+builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 {
     client.BaseAddress = new Uri("https://jsonplaceholder.typicode.com/");
-})
-.AddHttpMessageHandler<Traceability.HttpClient.CorrelationIdHandler>();
+});
 
 var app = builder.Build();
 
@@ -233,8 +232,8 @@ public class ValuesController : ControllerBase
 **1. Logs no Console (Serilog):**
 
 ```
-[14:23:45 INF] a1b2c3d4e5f6789012345678901234ab Processando requisição com CorrelationId: a1b2c3d4e5f6789012345678901234ab
-[14:23:46 INF] a1b2c3d4e5f6789012345678901234ab Requisição externa concluída
+[14:23:45 INF] UserService a1b2c3d4e5f6789012345678901234ab Processando requisição com CorrelationId: a1b2c3d4e5f6789012345678901234ab
+[14:23:46 INF] UserService a1b2c3d4e5f6789012345678901234ab Requisição externa concluída
 ```
 
 **2. Requisição HTTP (sem correlation-id):**
@@ -270,13 +269,13 @@ X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 ### 2. ASP.NET Core - Com Serilog
 
 ```csharp
-using Traceability.Logging;
+using Traceability.Extensions;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
-    .Enrich.With<CorrelationIdEnricher>()
+    .WithTraceability("Sample.WebApi.Net8") // Source + CorrelationId
     .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId} {Message:lj}{NewLine}{Exception}")
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 
 builder.Host.UseSerilog();
@@ -285,23 +284,20 @@ builder.Host.UseSerilog();
 **Output Esperado nos Logs:**
 
 ```
-[14:23:45 INF] a1b2c3d4e5f6789012345678901234ab Processando requisição GET /api/values
-[14:23:45 INF] a1b2c3d4e5f6789012345678901234ab Chamada externa realizada com sucesso
-[14:23:45 INF] a1b2c3d4e5f6789012345678901234ab Resposta enviada ao cliente
+[14:23:45 INF] Sample.WebApi.Net8 a1b2c3d4e5f6789012345678901234ab Processando requisição GET /api/values
+[14:23:45 INF] Sample.WebApi.Net8 a1b2c3d4e5f6789012345678901234ab Chamada externa realizada com sucesso
+[14:23:45 INF] Sample.WebApi.Net8 a1b2c3d4e5f6789012345678901234ab Resposta enviada ao cliente
 ```
 
-O correlation-id aparece automaticamente em todos os logs graças ao `CorrelationIdEnricher`.
+O correlation-id aparece automaticamente em todos os logs graças ao `WithTraceability()` (que adiciona `CorrelationIdEnricher`).
 
 ### 3. ASP.NET Core - Com Microsoft.Extensions.Logging
 
 ```csharp
-using Traceability.Logging;
+using Traceability.Extensions;
 
-builder.Services.AddLogging(builder =>
-{
-    builder.AddConsole();
-    builder.AddScopeProvider(new CorrelationIdScopeProvider());
-});
+builder.Services.AddTraceability("Sample.WebApi.Net8");
+builder.Logging.AddConsole(options => options.IncludeScopes = true);
 ```
 
 **Output Esperado nos Logs:**
@@ -432,17 +428,16 @@ Aqui está um exemplo completo de aplicação console com output esperado:
 
 ```csharp
 using Traceability;
-using Traceability.Logging;
+using Traceability.Extensions;
 using Microsoft.Extensions.Logging;
 using Serilog;
-using Serilog.Events;
 
-// Configurar Serilog com CorrelationIdEnricher
+// Configurar Serilog com Traceability (Source + CorrelationId)
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
-    .Enrich.With<CorrelationIdEnricher>()
+    .WithTraceability("ConsoleApp")
     .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId} {Message:lj}{NewLine}{Exception}")
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 
 var loggerFactory = LoggerFactory.Create(builder =>
@@ -575,13 +570,13 @@ Exemplos concluídos!
 #### Serilog
 
 ```csharp
-using Traceability.Logging;
+using Traceability.Extensions;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
-    .Enrich.With<CorrelationIdEnricher>()
+    .WithTraceability("ConsoleApp")
     .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId} {Message:lj}{NewLine}{Exception}")
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 
 // Todos os logs automaticamente incluem CorrelationId
@@ -591,21 +586,17 @@ Log.Information("Mensagem de log");
 **Output Esperado:**
 
 ```
-[14:23:45 INF] a1b2c3d4e5f6789012345678901234ab Mensagem de log
+[14:23:45 INF] ConsoleApp a1b2c3d4e5f6789012345678901234ab Mensagem de log
 ```
 
 #### Microsoft.Extensions.Logging
 
 ```csharp
-using Traceability.Logging;
+using Traceability.Extensions;
 
-var loggerFactory = LoggerFactory.Create(builder =>
-{
-    builder.AddConsole();
-    builder.AddScopeProvider(new CorrelationIdScopeProvider());
-});
-
-var logger = loggerFactory.CreateLogger<Program>();
+// Em apps .NET 8 (Host/DI), basta registrar Traceability e habilitar scopes do Console.
+builder.Services.AddTraceability("ConsoleApp");
+builder.Logging.AddConsole(options => options.IncludeScopes = true);
 
 // O correlation-id é automaticamente incluído no scope
 logger.LogInformation("Mensagem de log");
@@ -927,18 +918,18 @@ X-Correlation-Id: 12345678901234567890123456789012
 
 Esta seção mostra exemplos de como o correlation-id aparece nos logs com diferentes frameworks de logging.
 
-### Serilog com CorrelationIdEnricher
+### Serilog com WithTraceability (RECOMENDADO)
 
 **Configuração:**
 
 ```csharp
-using Traceability.Logging;
+using Traceability.Extensions;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
-    .Enrich.With<CorrelationIdEnricher>()
+    .WithTraceability("UserService") // Source + CorrelationId
     .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId} {Message:lj}{NewLine}{Exception}")
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 ```
 
@@ -954,9 +945,9 @@ Log.Information("Requisição concluída");
 **Output Esperado (.NET 8):**
 
 ```
-[14:23:45 INF] a1b2c3d4e5f6789012345678901234ab Processando requisição
-[14:23:45 INF] a1b2c3d4e5f6789012345678901234ab Chamando serviço externo
-[14:23:46 INF] a1b2c3d4e5f6789012345678901234ab Requisição concluída
+[14:23:45 INF] UserService a1b2c3d4e5f6789012345678901234ab Processando requisição
+[14:23:45 INF] UserService a1b2c3d4e5f6789012345678901234ab Chamando serviço externo
+[14:23:46 INF] UserService a1b2c3d4e5f6789012345678901234ab Requisição concluída
 ```
 
 **Output Esperado (.NET Framework 4.8):**
@@ -972,33 +963,37 @@ Log.Information("Requisição concluída");
 Você pode customizar o template de output para incluir mais informações:
 
 ```csharp
+using Traceability.Extensions;
+using Serilog;
+
 Log.Logger = new LoggerConfiguration()
-    .Enrich.With<CorrelationIdEnricher>()
+    .WithTraceability("UserService")
     .WriteTo.Console(
-        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
+        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{Level:u3}] [{Source}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 ```
 
 **Output com Template Customizado:**
 
 ```
-[2024-01-15 14:23:45.123] [INF] [a1b2c3d4e5f6789012345678901234ab] Processando requisição
-[2024-01-15 14:23:45.456] [INF] [a1b2c3d4e5f6789012345678901234ab] Chamando serviço externo
-[2024-01-15 14:23:46.789] [INF] [a1b2c3d4e5f6789012345678901234ab] Requisição concluída
+[2024-01-15 14:23:45.123] [INF] [UserService] [a1b2c3d4e5f6789012345678901234ab] Processando requisição
+[2024-01-15 14:23:45.456] [INF] [UserService] [a1b2c3d4e5f6789012345678901234ab] Chamando serviço externo
+[2024-01-15 14:23:46.789] [INF] [UserService] [a1b2c3d4e5f6789012345678901234ab] Requisição concluída
 ```
 
-### Microsoft.Extensions.Logging com CorrelationIdScopeProvider
+### Microsoft.Extensions.Logging (scopes) com AddTraceability (RECOMENDADO)
 
 **Configuração (.NET 8):**
 
 ```csharp
-using Traceability.Logging;
+using Traceability.Extensions;
 
-builder.Services.AddLogging(builder =>
-{
-    builder.AddConsole();
-    builder.AddScopeProvider(new CorrelationIdScopeProvider());
-});
+// AddTraceability registra/decorate IExternalScopeProvider para incluir
+// CorrelationId e (opcionalmente) Source nos scopes do logging.
+builder.Services.AddTraceability("UserService");
+
+// Para exibir scopes no console:
+builder.Logging.AddConsole(options => options.IncludeScopes = true);
 ```
 
 **Código de Exemplo:**
@@ -1026,33 +1021,9 @@ info: MyApp.MyService[0]
       Requisição concluída
 ```
 
-**Configuração (.NET Framework 4.8):**
+**Nota (.NET Framework 4.8):**
 
-No .NET Framework 4.8, você pode usar Microsoft.Extensions.Logging com o CorrelationIdScopeProvider:
-
-```csharp
-using Traceability.Logging;
-using Microsoft.Extensions.Logging;
-
-var loggerFactory = LoggerFactory.Create(builder =>
-{
-    builder.AddConsole();
-    builder.AddScopeProvider(new CorrelationIdScopeProvider());
-});
-
-var logger = loggerFactory.CreateLogger<MyService>();
-var correlationId = CorrelationContext.GetOrCreate();
-
-logger.LogInformation("Processando requisição");
-```
-
-**Output Esperado (.NET Framework 4.8):**
-
-```
-info: MyApp.MyService[0]
-      => CorrelationId: f1e2d3c4b5a6978012345678901234cd
-      Processando requisição
-```
+O pacote não faz integração automática de DI/logging no .NET Framework. Para logs, prefira Serilog + `WithTraceability()` (ou `SourceEnricher` + `CorrelationIdEnricher`).
 
 ### Comparação: Serilog vs Microsoft.Extensions.Logging
 
@@ -1210,10 +1181,11 @@ Enricher que adiciona correlation-id aos logs do Serilog.
 
 **Uso:**
 ```csharp
+using Traceability.Extensions;
+using Serilog;
+
 Log.Logger = new LoggerConfiguration()
-
-    .Enrich.With<CorrelationIdEnricher>()
-
+    .WithTraceability("UserService")
     .CreateLogger();
 ```
 
@@ -1223,10 +1195,9 @@ Provider que adiciona correlation-id ao scope de logging.
 
 **Uso:**
 ```csharp
-builder.Services.AddLogging(builder =>
-{
-    builder.AddScopeProvider(new CorrelationIdScopeProvider());
-});
+// Em .NET 8: registre Traceability (ele decora o IExternalScopeProvider) e habilite scopes no console.
+builder.Services.AddTraceability("UserService");
+builder.Logging.AddConsole(options => options.IncludeScopes = true);
 ```
 
 ## Prevenção de Socket Exhaustion
@@ -1284,8 +1255,8 @@ public class MyService
 
 ### Correlation-id não aparece nos logs
 
-1. Para Serilog: Certifique-se de que `CorrelationIdEnricher` está configurado.
-2. Para Microsoft.Extensions.Logging: Certifique-se de que `CorrelationIdScopeProvider` está configurado.
+1. Para Serilog: use `WithTraceability("SuaOrigem")` (ou configure `SourceEnricher` + `CorrelationIdEnricher`).
+2. Para Microsoft.Extensions.Logging (.NET 8): chame `AddTraceability("SuaOrigem")` e habilite scopes no Console (`IncludeScopes = true`).
 3. Verifique o template de output do logger para incluir `{CorrelationId}`.
 
 ### Problemas com .NET Framework 4.8

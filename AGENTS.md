@@ -427,11 +427,10 @@ public class CorrelationIdScopeProvider : IExternalScopeProvider
 
 **Exemplo de Uso**:
 ```csharp
-builder.Services.AddLogging(builder =>
-{
-    builder.AddConsole();
-    builder.AddScopeProvider(new CorrelationIdScopeProvider());
-});
+// RECOMENDADO (.NET 8): AddTraceability decora o IExternalScopeProvider do logging
+// para incluir CorrelationId nos scopes.
+builder.Services.AddTraceability("UserService");
+builder.Logging.AddConsole(options => options.IncludeScopes = true);
 ```
 
 ### 9. SourceEnricher (Serilog)
@@ -461,8 +460,7 @@ public class SourceEnricher : ILogEventEnricher
 **Exemplo de Uso**:
 ```csharp
 Log.Logger = new LoggerConfiguration()
-    .Enrich.With(new SourceEnricher("UserService"))
-    .Enrich.With<CorrelationIdEnricher>()
+    .WithTraceability("UserService")
     .WriteTo.Console(
         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}")
     .CreateLogger();
@@ -497,12 +495,9 @@ public class SourceScopeProvider : IExternalScopeProvider
 
 **Exemplo de Uso**:
 ```csharp
-builder.Services.AddLogging(builder =>
-{
-    builder.AddConsole();
-    // SourceScopeProvider como externo, CorrelationIdScopeProvider como interno
-    builder.AddScopeProvider(new SourceScopeProvider("UserService", new CorrelationIdScopeProvider()));
-});
+// RECOMENDADO (.NET 8): Source + CorrelationId via AddTraceability
+builder.Services.AddTraceability("UserService");
+builder.Logging.AddConsole(options => options.IncludeScopes = true);
 ```
 
 **Nota**: O campo `Source` sempre será adicionado ao scope, independentemente da presença de correlation-id.
@@ -1140,32 +1135,27 @@ CorrelationContext.Clear();
 ```csharp
 // Program.cs
 using Traceability.Extensions;
-using Traceability.Logging;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar Serilog com SourceEnricher e CorrelationIdEnricher
+// Configurar Serilog com Traceability (recomendado)
 Log.Logger = new LoggerConfiguration()
-    .Enrich.With(new SourceEnricher("UserService"))
-    .Enrich.With<CorrelationIdEnricher>()
+    .WithTraceability("UserService")
     .WriteTo.Console(
         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}")
     .CreateLogger();
 
 builder.Host.UseSerilog();
 
-// Adicionar traceability com logging
-// Nota: AddTraceabilityLogging registra SourceScopeProvider para Microsoft.Extensions.Logging.
-// Para Serilog, configure SourceEnricher manualmente (veja acima).
-builder.Services.AddTraceabilityLogging("UserService");
+// AddTraceability configura defaults automaticamente (logging scopes + IHttpClientFactory + handler)
+builder.Services.AddTraceability("UserService");
 
 // Adicionar HttpClient traceable
-builder.Services.AddHttpClient("ExternalApi", client =>
+builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 {
     client.BaseAddress = new Uri("https://api.example.com/");
-})
-.AddHttpMessageHandler<Traceability.HttpClient.CorrelationIdHandler>();
+});
 
 builder.Services.AddControllers();
 
