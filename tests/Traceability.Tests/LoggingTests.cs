@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
+using Serilog.Parsing;
 using Xunit;
 
 namespace Traceability.Tests
@@ -406,6 +407,153 @@ namespace Traceability.Tests
             allScopes[0].Should().BeOfType<Dictionary<string, object>>()
                 .Which.Should().ContainKey("Source");
             innerScopes.Should().NotBeEmpty(); // Verifica que inner provider foi chamado
+        }
+
+        [Fact]
+        public void DataEnricher_ShouldDetectAndSerializeComplexObjects()
+        {
+            // Arrange
+            var enricher = new DataEnricher();
+            var userObject = new { UserId = 123, UserName = "john.doe" };
+            var template = new MessageTemplateParser().Parse("Processando {@User}");
+            var properties = new List<LogEventProperty>
+            {
+                new LogEventProperty("User", new StructureValue(new[]
+                {
+                    new LogEventProperty("UserId", new ScalarValue(123)),
+                    new LogEventProperty("UserName", new ScalarValue("john.doe"))
+                }))
+            };
+            var logEvent = new LogEvent(
+                DateTimeOffset.Now,
+                LogEventLevel.Information,
+                null,
+                template,
+                properties);
+
+            // Act
+            var mockPropertyFactory = new MockPropertyFactory();
+            enricher.Enrich(logEvent, mockPropertyFactory);
+
+            // Assert
+            logEvent.Properties.Should().ContainKey("data");
+            var dataValue = logEvent.Properties["data"];
+            dataValue.Should().NotBeNull();
+        }
+
+        [Fact]
+        public void DataEnricher_ShouldIgnorePrimitiveProperties()
+        {
+            // Arrange
+            var enricher = new DataEnricher();
+            var template = new MessageTemplateParser().Parse("Processando {UserId} {UserName}");
+            var properties = new List<LogEventProperty>
+            {
+                new LogEventProperty("UserId", new ScalarValue(123)),
+                new LogEventProperty("UserName", new ScalarValue("john.doe"))
+            };
+            var logEvent = new LogEvent(
+                DateTimeOffset.Now,
+                LogEventLevel.Information,
+                null,
+                template,
+                properties);
+
+            // Act
+            var mockPropertyFactory = new MockPropertyFactory();
+            enricher.Enrich(logEvent, mockPropertyFactory);
+
+            // Assert
+            // Primitivos não devem ser movidos para "data"
+            logEvent.Properties.Should().NotContainKey("data");
+        }
+
+        [Fact]
+        public void DataEnricher_ShouldIgnoreKnownProperties()
+        {
+            // Arrange
+            var enricher = new DataEnricher();
+            var template = new MessageTemplateParser().Parse("Test");
+            var properties = new List<LogEventProperty>
+            {
+                new LogEventProperty("Source", new ScalarValue("TestService")),
+                new LogEventProperty("CorrelationId", new ScalarValue("abc123")),
+                new LogEventProperty("data", new ScalarValue("existing"))
+            };
+            var logEvent = new LogEvent(
+                DateTimeOffset.Now,
+                LogEventLevel.Information,
+                null,
+                template,
+                properties);
+
+            // Act
+            var mockPropertyFactory = new MockPropertyFactory();
+            enricher.Enrich(logEvent, mockPropertyFactory);
+
+            // Assert
+            // Propriedades conhecidas não devem ser processadas novamente
+            logEvent.Properties.Should().ContainKey("Source");
+            logEvent.Properties.Should().ContainKey("CorrelationId");
+        }
+
+        [Fact]
+        public void DataEnricher_ShouldHandleMultipleObjects()
+        {
+            // Arrange
+            var enricher = new DataEnricher();
+            var template = new MessageTemplateParser().Parse("Processando {@User} {@Order}");
+            var properties = new List<LogEventProperty>
+            {
+                new LogEventProperty("User", new StructureValue(new[]
+                {
+                    new LogEventProperty("UserId", new ScalarValue(123))
+                })),
+                new LogEventProperty("Order", new StructureValue(new[]
+                {
+                    new LogEventProperty("OrderId", new ScalarValue(456))
+                }))
+            };
+            var logEvent = new LogEvent(
+                DateTimeOffset.Now,
+                LogEventLevel.Information,
+                null,
+                template,
+                properties);
+
+            // Act
+            var mockPropertyFactory = new MockPropertyFactory();
+            enricher.Enrich(logEvent, mockPropertyFactory);
+
+            // Assert
+            logEvent.Properties.Should().ContainKey("data");
+        }
+
+        [Fact]
+        public void DataEnricher_ShouldHandleNullLogEvent()
+        {
+            // Arrange
+            var enricher = new DataEnricher();
+            var mockPropertyFactory = new MockPropertyFactory();
+
+            // Act & Assert - Não deve lançar exceção
+            enricher.Enrich(null!, mockPropertyFactory);
+        }
+
+        [Fact]
+        public void DataEnricher_ShouldHandleNullPropertyFactory()
+        {
+            // Arrange
+            var enricher = new DataEnricher();
+            var logEvent = new LogEvent(
+                DateTimeOffset.Now,
+                LogEventLevel.Information,
+                null,
+                MessageTemplate.Empty,
+                new List<LogEventProperty>());
+
+            // Act & Assert - Não deve lançar exceção
+            enricher.Enrich(logEvent, null!);
         }
     }
 
