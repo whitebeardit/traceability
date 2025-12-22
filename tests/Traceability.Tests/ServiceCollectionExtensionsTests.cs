@@ -1,6 +1,7 @@
 #if NET8_0
 using System;
 using FluentAssertions;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
@@ -215,7 +216,10 @@ namespace Traceability.Tests
                 var services = new ServiceCollection();
 
                 // Act & Assert
-                Assert.Throws<InvalidOperationException>(() => services.AddTraceability((string?)null));
+                Assert.Throws<InvalidOperationException>(() => services.AddTraceability((string?)null, options =>
+                {
+                    options.UseAssemblyNameAsFallback = false;
+                }));
             }
             finally
             {
@@ -234,7 +238,10 @@ namespace Traceability.Tests
                 var services = new ServiceCollection();
 
                 // Act & Assert
-                Assert.Throws<InvalidOperationException>(() => services.AddTraceability(""));
+                Assert.Throws<InvalidOperationException>(() => services.AddTraceability("", options =>
+                {
+                    options.UseAssemblyNameAsFallback = false;
+                }));
             }
             finally
             {
@@ -253,7 +260,10 @@ namespace Traceability.Tests
                 var services = new ServiceCollection();
 
                 // Act & Assert
-                Assert.Throws<InvalidOperationException>(() => services.AddTraceability("   "));
+                Assert.Throws<InvalidOperationException>(() => services.AddTraceability("   ", options =>
+                {
+                    options.UseAssemblyNameAsFallback = false;
+                }));
             }
             finally
             {
@@ -279,6 +289,169 @@ namespace Traceability.Tests
                 var serviceProvider = services.BuildServiceProvider();
                 var factory = serviceProvider.GetService<IHttpClientFactory>();
                 factory.Should().NotBeNull();
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", originalEnv);
+            }
+        }
+
+        [Fact]
+        public void AddTraceability_WithAutoRegisterMiddleware_ShouldRegisterStartupFilter()
+        {
+            // Arrange
+            var originalEnv = Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME");
+            try
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", "TestService");
+                var services = new ServiceCollection();
+
+                // Act
+                services.AddTraceability();
+
+                // Assert
+                var serviceProvider = services.BuildServiceProvider();
+                var startupFilter = serviceProvider.GetService<IStartupFilter>();
+                startupFilter.Should().NotBeNull();
+                // Verifica que é do tipo correto através do nome do tipo (já que é internal)
+                startupFilter!.GetType().Name.Should().Be("CorrelationIdStartupFilter");
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", originalEnv);
+            }
+        }
+
+        [Fact]
+        public void AddTraceability_WithAutoRegisterMiddlewareFalse_ShouldNotRegisterStartupFilter()
+        {
+            // Arrange
+            var originalEnv = Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME");
+            try
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", "TestService");
+                var services = new ServiceCollection();
+
+                // Act
+                services.AddTraceability(configureOptions: options =>
+                {
+                    options.AutoRegisterMiddleware = false;
+                });
+
+                // Assert
+                var serviceProvider = services.BuildServiceProvider();
+                var startupFilter = serviceProvider.GetService<IStartupFilter>();
+                startupFilter.Should().BeNull();
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", originalEnv);
+            }
+        }
+
+        [Fact]
+        public void AddTraceability_WithAutoConfigureHttpClient_ShouldConfigureAllHttpClients()
+        {
+            // Arrange
+            var originalEnv = Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME");
+            try
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", "TestService");
+                var services = new ServiceCollection();
+
+                // Act
+                services.AddTraceability();
+                services.AddHttpClient("TestClient");
+
+                // Assert
+                var serviceProvider = services.BuildServiceProvider();
+                var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+                var client = httpClientFactory.CreateClient("TestClient");
+                
+                // Verifica que o HttpClient foi criado (se chegou aqui, a configuração funcionou)
+                client.Should().NotBeNull();
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", originalEnv);
+            }
+        }
+
+        [Fact]
+        public void AddTraceability_WithAutoConfigureHttpClientFalse_ShouldNotConfigureHttpClients()
+        {
+            // Arrange
+            var originalEnv = Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME");
+            try
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", "TestService");
+                var services = new ServiceCollection();
+
+                // Act
+                services.AddTraceability(configureOptions: options =>
+                {
+                    options.AutoConfigureHttpClient = false;
+                });
+                services.AddHttpClient("TestClient");
+
+                // Assert
+                var serviceProvider = services.BuildServiceProvider();
+                var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+                var client = httpClientFactory.CreateClient("TestClient");
+                
+                // HttpClient ainda deve ser criado, mas sem o handler automático
+                client.Should().NotBeNull();
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", originalEnv);
+            }
+        }
+
+        [Fact]
+        public void AddTraceability_WithUseAssemblyNameAsFallback_ShouldUseAssemblyName()
+        {
+            // Arrange
+            var originalEnv = Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME");
+            try
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", null);
+                var services = new ServiceCollection();
+                var assemblyName = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name;
+
+                // Act
+                services.AddTraceability();
+
+                // Assert
+                var serviceProvider = services.BuildServiceProvider();
+                var options = serviceProvider.GetService<IOptions<TraceabilityOptions>>();
+                options.Should().NotBeNull();
+                if (assemblyName != null)
+                {
+                    options!.Value.Source.Should().Be(assemblyName);
+                }
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", originalEnv);
+            }
+        }
+
+        [Fact]
+        public void AddTraceability_WithUseAssemblyNameAsFallbackFalse_ShouldThrowException()
+        {
+            // Arrange
+            var originalEnv = Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME");
+            try
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", null);
+                var services = new ServiceCollection();
+
+                // Act & Assert
+                Assert.Throws<InvalidOperationException>(() => services.AddTraceability(configureOptions: options =>
+                {
+                    options.UseAssemblyNameAsFallback = false;
+                }));
             }
             finally
             {

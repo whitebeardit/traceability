@@ -88,8 +88,12 @@ namespace Traceability.Tests
                 var config = new LoggerConfiguration();
 
                 // Act & Assert
-                // O método lança InvalidOperationException quando source é null e não há env var
-                Assert.Throws<InvalidOperationException>(() => config.WithTraceability(null));
+                // Com fallback de assembly name habilitado por padrão, não lança exceção
+                // Usar WithTraceabilityJson para testar sem fallback
+                Assert.Throws<InvalidOperationException>(() => config.WithTraceabilityJson(null, options =>
+                {
+                    options.UseAssemblyNameAsFallback = false;
+                }));
             }
             finally
             {
@@ -108,7 +112,12 @@ namespace Traceability.Tests
                 var config = new LoggerConfiguration();
 
                 // Act & Assert
-                Assert.Throws<InvalidOperationException>(() => config.WithTraceability(""));
+                // Com fallback de assembly name habilitado por padrão, não lança exceção
+                // Usar WithTraceabilityJson para testar sem fallback
+                Assert.Throws<InvalidOperationException>(() => config.WithTraceabilityJson("", options =>
+                {
+                    options.UseAssemblyNameAsFallback = false;
+                }));
             }
             finally
             {
@@ -127,7 +136,12 @@ namespace Traceability.Tests
                 var config = new LoggerConfiguration();
 
                 // Act & Assert
-                Assert.Throws<InvalidOperationException>(() => config.WithTraceability("   "));
+                // Com fallback de assembly name habilitado por padrão, não lança exceção
+                // Usar WithTraceabilityJson para testar sem fallback
+                Assert.Throws<InvalidOperationException>(() => config.WithTraceabilityJson("   ", options =>
+                {
+                    options.UseAssemblyNameAsFallback = false;
+                }));
             }
             finally
             {
@@ -219,7 +233,10 @@ namespace Traceability.Tests
                 var config = new LoggerConfiguration();
 
                 // Act & Assert
-                Assert.Throws<InvalidOperationException>(() => config.WithTraceabilityJson((string?)null));
+                Assert.Throws<InvalidOperationException>(() => config.WithTraceabilityJson((string?)null, options =>
+                {
+                    options.UseAssemblyNameAsFallback = false;
+                }));
             }
             finally
             {
@@ -238,7 +255,10 @@ namespace Traceability.Tests
                 var config = new LoggerConfiguration();
 
                 // Act & Assert
-                Assert.Throws<InvalidOperationException>(() => config.WithTraceabilityJson(""));
+                Assert.Throws<InvalidOperationException>(() => config.WithTraceabilityJson("", options =>
+                {
+                    options.UseAssemblyNameAsFallback = false;
+                }));
             }
             finally
             {
@@ -320,7 +340,8 @@ namespace Traceability.Tests
                 var config = new LoggerConfiguration();
                 var options = new Traceability.Configuration.TraceabilityOptions
                 {
-                    Source = null
+                    Source = null,
+                    UseAssemblyNameAsFallback = false
                 };
 
                 // Act & Assert
@@ -766,7 +787,12 @@ namespace Traceability.Tests
                 var config = new LoggerConfiguration();
 
                 // Act & Assert
-                var exception = Assert.Throws<InvalidOperationException>(() => config.WithTraceability());
+                // Com fallback de assembly name habilitado por padrão, não lança exceção
+                // Usar WithTraceabilityJson para testar sem fallback
+                var exception = Assert.Throws<InvalidOperationException>(() => config.WithTraceabilityJson((string?)null, options =>
+                {
+                    options.UseAssemblyNameAsFallback = false;
+                }));
                 exception.Message.Should().Contain("TRACEABILITY_SERVICENAME");
                 exception.Message.Should().Contain("Source");
             }
@@ -849,7 +875,10 @@ namespace Traceability.Tests
                 var config = new LoggerConfiguration();
 
                 // Act & Assert
-                var exception = Assert.Throws<InvalidOperationException>(() => config.WithTraceabilityJson());
+                var exception = Assert.Throws<InvalidOperationException>(() => config.WithTraceabilityJson((string?)null, options =>
+                {
+                    options.UseAssemblyNameAsFallback = false;
+                }));
                 exception.Message.Should().Contain("TRACEABILITY_SERVICENAME");
                 exception.Message.Should().Contain("Source");
             }
@@ -930,7 +959,10 @@ namespace Traceability.Tests
             {
                 Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", null);
                 var config = new LoggerConfiguration();
-                var options = new Traceability.Configuration.TraceabilityOptions(); // Source não definido
+                var options = new Traceability.Configuration.TraceabilityOptions
+                {
+                    UseAssemblyNameAsFallback = false // Source não definido e fallback desabilitado
+                };
 
                 // Act & Assert
                 var exception = Assert.Throws<InvalidOperationException>(() => config.WithTraceabilityJson(options));
