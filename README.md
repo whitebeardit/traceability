@@ -648,7 +648,162 @@ info: Program[0]
       Mensagem de log
 ```
 
-### 9. ASP.NET Tradicional (.NET Framework 4.8)
+### 9. Template JSON Padrão com Serialização Automática de Objetos
+
+O pacote Traceability oferece suporte para template JSON padrão configurável que inclui automaticamente: Timestamp, Level, Source, CorrelationId, Message, Data (objetos serializados) e Exception.
+
+#### Configuração Básica
+
+```csharp
+using Traceability.Extensions;
+using Traceability.Logging;
+using Serilog;
+
+// Configuração simples com template JSON padrão
+Log.Logger = new LoggerConfiguration()
+    .WithTraceabilityJson("UserService")
+    .WriteTo.Console(new JsonFormatter())
+    .CreateLogger();
+
+// Uso no código
+var user = new { UserId = 123, UserName = "john.doe" };
+Log.Information("Processando requisição {@User}", user);
+```
+
+**Output Esperado (JSON):**
+
+```json
+{
+  "Timestamp": "2024-01-15T14:23:45.123Z",
+  "Level": "Information",
+  "Source": "UserService",
+  "CorrelationId": "a1b2c3d4e5f6789012345678901234ab",
+  "Message": "Processando requisição",
+  "Data": {
+    "UserId": 123,
+    "UserName": "john.doe"
+  }
+}
+```
+
+#### Configuração Customizada
+
+```csharp
+using Traceability.Extensions;
+using Traceability.Configuration;
+using Traceability.Logging;
+using Serilog;
+
+// Configuração com opções customizadas
+Log.Logger = new LoggerConfiguration()
+    .WithTraceabilityJson("UserService", options =>
+    {
+        options.LogOutputFormat = LogOutputFormat.JsonIndented;
+        options.LogIncludeData = true;
+        options.LogIncludeTimestamp = true;
+        options.LogIncludeLevel = true;
+    })
+    .WriteTo.Console(new JsonFormatter(options, indent: true))
+    .CreateLogger();
+```
+
+#### Exemplo Completo - ASP.NET Core
+
+```csharp
+// Program.cs
+using Traceability.Extensions;
+using Traceability.Logging;
+using Serilog;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Configurar Serilog com template JSON padrão
+var options = new TraceabilityOptions
+{
+    Source = "UserService",
+    LogOutputFormat = LogOutputFormat.JsonCompact,
+    LogIncludeData = true
+};
+
+Log.Logger = new LoggerConfiguration()
+    .WithTraceabilityJson(options)
+    .WriteTo.Console(new JsonFormatter(options))
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+
+builder.Services.AddTraceability("UserService");
+builder.Services.AddControllers();
+
+var app = builder.Build();
+app.UseCorrelationId();
+app.MapControllers();
+app.Run();
+```
+
+**Controller:**
+
+```csharp
+using Microsoft.AspNetCore.Mvc;
+using Traceability;
+using Serilog;
+
+[ApiController]
+[Route("api/[controller]")]
+public class UsersController : ControllerBase
+{
+    [HttpGet("{id}")]
+    public IActionResult GetUser(int id)
+    {
+        var user = new { UserId = id, UserName = "john.doe", Email = "john@example.com" };
+        
+        // O objeto será automaticamente serializado no campo "data"
+        Log.Information("Usuário encontrado {@User}", user);
+        
+        return Ok(user);
+    }
+}
+```
+
+**Output Esperado:**
+
+```json
+{
+  "Timestamp": "2024-01-15T14:23:45.123Z",
+  "Level": "Information",
+  "Source": "UserService",
+  "CorrelationId": "a1b2c3d4e5f6789012345678901234ab",
+  "Message": "Usuário encontrado",
+  "Data": {
+    "UserId": 123,
+    "UserName": "john.doe",
+    "Email": "john@example.com"
+  }
+}
+```
+
+#### Opções de Configuração
+
+O `TraceabilityOptions` oferece as seguintes opções para customizar o template JSON:
+
+- `LogOutputFormat`: Formato de saída (JsonCompact, JsonIndented, Text)
+- `LogIncludeTimestamp`: Incluir timestamp (padrão: true)
+- `LogIncludeLevel`: Incluir level (padrão: true)
+- `LogIncludeSource`: Incluir Source (padrão: true)
+- `LogIncludeCorrelationId`: Incluir CorrelationId (padrão: true)
+- `LogIncludeMessage`: Incluir Message (padrão: true)
+- `LogIncludeData`: Incluir campo Data para objetos (padrão: true)
+- `LogIncludeException`: Incluir Exception (padrão: true)
+
+#### Como Funciona
+
+1. **DataEnricher**: Detecta automaticamente objetos complexos nas propriedades do log e os serializa no campo `data`
+2. **JsonFormatter**: Formata os logs em JSON estruturado com base nas opções configuradas
+3. **Serialização Automática**: Quando você passa um objeto usando `{@Objeto}`, o Serilog o serializa e o `DataEnricher` o move para o campo `data`
+
+**Nota**: O `DataEnricher` ignora propriedades primitivas (strings, números, etc.) e propriedades conhecidas (Source, CorrelationId, etc.), movendo apenas objetos complexos para o campo `data`.
+
+### 10. ASP.NET Tradicional (.NET Framework 4.8)
 
 #### Configuração no web.config
 

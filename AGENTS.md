@@ -525,7 +525,102 @@ builder.Logging.AddConsole(options => options.IncludeScopes = true);
 
 **Nota**: O campo `Source` sempre será adicionado ao scope, independentemente da presença de correlation-id.
 
-### 11. TraceabilityOptions
+### 11. DataEnricher (Serilog)
+
+**Localização**: `src/Traceability/Logging/DataEnricher.cs`
+
+**Responsabilidade**: Enricher do Serilog que detecta objetos complexos nas propriedades do log e os serializa em um campo `data`. Identifica objetos não primitivos e os agrupa em um único campo `data` no JSON de saída.
+
+**API Pública**:
+```csharp
+public class DataEnricher : ILogEventEnricher
+{
+    public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory);
+}
+```
+
+**Dependências**:
+- `Serilog`
+- Nenhuma dependência de `CorrelationContext`
+
+**Comportamento**:
+- Analisa todas as propriedades do LogEvent
+- Identifica objetos complexos (StructureValue, DictionaryValue, SequenceValue)
+- Ignora propriedades primitivas (strings, números, DateTime, etc.)
+- Ignora propriedades conhecidas (Source, CorrelationId, Message, etc.)
+- Serializa objetos complexos em um campo `data`
+- Se múltiplos objetos, combina em um único objeto `data`
+
+**Exemplo de Uso**:
+```csharp
+Log.Logger = new LoggerConfiguration()
+    .Enrich.With<DataEnricher>()
+    .WriteTo.Console(new JsonFormatter())
+    .CreateLogger();
+
+var user = new { UserId = 123, UserName = "john.doe" };
+Log.Information("Processando requisição {@User}", user);
+// Output: JSON com campo "data" contendo o objeto serializado
+```
+
+**Nota**: O `DataEnricher` é adicionado automaticamente quando você usa `WithTraceabilityJson()` com `LogIncludeData = true`.
+
+### 12. JsonFormatter (Serilog)
+
+**Localização**: `src/Traceability/Logging/JsonFormatter.cs`
+
+**Responsabilidade**: Formatter JSON customizado para Serilog que formata logs em JSON estruturado. Suporta configuração via TraceabilityOptions para incluir/excluir campos específicos.
+
+**API Pública**:
+```csharp
+public class JsonFormatter : ITextFormatter
+{
+    public JsonFormatter(TraceabilityOptions? options = null, bool indent = false);
+    public void Format(LogEvent logEvent, TextWriter output);
+}
+```
+
+**Dependências**:
+- `Serilog`
+- `Traceability.Configuration`
+
+**Comportamento**:
+- Formata logs em JSON estruturado
+- Respeita as opções de `TraceabilityOptions` para incluir/excluir campos
+- Suporta JSON compacto ou indentado
+- Inclui automaticamente: Timestamp, Level, Source, CorrelationId, Message, Data, Exception (conforme configuração)
+
+**Exemplo de Uso**:
+```csharp
+var options = new TraceabilityOptions
+{
+    Source = "UserService",
+    LogIncludeData = true,
+    LogIncludeTimestamp = true
+};
+
+Log.Logger = new LoggerConfiguration()
+    .WithTraceabilityJson(options)
+    .WriteTo.Console(new JsonFormatter(options, indent: true))
+    .CreateLogger();
+```
+
+**Output Esperado (JSON Indentado)**:
+```json
+{
+  "Timestamp": "2024-01-15T14:23:45.123Z",
+  "Level": "Information",
+  "Source": "UserService",
+  "CorrelationId": "a1b2c3d4e5f6789012345678901234ab",
+  "Message": "Processando requisição",
+  "Data": {
+    "UserId": 123,
+    "UserName": "john.doe"
+  }
+}
+```
+
+### 13. TraceabilityOptions
 
 **Localização**: `src/Traceability/Configuration/TraceabilityOptions.cs`
 
@@ -533,12 +628,27 @@ builder.Logging.AddConsole(options => options.IncludeScopes = true);
 
 **API Pública**:
 ```csharp
+public enum LogOutputFormat
+{
+    JsonCompact,
+    JsonIndented,
+    Text
+}
+
 public class TraceabilityOptions
 {
     public string HeaderName { get; set; } = "X-Correlation-Id";
     public bool AlwaysGenerateNew { get; set; } = false;
     public bool ValidateCorrelationIdFormat { get; set; } = false;
     public string? Source { get; set; }
+    public LogOutputFormat LogOutputFormat { get; set; } = LogOutputFormat.JsonCompact;
+    public bool LogIncludeTimestamp { get; set; } = true;
+    public bool LogIncludeLevel { get; set; } = true;
+    public bool LogIncludeSource { get; set; } = true;
+    public bool LogIncludeCorrelationId { get; set; } = true;
+    public bool LogIncludeMessage { get; set; } = true;
+    public bool LogIncludeData { get; set; } = true;
+    public bool LogIncludeException { get; set; } = true;
 }
 ```
 
@@ -547,6 +657,14 @@ public class TraceabilityOptions
 - `AlwaysGenerateNew`: Se true, gera um novo correlation-id mesmo se já existir um no contexto (padrão: false)
 - `ValidateCorrelationIdFormat`: Se true, valida o formato do correlation-id recebido no header (padrão: false)
 - `Source`: Nome da origem/serviço que está gerando os logs (opcional, mas recomendado para unificar logs distribuídos)
+- `LogOutputFormat`: Formato de saída para logs (padrão: JsonCompact)
+- `LogIncludeTimestamp`: Se deve incluir timestamp nos logs (padrão: true)
+- `LogIncludeLevel`: Se deve incluir level nos logs (padrão: true)
+- `LogIncludeSource`: Se deve incluir Source nos logs (padrão: true)
+- `LogIncludeCorrelationId`: Se deve incluir CorrelationId nos logs (padrão: true)
+- `LogIncludeMessage`: Se deve incluir Message nos logs (padrão: true)
+- `LogIncludeData`: Se deve incluir campo Data para objetos serializados nos logs (padrão: true)
+- `LogIncludeException`: Se deve incluir Exception nos logs (padrão: true)
 
 ### 10. Extensions
 
@@ -615,21 +733,52 @@ public static HttpClient AddCorrelationIdHeader(
 
 **Métodos**:
 ```csharp
+// Método original - adiciona Source e CorrelationId
 public static LoggerConfiguration WithTraceability(
     this LoggerConfiguration config,
     string source);
+
+// Novo método - adiciona Source, CorrelationId e DataEnricher para template JSON
+public static LoggerConfiguration WithTraceabilityJson(
+    this LoggerConfiguration config,
+    string source,
+    Action<TraceabilityOptions>? configureOptions = null);
+
+// Sobrecarga com TraceabilityOptions
+public static LoggerConfiguration WithTraceabilityJson(
+    this LoggerConfiguration config,
+    TraceabilityOptions options);
 ```
 
 **Comportamento**:
-- Adiciona automaticamente `SourceEnricher` e `CorrelationIdEnricher` ao Serilog
+- `WithTraceability()`: Adiciona automaticamente `SourceEnricher` e `CorrelationIdEnricher` ao Serilog
+- `WithTraceabilityJson()`: Adiciona `SourceEnricher`, `CorrelationIdEnricher` e `DataEnricher` (se `LogIncludeData = true`)
 - Source é obrigatório (não pode ser null ou vazio)
 - Facilita configuração de traceability em uma única chamada
+- `WithTraceabilityJson()` é otimizado para uso com template JSON padrão
 
 **Exemplo de Uso**:
 ```csharp
+// Configuração básica
 Log.Logger = new LoggerConfiguration()
     .WithTraceability("UserService")
     .WriteTo.Console()
+    .CreateLogger();
+
+// Configuração com template JSON padrão
+Log.Logger = new LoggerConfiguration()
+    .WithTraceabilityJson("UserService")
+    .WriteTo.Console(new JsonFormatter())
+    .CreateLogger();
+
+// Configuração customizada
+Log.Logger = new LoggerConfiguration()
+    .WithTraceabilityJson("UserService", options =>
+    {
+        options.LogIncludeData = true;
+        options.LogOutputFormat = LogOutputFormat.JsonIndented;
+    })
+    .WriteTo.Console(new JsonFormatter(options, indent: true))
     .CreateLogger();
 ```
 
@@ -769,6 +918,8 @@ src/Traceability/
 ├── Logging/
 │   ├── CorrelationIdEnricher.cs        # Enricher para Serilog
 │   ├── CorrelationIdScopeProvider.cs   # ScopeProvider para MEL
+│   ├── DataEnricher.cs                  # Enricher que serializa objetos em "data"
+│   ├── JsonFormatter.cs                 # Formatter JSON customizado
 │   ├── SourceEnricher.cs               # Enricher Source para Serilog
 │   └── SourceScopeProvider.cs          # ScopeProvider Source para MEL
 │
@@ -1390,6 +1541,8 @@ Ao fazer modificações no código, verificar:
 - Factory: `src/Traceability/HttpClient/TraceableHttpClientFactory.cs`
 - Serilog CorrelationId: `src/Traceability/Logging/CorrelationIdEnricher.cs`
 - Serilog Source: `src/Traceability/Logging/SourceEnricher.cs`
+- Serilog Data: `src/Traceability/Logging/DataEnricher.cs`
+- Serilog JSON Formatter: `src/Traceability/Logging/JsonFormatter.cs`
 - MEL CorrelationId: `src/Traceability/Logging/CorrelationIdScopeProvider.cs`
 - MEL Source: `src/Traceability/Logging/SourceScopeProvider.cs`
 - Configuration: `src/Traceability/Configuration/TraceabilityOptions.cs`
