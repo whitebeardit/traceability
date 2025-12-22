@@ -20,62 +20,98 @@ namespace Traceability.Tests
         public void AddTraceability_ShouldRegisterCorrelationIdHandler()
         {
             // Arrange
-            var services = new ServiceCollection();
+            var originalEnv = Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME");
+            try
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", "TestService");
+                var services = new ServiceCollection();
 
-            // Act
-            services.AddTraceability();
+                // Act
+                services.AddTraceability();
 
-            // Assert
-            var serviceProvider = services.BuildServiceProvider();
-            var handler = serviceProvider.GetService<CorrelationIdHandler>();
-            handler.Should().NotBeNull();
+                // Assert
+                var serviceProvider = services.BuildServiceProvider();
+                var handler = serviceProvider.GetService<CorrelationIdHandler>();
+                handler.Should().NotBeNull();
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", originalEnv);
+            }
         }
 
         [Fact]
         public void AddTraceability_ShouldRegisterTraceabilityOptions()
         {
             // Arrange
-            var services = new ServiceCollection();
+            var originalEnv = Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME");
+            try
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", "TestService");
+                var services = new ServiceCollection();
 
-            // Act
-            services.AddTraceability();
+                // Act
+                services.AddTraceability();
 
-            // Assert
-            var serviceProvider = services.BuildServiceProvider();
-            var options = serviceProvider.GetService<IOptions<TraceabilityOptions>>();
-            options.Should().NotBeNull();
-            options!.Value.HeaderName.Should().Be("X-Correlation-Id");
+                // Assert
+                var serviceProvider = services.BuildServiceProvider();
+                var options = serviceProvider.GetService<IOptions<TraceabilityOptions>>();
+                options.Should().NotBeNull();
+                options!.Value.HeaderName.Should().Be("X-Correlation-Id");
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", originalEnv);
+            }
         }
 
         [Fact]
         public void AddTraceability_ShouldRegisterIHttpClientFactory()
         {
             // Arrange
-            var services = new ServiceCollection();
+            var originalEnv = Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME");
+            try
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", "TestService");
+                var services = new ServiceCollection();
 
-            // Act
-            services.AddTraceability();
+                // Act
+                services.AddTraceability();
 
-            // Assert
-            var serviceProvider = services.BuildServiceProvider();
-            var factory = serviceProvider.GetService<IHttpClientFactory>();
-            factory.Should().NotBeNull();
+                // Assert
+                var serviceProvider = services.BuildServiceProvider();
+                var factory = serviceProvider.GetService<IHttpClientFactory>();
+                factory.Should().NotBeNull();
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", originalEnv);
+            }
         }
 
         [Fact]
         public void AddTraceability_ShouldRegisterCorrelationIdScopeProvider()
         {
             // Arrange
-            var services = new ServiceCollection();
+            var originalEnv = Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME");
+            try
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", "TestService");
+                var services = new ServiceCollection();
 
-            // Act
-            services.AddTraceability();
+                // Act
+                services.AddTraceability();
 
-            // Assert
-            var serviceProvider = services.BuildServiceProvider();
-            var scopeProvider = serviceProvider.GetService<IExternalScopeProvider>();
-            scopeProvider.Should().NotBeNull();
-            scopeProvider.Should().BeOfType<CorrelationIdScopeProvider>();
+                // Assert
+                var serviceProvider = services.BuildServiceProvider();
+                var scopeProvider = serviceProvider.GetService<IExternalScopeProvider>();
+                scopeProvider.Should().NotBeNull();
+                scopeProvider.Should().BeOfType<SourceScopeProvider>(); // Agora sempre usa SourceScopeProvider
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", originalEnv);
+            }
         }
 
         [Fact]
@@ -85,7 +121,7 @@ namespace Traceability.Tests
             var services = new ServiceCollection();
 
             // Act
-            services.AddTraceability(options =>
+            services.AddTraceability(configureOptions: options =>
             {
                 options.Source = "TestService";
             });
@@ -140,69 +176,114 @@ namespace Traceability.Tests
         public void AddTraceability_WithCustomOptions_ShouldApplyConfiguration()
         {
             // Arrange
-            var services = new ServiceCollection();
-            var customHeader = "X-Custom-Id";
-
-            // Act
-            services.AddTraceability(options =>
+            var originalEnv = Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME");
+            try
             {
-                options.HeaderName = customHeader;
-                options.ValidateCorrelationIdFormat = true;
-                options.AlwaysGenerateNew = true;
-            });
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", "TestService");
+                var services = new ServiceCollection();
+                var customHeader = "X-Custom-Id";
 
-            // Assert
-            var serviceProvider = services.BuildServiceProvider();
-            var options = serviceProvider.GetService<IOptions<TraceabilityOptions>>();
-            options!.Value.HeaderName.Should().Be(customHeader);
-            options.Value.ValidateCorrelationIdFormat.Should().BeTrue();
-            options.Value.AlwaysGenerateNew.Should().BeTrue();
+                // Act
+                services.AddTraceability(configureOptions: options =>
+                {
+                    options.HeaderName = customHeader;
+                    options.ValidateCorrelationIdFormat = true;
+                    options.AlwaysGenerateNew = true;
+                });
+
+                // Assert
+                var serviceProvider = services.BuildServiceProvider();
+                var options = serviceProvider.GetService<IOptions<TraceabilityOptions>>();
+                options!.Value.HeaderName.Should().Be(customHeader);
+                options.Value.ValidateCorrelationIdFormat.Should().BeTrue();
+                options.Value.AlwaysGenerateNew.Should().BeTrue();
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", originalEnv);
+            }
         }
 
         [Fact]
-        public void AddTraceability_WithSourceOverload_ShouldThrowWhenSourceIsNull()
+        public void AddTraceability_WithSourceOverload_ShouldThrowWhenSourceIsNullAndNoEnvVar()
         {
             // Arrange
-            var services = new ServiceCollection();
+            var originalEnv = Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME");
+            try
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", null);
+                var services = new ServiceCollection();
 
-            // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => services.AddTraceability((string)null!));
+                // Act & Assert
+                Assert.Throws<InvalidOperationException>(() => services.AddTraceability((string?)null));
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", originalEnv);
+            }
         }
 
         [Fact]
-        public void AddTraceability_WithSourceOverload_ShouldThrowWhenSourceIsEmpty()
+        public void AddTraceability_WithSourceOverload_ShouldThrowWhenSourceIsEmptyAndNoEnvVar()
         {
             // Arrange
-            var services = new ServiceCollection();
+            var originalEnv = Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME");
+            try
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", null);
+                var services = new ServiceCollection();
 
-            // Act & Assert
-            Assert.Throws<ArgumentException>(() => services.AddTraceability(""));
+                // Act & Assert
+                Assert.Throws<InvalidOperationException>(() => services.AddTraceability(""));
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", originalEnv);
+            }
         }
 
         [Fact]
-        public void AddTraceability_WithSourceOverload_ShouldThrowWhenSourceIsWhitespace()
+        public void AddTraceability_WithSourceOverload_ShouldThrowWhenSourceIsWhitespaceAndNoEnvVar()
         {
             // Arrange
-            var services = new ServiceCollection();
+            var originalEnv = Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME");
+            try
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", null);
+                var services = new ServiceCollection();
 
-            // Act & Assert
-            Assert.Throws<ArgumentException>(() => services.AddTraceability("   "));
+                // Act & Assert
+                Assert.Throws<InvalidOperationException>(() => services.AddTraceability("   "));
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", originalEnv);
+            }
         }
 
         [Fact]
         public void AddTraceability_ShouldNotRegisterIHttpClientFactory_WhenAlreadyRegistered()
         {
             // Arrange
-            var services = new ServiceCollection();
-            services.AddHttpClient(); // Registra IHttpClientFactory primeiro
+            var originalEnv = Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME");
+            try
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", "TestService");
+                var services = new ServiceCollection();
+                services.AddHttpClient(); // Registra IHttpClientFactory primeiro
 
-            // Act
-            services.AddTraceability();
+                // Act
+                services.AddTraceability();
 
-            // Assert
-            var serviceProvider = services.BuildServiceProvider();
-            var factory = serviceProvider.GetService<IHttpClientFactory>();
-            factory.Should().NotBeNull();
+                // Assert
+                var serviceProvider = services.BuildServiceProvider();
+                var factory = serviceProvider.GetService<IHttpClientFactory>();
+                factory.Should().NotBeNull();
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TRACEABILITY_SERVICENAME", originalEnv);
+            }
         }
     }
 }
