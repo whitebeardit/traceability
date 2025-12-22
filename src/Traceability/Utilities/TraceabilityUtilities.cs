@@ -100,7 +100,7 @@ namespace Traceability.Utilities
             }
 
             var result = sanitized.ToString();
-            
+
             // Limita o tamanho máximo
             if (result.Length > MaxSourceLength)
             {
