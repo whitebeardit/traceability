@@ -20,6 +20,12 @@ namespace Traceability.Configuration
         /// Quando habilitado, valida que o correlation-id não seja vazio e tenha tamanho máximo de 128 caracteres.
         /// </summary>
         public bool ValidateCorrelationIdFormat { get; set; } = false;
+
+        /// <summary>
+        /// Nome da origem/serviço que está gerando os logs (opcional, mas recomendado).
+        /// Este valor será adicionado a todos os logs para identificar a origem em ambientes distribuídos.
+        /// </summary>
+        public string? Source { get; set; }
     }
 }
 

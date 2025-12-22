@@ -166,6 +166,232 @@ namespace Traceability.Tests
             // Cleanup
             scope.Dispose();
         }
+
+        [Fact]
+        public void SourceEnricher_ShouldAddSourceToLogEvent()
+        {
+            // Arrange
+            const string source = "TestService";
+            var enricher = new SourceEnricher(source);
+            var logEvent = new LogEvent(
+                DateTimeOffset.Now,
+                LogEventLevel.Information,
+                null,
+                MessageTemplate.Empty,
+                new List<LogEventProperty>());
+
+            // Act
+            var mockPropertyFactory = new MockPropertyFactory();
+            enricher.Enrich(logEvent, mockPropertyFactory);
+
+            // Assert
+            logEvent.Properties.Should().ContainKey("Source");
+            logEvent.Properties["Source"].ToString().Should().Contain(source);
+        }
+
+        [Fact]
+        public void SourceEnricher_ShouldAlwaysAddSource()
+        {
+            // Arrange
+            const string source = "TestService";
+            var enricher = new SourceEnricher(source);
+            var logEvent = new LogEvent(
+                DateTimeOffset.Now,
+                LogEventLevel.Information,
+                null,
+                MessageTemplate.Empty,
+                new List<LogEventProperty>());
+
+            // Act - Sem correlation-id, mas Source deve estar presente
+            CorrelationContext.Clear();
+            var mockPropertyFactory = new MockPropertyFactory();
+            enricher.Enrich(logEvent, mockPropertyFactory);
+
+            // Assert
+            logEvent.Properties.Should().ContainKey("Source");
+            logEvent.Properties["Source"].ToString().Should().Contain(source);
+        }
+
+        [Fact]
+        public void SourceEnricher_ShouldReuseCachedProperty()
+        {
+            // Arrange
+            const string source = "TestService";
+            var enricher = new SourceEnricher(source);
+            var logEvent1 = new LogEvent(
+                DateTimeOffset.Now,
+                LogEventLevel.Information,
+                null,
+                MessageTemplate.Empty,
+                new List<LogEventProperty>());
+            var logEvent2 = new LogEvent(
+                DateTimeOffset.Now,
+                LogEventLevel.Information,
+                null,
+                MessageTemplate.Empty,
+                new List<LogEventProperty>());
+
+            // Act
+            var mockPropertyFactory = new MockPropertyFactory();
+            enricher.Enrich(logEvent1, mockPropertyFactory);
+            enricher.Enrich(logEvent2, mockPropertyFactory);
+
+            // Assert
+            logEvent1.Properties.Should().ContainKey("Source");
+            logEvent2.Properties.Should().ContainKey("Source");
+            // Verifica que a mesma propriedade foi reutilizada (cache)
+            logEvent1.Properties["Source"].Should().Be(logEvent2.Properties["Source"]);
+        }
+
+        [Fact]
+        public void SourceEnricher_WhenSourceIsNull_ShouldThrowArgumentNullException()
+        {
+            // Arrange & Act
+            Action act = () => new SourceEnricher(null!);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("source");
+        }
+
+        [Fact]
+        public void SourceEnricher_WhenSourceIsEmpty_ShouldThrowArgumentNullException()
+        {
+            // Arrange & Act
+            Action act = () => new SourceEnricher(string.Empty);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("source");
+        }
+
+        [Fact]
+        public void SourceEnricher_WhenSourceIsWhitespace_ShouldThrowArgumentNullException()
+        {
+            // Arrange & Act
+            Action act = () => new SourceEnricher("   ");
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("source");
+        }
+
+        [Fact]
+        public void SourceScopeProvider_ShouldAddSourceToScope()
+        {
+            // Arrange
+            const string source = "TestService";
+            var provider = new SourceScopeProvider(source);
+            var scopes = new List<object>();
+
+            // Act
+            provider.ForEachScope<object?>((scope, state) =>
+            {
+                scopes.Add(scope);
+            }, null);
+
+            // Assert
+            scopes.Should().NotBeEmpty();
+            var scopeDict = scopes[0].Should().BeOfType<Dictionary<string, object>>().Subject;
+            scopeDict.Should().ContainKey("Source");
+            scopeDict["Source"].Should().Be(source);
+        }
+
+        [Fact]
+        public void SourceScopeProvider_ShouldAlwaysAddSource()
+        {
+            // Arrange
+            const string source = "TestService";
+            var provider = new SourceScopeProvider(source);
+            var scopes = new List<object>();
+
+            // Act - Sem correlation-id, mas Source deve estar presente
+            CorrelationContext.Clear();
+            provider.ForEachScope<object?>((scope, state) =>
+            {
+                scopes.Add(scope);
+            }, null);
+
+            // Assert
+            scopes.Should().NotBeEmpty();
+            var scopeDict = scopes[0].Should().BeOfType<Dictionary<string, object>>().Subject;
+            scopeDict.Should().ContainKey("Source");
+            scopeDict["Source"].Should().Be(source);
+        }
+
+        [Fact]
+        public void SourceScopeProvider_Push_ShouldReturnDisposableScope()
+        {
+            // Arrange
+            const string source = "TestService";
+            var provider = new SourceScopeProvider(source);
+
+            // Act
+            var scope = provider.Push(new { Test = "value" });
+
+            // Assert
+            scope.Should().NotBeNull();
+            scope.Should().BeAssignableTo<IDisposable>();
+
+            // Cleanup
+            scope.Dispose();
+        }
+
+        [Fact]
+        public void SourceScopeProvider_WhenSourceIsNull_ShouldThrowArgumentNullException()
+        {
+            // Arrange & Act
+            Action act = () => new SourceScopeProvider(null!);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("source");
+        }
+
+        [Fact]
+        public void SourceScopeProvider_WhenSourceIsEmpty_ShouldThrowArgumentNullException()
+        {
+            // Arrange & Act
+            Action act = () => new SourceScopeProvider(string.Empty);
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("source");
+        }
+
+        [Fact]
+        public void SourceScopeProvider_WhenSourceIsWhitespace_ShouldThrowArgumentNullException()
+        {
+            // Arrange & Act
+            Action act = () => new SourceScopeProvider("   ");
+
+            // Assert
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("source");
+        }
+
+        [Fact]
+        public void SourceScopeProvider_WithInnerProvider_ShouldCallInnerProvider()
+        {
+            // Arrange
+            const string source = "TestService";
+            var innerScopes = new List<object>();
+            var innerProvider = new MockScopeProvider(innerScopes);
+            var provider = new SourceScopeProvider(source, innerProvider);
+            var allScopes = new List<object>();
+
+            // Act
+            provider.ForEachScope<object?>((scope, state) =>
+            {
+                allScopes.Add(scope);
+            }, null);
+
+            // Assert
+            allScopes.Should().HaveCount(2); // Source scope + inner scope
+            allScopes[0].Should().BeOfType<Dictionary<string, object>>()
+                .Which.Should().ContainKey("Source");
+            innerScopes.Should().NotBeEmpty(); // Verifica que inner provider foi chamado
+        }
     }
 
     // Helper class para criar ILogEventPropertyFactory
@@ -174,6 +400,38 @@ namespace Traceability.Tests
         public LogEventProperty CreateProperty(string name, object? value, bool destructureObjects = false)
         {
             return new LogEventProperty(name, new ScalarValue(value));
+        }
+    }
+
+    // Helper class para testar inner provider
+    internal class MockScopeProvider : IExternalScopeProvider
+    {
+        private readonly List<object> _scopes;
+
+        public MockScopeProvider(List<object> scopes)
+        {
+            _scopes = scopes;
+        }
+
+        public void ForEachScope<TState>(Action<object?, TState> callback, TState state)
+        {
+            var scope = new { Inner = "InnerScope" };
+            _scopes.Add(scope);
+            callback(scope, state);
+        }
+
+        public IDisposable Push(object? state)
+        {
+            return new MockDisposable();
+        }
+    }
+
+    // Helper class para testar Push
+    internal class MockDisposable : IDisposable
+    {
+        public void Dispose()
+        {
+            // Nada a fazer
         }
     }
 }
