@@ -62,7 +62,7 @@ namespace Traceability.Utilities
             // Se encontrou um source, sanitiza e retorna
             if (!string.IsNullOrWhiteSpace(rawSource))
             {
-                return SanitizeSource(rawSource);
+                return SanitizeSource(rawSource!); // rawSource não é null aqui devido à verificação acima
             }
 
             // Se nenhum estiver disponível, lançar erro
