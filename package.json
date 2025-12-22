@@ -1,0 +1,21 @@
+{
+  "name": "traceability-release",
+  "private": true,
+  "version": "0.0.0-development",
+  "description": "Tooling for semantic-release and NuGet publication of the Traceability package.",
+  "license": "MIT",
+  "type": "commonjs",
+  "scripts": {
+    "release": "semantic-release"
+  },
+  "devDependencies": {
+    "@droidsolutions-oss/semantic-release-nuget": "^4.0.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^11.1.0",
+    "@semantic-release/git": "^12.0.0",
+    "@semantic-release/github": "^9.2.2",
+    "@semantic-release/release-notes-generator": "^12.1.0",
+    "conventional-changelog-conventionalcommits": "^7.0.2",
+    "semantic-release": "^23.1.1"
+  }
+}
