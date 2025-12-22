@@ -2,6 +2,8 @@
 
 Pacote NuGet para gerenciamento automático de correlation-id em aplicações .NET, com suporte para .NET 8 e .NET Framework 4.8.
 
+> 📖 **[Quick Start](#quick-start)** | [Instalação](#instalação) | [Documentação Completa](#exemplos-de-uso)
+
 ## Motivação
 
 Em arquiteturas distribuídas e microserviços, rastrear uma requisição através de múltiplos serviços é essencial para debugging, monitoramento e análise de performance. O **correlation-id** (também conhecido como correlation identifier ou request ID) é um identificador único que permite rastrear uma requisição desde sua origem até todas as chamadas subsequentes.
@@ -59,15 +61,22 @@ dotnet add package Traceability
 
 ## Quick Start
 
-### ASP.NET Core (.NET 8)
+### ASP.NET Core (.NET 8) - Configuração Completa
+
+**1. Instale o pacote:**
+```bash
+dotnet add package Traceability
+```
+
+**2. Configure no `Program.cs`:**
 
 ```csharp
 using Traceability.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Adicionar serviços
-builder.Services.AddTraceability();
+// Adicionar traceability com Source (recomendado para logs)
+builder.Services.AddTraceability("MyService");
 builder.Services.AddControllers();
 
 var app = builder.Build();
@@ -79,30 +88,212 @@ app.MapControllers();
 app.Run();
 ```
 
-**Output Esperado:**
+**3. Use em um Controller:**
 
-Quando uma requisição HTTP é feita, o middleware automaticamente:
-- Gera um correlation-id se não existir no header `X-Correlation-Id`
-- Adiciona o correlation-id no header de resposta `X-Correlation-Id`
+```csharp
+using Microsoft.AspNetCore.Mvc;
+using Traceability;
 
-**Exemplo de Requisição/Resposta:**
-
-```http
-GET /api/values HTTP/1.1
-Host: localhost:5000
-```
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
-
+[ApiController]
+[Route("api/[controller]")]
+public class ValuesController : ControllerBase
 {
-  "value": "test"
+    [HttpGet]
+    public IActionResult Get()
+    {
+        // Correlation-id está automaticamente disponível
+        var correlationId = CorrelationContext.Current;
+        return Ok(new { CorrelationId = correlationId });
+    }
 }
 ```
 
+**4. Com Logging (Microsoft.Extensions.Logging):**
+
+```csharp
+// Program.cs
+builder.Services.AddTraceability("MyService");
+builder.Logging.AddConsole(options => options.IncludeScopes = true);
+
+// No Controller
+public class ValuesController : ControllerBase
+{
+    private readonly ILogger<ValuesController> _logger;
+
+    public ValuesController(ILogger<ValuesController> logger)
+    {
+        _logger = logger;
+    }
+
+    [HttpGet]
+    public IActionResult Get()
+    {
+        // Correlation-id aparece automaticamente nos logs
+        _logger.LogInformation("Processando requisição");
+        return Ok();
+    }
+}
+```
+
+**Output nos Logs:**
+```
+info: MyApp.ValuesController[0]
+      => CorrelationId: a1b2c3d4e5f6789012345678901234ab
+      Processando requisição
+```
+
+**5. Com HttpClient (propagação automática):**
+
+```csharp
+// Program.cs
+builder.Services.AddTraceability("MyService");
+builder.Services.AddTraceableHttpClient("ExternalApi", client =>
+{
+    client.BaseAddress = new Uri("https://api.example.com/");
+});
+
+// No Controller ou Serviço
+public class MyService
+{
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    public MyService(IHttpClientFactory httpClientFactory)
+    {
+        _httpClientFactory = httpClientFactory;
+    }
+
+    public async Task<string> CallExternalApiAsync()
+    {
+        // Correlation-id é automaticamente adicionado no header
+        var client = _httpClientFactory.CreateClient("ExternalApi");
+        var response = await client.GetAsync("endpoint");
+        return await response.Content.ReadAsStringAsync();
+    }
+}
+```
+
+**Resultado:**
+- ✅ Correlation-id gerado automaticamente em cada requisição
+- ✅ Propagado automaticamente em chamadas HTTP
+- ✅ Incluído automaticamente nos logs
+- ✅ Retornado no header `X-Correlation-Id` da resposta
+
+## Variáveis de Ambiente
+
+O pacote Traceability suporta variáveis de ambiente para reduzir verbosidade na configuração e garantir uniformização de logs em todas as aplicações e serviços.
+
+### Variáveis Suportadas
+
+#### `TRACEABILITY_SERVICENAME`
+Define o nome do serviço/origem que está gerando os logs. Este valor será adicionado ao campo `Source` em todos os logs.
+
+**Prioridade de Configuração:**
+1. Parâmetro `source` fornecido explicitamente (prioridade máxima)
+2. `TraceabilityOptions.Source` definido nas opções
+3. Variável de ambiente `TRACEABILITY_SERVICENAME`
+4. Se nenhum estiver disponível, uma exceção será lançada para forçar o padrão único
+
+#### `LOG_LEVEL`
+Define o nível mínimo de log (Verbose, Debug, Information, Warning, Error, Fatal).
+
+**Prioridade de Configuração:**
+1. Variável de ambiente `LOG_LEVEL` (prioridade máxima)
+2. `TraceabilityOptions.MinimumLogLevel` definido nas opções
+3. Information (padrão)
+
+### Configuração
+
+**Linux/Mac:**
+```bash
+export TRACEABILITY_SERVICENAME="UserService"
+export LOG_LEVEL="Information"
+```
+
+**Windows PowerShell:**
+```powershell
+$env:TRACEABILITY_SERVICENAME="UserService"
+$env:LOG_LEVEL="Information"
+```
+
+**Windows CMD:**
+```cmd
+set TRACEABILITY_SERVICENAME=UserService
+set LOG_LEVEL=Information
+```
+
+### Exemplos de Uso
+
+#### Com Variável de Ambiente (Source Opcional)
+
+```csharp
+// Variável de ambiente TRACEABILITY_SERVICENAME="UserService" definida
+using Traceability.Extensions;
+using Traceability.Logging;
+using Serilog;
+
+// Source é opcional quando env var está definida
+Log.Logger = new LoggerConfiguration()
+    .WithTraceability() // source opcional - lê de TRACEABILITY_SERVICENAME
+    .WriteTo.Console(new JsonFormatter())
+    .CreateLogger();
+
+// Ou com AddTraceability
+builder.Services.AddTraceability(); // source opcional
+```
+
+#### Com Parâmetro Explícito (Sobrescreve Env Var)
+
+```csharp
+// Mesmo com TRACEABILITY_SERVICENAME="UserService" definida
+Log.Logger = new LoggerConfiguration()
+    .WithTraceability("CustomService") // parâmetro tem prioridade sobre env var
+    .WriteTo.Console(new JsonFormatter())
+    .CreateLogger();
+
+// Ou com AddTraceability
+builder.Services.AddTraceability("CustomService"); // sobrescreve env var
+```
+
+#### Erro Quando Não Há Source
+
+```csharp
+// Se TRACEABILITY_SERVICENAME não estiver definida e source não for fornecido
+// Uma exceção será lançada para forçar o padrão único
+try
+{
+    Log.Logger = new LoggerConfiguration()
+        .WithTraceability() // source opcional, mas env var não existe
+        .WriteTo.Console(new JsonFormatter())
+        .CreateLogger();
+}
+catch (InvalidOperationException ex)
+{
+    // Exceção informa que Source deve ser fornecido
+    // via parâmetro, options ou variável de ambiente
+}
+```
+
+### Output JSON Obrigatório
+
+**Importante:** Todos os logs gerados pelo Traceability são sempre em formato JSON para garantir uniformização entre diferentes aplicações e serviços, independente do framework (.NET 8 ou .NET Framework 4.8).
+
+O formato JSON padrão inclui:
+- `Timestamp`: Data e hora do log
+- `Level`: Nível do log (Information, Warning, Error, etc.)
+- `Source`: Nome do serviço (obtido de `TRACEABILITY_SERVICENAME` ou parâmetro)
+- `CorrelationId`: ID de correlação (quando disponível)
+- `Message`: Mensagem do log
+- `Data`: Objetos serializados (quando presente)
+- `Exception`: Informações de exceção (quando presente)
+
 ### ASP.NET Web API (.NET Framework 4.8)
+
+**1. Instale o pacote via NuGet Package Manager ou CLI:**
+```bash
+Install-Package Traceability
+```
+
+**2. Configure no `Global.asax.cs`:**
 
 ```csharp
 using System.Web.Http;
@@ -121,30 +312,54 @@ public class WebApiApplication : System.Web.HttpApplication
 }
 ```
 
-**Output Esperado:**
+**3. Use em um Controller:**
 
-O MessageHandler automaticamente:
-- Gera um correlation-id se não existir no header `X-Correlation-Id`
-- Adiciona o correlation-id no header de resposta `X-Correlation-Id`
+```csharp
+using System.Web.Http;
+using Traceability;
 
-**Exemplo de Requisição/Resposta:**
-
-```http
-GET /api/values HTTP/1.1
-Host: localhost:8080
-```
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-X-Correlation-Id: f1e2d3c4b5a6978012345678901234cd
-
+public class ValuesController : ApiController
 {
-  "value": "test"
+    [HttpGet]
+    public IHttpActionResult Get()
+    {
+        // Correlation-id está automaticamente disponível
+        var correlationId = CorrelationContext.Current;
+        return Ok(new { CorrelationId = correlationId });
+    }
 }
 ```
 
+**4. Com Serilog (recomendado para .NET Framework):**
+
+```csharp
+using Traceability.Extensions;
+using Serilog;
+
+// No Application_Start ou Startup
+Log.Logger = new LoggerConfiguration()
+    .WithTraceability("MyService") // Source + CorrelationId
+    .WriteTo.Console(
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}")
+    .CreateLogger();
+
+// No Controller
+Log.Information("Processando requisição");
+```
+
+**Output nos Logs:**
+```
+[14:23:45 INF] MyService a1b2c3d4e5f6789012345678901234ab Processando requisição
+```
+
 ### Console Application
+
+**1. Instale o pacote:**
+```bash
+dotnet add package Traceability
+```
+
+**2. Use o CorrelationContext:**
 
 ```csharp
 using Traceability;
@@ -156,13 +371,34 @@ var correlationId = CorrelationContext.Current;
 Console.WriteLine($"Correlation ID: {correlationId}");
 ```
 
-**Output Esperado:**
+**3. Com Serilog:**
 
-```
-Correlation ID: 1a2b3c4d5e6f7890123456789012345ef
+```csharp
+using Traceability.Extensions;
+using Serilog;
+
+// Configurar Serilog
+Log.Logger = new LoggerConfiguration()
+    .WithTraceability("ConsoleApp")
+    .WriteTo.Console(
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}")
+    .CreateLogger();
+
+// Gerar correlation-id
+var correlationId = CorrelationContext.GetOrCreate();
+
+// Logs incluem correlation-id automaticamente
+Log.Information("Processando tarefa");
+Log.Information("Tarefa concluída");
 ```
 
-O correlation-id é um GUID de 32 caracteres (sem hífens) gerado automaticamente.
+**Output:**
+```
+[14:23:45 INF] ConsoleApp a1b2c3d4e5f6789012345678901234ab Processando tarefa
+[14:23:46 INF] ConsoleApp a1b2c3d4e5f6789012345678901234ab Tarefa concluída
+```
+
+> 💡 **Nota:** O correlation-id é um GUID de 32 caracteres (sem hífens) gerado automaticamente.
 
 ## Exemplos de Uso
 
@@ -652,6 +888,8 @@ info: Program[0]
 
 O pacote Traceability oferece suporte para template JSON padrão configurável que inclui automaticamente: Timestamp, Level, Source, CorrelationId, Message, Data (objetos serializados) e Exception.
 
+**Importante:** Todos os logs gerados pelo Traceability são sempre em formato JSON para garantir uniformização entre diferentes aplicações e serviços, independente do framework (.NET 8 ou .NET Framework 4.8).
+
 #### Uso Básico
 
 ```csharp
@@ -660,8 +898,9 @@ using Traceability.Logging;
 using Serilog;
 
 // Configurar logger com template JSON
+// Source pode vir de variável de ambiente TRACEABILITY_SERVICENAME
 Log.Logger = new LoggerConfiguration()
-    .WithTraceabilityJson("UserService")
+    .WithTraceabilityJson("UserService") // ou .WithTraceabilityJson() se env var estiver definida
     .WriteTo.Console(new JsonFormatter())
     .CreateLogger();
 

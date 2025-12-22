@@ -666,6 +666,86 @@ public class TraceabilityOptions
 - `LogIncludeData`: Se deve incluir campo Data para objetos serializados nos logs (padrão: true)
 - `LogIncludeException`: Se deve incluir Exception nos logs (padrão: true)
 
+### 14. Variáveis de Ambiente e Prioridade de Configuração
+
+**Localização**: Implementado em `src/Traceability/Extensions/LoggerConfigurationExtensions.cs` e `src/Traceability/Extensions/ServiceCollectionExtensions.cs`
+
+**Responsabilidade**: Suportar variáveis de ambiente para reduzir verbosidade na configuração e garantir uniformização de logs em todas as aplicações e serviços.
+
+**Variáveis de Ambiente Suportadas**:
+
+1. **`TRACEABILITY_SERVICENAME`**: Define o nome do serviço/origem que está gerando os logs. Este valor será adicionado ao campo `Source` em todos os logs.
+
+2. **`LOG_LEVEL`**: Define o nível mínimo de log (Verbose, Debug, Information, Warning, Error, Fatal).
+
+**Fluxo de Decisão para Source (ServiceName)**:
+
+```mermaid
+graph TD
+    A[Invocar método com source?] -->|source fornecido| B[Usar source do parâmetro]
+    A -->|source null/vazio| C[Source em Options?]
+    C -->|Sim| D[Usar Options.Source]
+    C -->|Não| E[Ler TRACEABILITY_SERVICENAME]
+    E -->|Existe| F[Usar env var]
+    E -->|Não existe| G[Lançar InvalidOperationException]
+    B --> H[Configurar Logger]
+    D --> H
+    F --> H
+```
+
+**Prioridade de Configuração**:
+
+1. **Source (ServiceName)**:
+   - Prioridade 1: Parâmetro `source` fornecido explicitamente (prioridade máxima)
+   - Prioridade 2: `TraceabilityOptions.Source` definido nas opções
+   - Prioridade 3: Variável de ambiente `TRACEABILITY_SERVICENAME`
+   - Se nenhum estiver disponível, uma exceção `InvalidOperationException` será lançada para forçar o padrão único
+
+2. **LogLevel**:
+   - Prioridade 1: Variável de ambiente `LOG_LEVEL` (prioridade máxima)
+   - Prioridade 2: `TraceabilityOptions.MinimumLogLevel` definido nas opções
+   - Prioridade 3: Information (padrão)
+
+3. **Output Format**: Sempre JSON (JsonCompact ou JsonIndented, nunca Text)
+
+**Output JSON Obrigatório**:
+
+Todos os logs gerados pelo Traceability são sempre em formato JSON para garantir uniformização entre diferentes aplicações e serviços, independente do framework (.NET 8 ou .NET Framework 4.8). O formato JSON padrão inclui:
+- `Timestamp`: Data e hora do log
+- `Level`: Nível do log (Information, Warning, Error, etc.)
+- `Source`: Nome do serviço (obtido de `TRACEABILITY_SERVICENAME` ou parâmetro)
+- `CorrelationId`: ID de correlação (quando disponível)
+- `Message`: Mensagem do log
+- `Data`: Objetos serializados (quando presente)
+- `Exception`: Informações de exceção (quando presente)
+
+**Exemplo de Uso**:
+
+```csharp
+// Com variável de ambiente TRACEABILITY_SERVICENAME="UserService" definida
+Log.Logger = new LoggerConfiguration()
+    .WithTraceability() // source opcional - lê de TRACEABILITY_SERVICENAME
+    .WriteTo.Console(new JsonFormatter())
+    .CreateLogger();
+
+// Com parâmetro explícito (sobrescreve env var)
+Log.Logger = new LoggerConfiguration()
+    .WithTraceability("CustomService") // parâmetro tem prioridade
+    .WriteTo.Console(new JsonFormatter())
+    .CreateLogger();
+
+// Com AddTraceability
+builder.Services.AddTraceability(); // source opcional - lê de TRACEABILITY_SERVICENAME
+// ou
+builder.Services.AddTraceability("CustomService"); // sobrescreve env var
+```
+
+**Racional**:
+
+- **Reduzir Verbosidade**: Permite configurar ServiceName e LogLevel via variáveis de ambiente, reduzindo a necessidade de código repetitivo
+- **Forçar Padrão Único**: Se Source não estiver disponível (nem parâmetro, nem options, nem env var), uma exceção é lançada para garantir que todos os serviços sigam o mesmo padrão
+- **Uniformização de Logs**: Output sempre em JSON garante que todos os logs de diferentes aplicações e serviços tenham o mesmo formato, facilitando análise e correlação
+
 ### 10. Extensions
 
 #### ServiceCollectionExtensions
@@ -676,21 +756,28 @@ public class TraceabilityOptions
 
 **Métodos**:
 ```csharp
-// Sobrecarga 1: Configuração via Action
+// Sobrecarga 1: Configuração via Action (Source pode vir de options ou env var)
 public static IServiceCollection AddTraceability(
     this IServiceCollection services,
     Action<TraceabilityOptions>? configureOptions = null);
 
-// Sobrecarga 2: Configuração com Source direto (conveniência)
+// Sobrecarga 2: Configuração com Source direto (opcional - pode vir de env var)
 public static IServiceCollection AddTraceability(
     this IServiceCollection services,
-    string source,
+    string? source = null,
     Action<TraceabilityOptions>? configureOptions = null);
 
 public static IServiceCollection AddTraceabilityLogging(
     this IServiceCollection services,
-    string source,
+    string? source = null,
     Action<TraceabilityOptions>? configureOptions = null);
+```
+
+**Comportamento**:
+- `AddTraceability()` e `AddTraceabilityLogging()` agora aceitam `source` como opcional
+- Se `source` não for fornecido, será lido de `TraceabilityOptions.Source` ou variável de ambiente `TRACEABILITY_SERVICENAME`
+- Se nenhum source estiver disponível, uma exceção `InvalidOperationException` será lançada
+- Prioridade: Parâmetro > Options.Source > Env Var > Erro
 
 public static IServiceCollection AddTraceableHttpClient<TClient>(
     this IServiceCollection services,
@@ -733,15 +820,15 @@ public static HttpClient AddCorrelationIdHeader(
 
 **Métodos**:
 ```csharp
-// Método original - adiciona Source e CorrelationId
+// Método original - adiciona Source e CorrelationId (source opcional)
 public static LoggerConfiguration WithTraceability(
     this LoggerConfiguration config,
-    string source);
+    string? source = null);
 
-// Novo método - adiciona Source, CorrelationId e DataEnricher para template JSON
+// Novo método - adiciona Source, CorrelationId e DataEnricher para template JSON (source opcional)
 public static LoggerConfiguration WithTraceabilityJson(
     this LoggerConfiguration config,
-    string source,
+    string? source = null,
     Action<TraceabilityOptions>? configureOptions = null);
 
 // Sobrecarga com TraceabilityOptions
@@ -753,7 +840,10 @@ public static LoggerConfiguration WithTraceabilityJson(
 **Comportamento**:
 - `WithTraceability()`: Adiciona automaticamente `SourceEnricher` e `CorrelationIdEnricher` ao Serilog
 - `WithTraceabilityJson()`: Adiciona `SourceEnricher`, `CorrelationIdEnricher` e `DataEnricher` (se `LogIncludeData = true`)
-- Source é obrigatório (não pode ser null ou vazio)
+- Source é opcional e pode vir de variável de ambiente `TRACEABILITY_SERVICENAME` ou `TraceabilityOptions.Source`
+- Se nenhum source estiver disponível (nem parâmetro, nem options, nem env var), uma exceção `InvalidOperationException` será lançada
+- Prioridade: Parâmetro > Options.Source > Env Var > Erro
+- Output sempre em formato JSON para garantir uniformização
 - Facilita configuração de traceability em uma única chamada
 - `WithTraceabilityJson()` é otimizado para uso com template JSON padrão
 
@@ -1180,6 +1270,61 @@ await SomeAsyncMethod(); // Valor preservado
 - Se precisar de integração com Application Insights
 - Se precisar de distributed tracing completo
 - Se precisar de spans e traces hierárquicos
+
+### Por que Uniformização de Logs JSON e Variáveis de Ambiente?
+
+**Razão**: Garantir que todos os logs de diferentes aplicações e serviços sigam o mesmo padrão, facilitando análise, correlação e monitoramento em ambientes distribuídos.
+
+**Decisões de Design**:
+
+1. **Output Sempre JSON**:
+   - **Razão**: Formato JSON é estruturado, facilmente parseável e suportado por todas as ferramentas de log aggregation (ELK, Splunk, etc.)
+   - **Benefício**: Uniformização automática entre diferentes aplicações e serviços
+   - **Implementação**: Todos os métodos `WithTraceability()` e `WithTraceabilityJson()` garantem output JSON
+
+2. **Variáveis de Ambiente para Source e LogLevel**:
+   - **Razão**: Reduzir verbosidade na configuração e permitir alteração sem recompilação
+   - **Benefício**: Configuração centralizada via variáveis de ambiente facilita gerenciamento em produção
+   - **Prioridade**: Parâmetro > Options > Env Var > Erro (garante flexibilidade mas força padrão)
+
+3. **Erro Quando Source Não Disponível**:
+   - **Razão**: Forçar que todos os serviços tenham Source definido para garantir rastreabilidade
+   - **Benefício**: Previne logs sem identificação de origem, facilitando debugging em ambientes distribuídos
+   - **Trade-off**: Pode ser mais restritivo, mas garante qualidade dos logs
+
+4. **Fluxo de Decisão para Source**:
+   - **Razão**: Permitir múltiplas formas de configuração mantendo prioridade clara
+   - **Benefício**: Flexibilidade para diferentes cenários (desenvolvimento, testes, produção)
+   - **Implementação**: Método `GetServiceName()` centraliza a lógica de decisão
+
+**Exemplo do Problema Resolvido**:
+```csharp
+// ❌ Antes: Cada serviço configura Source de forma diferente
+// Serviço A
+Log.Logger = new LoggerConfiguration()
+    .Enrich.With(new SourceEnricher("ServiceA"))
+    .WriteTo.Console() // Formato texto diferente
+    .CreateLogger();
+
+// Serviço B
+Log.Logger = new LoggerConfiguration()
+    .Enrich.With(new SourceEnricher("ServiceB"))
+    .WriteTo.File("log.txt") // Formato diferente
+    .CreateLogger();
+
+// ✅ Agora: Todos os serviços seguem o mesmo padrão
+// export TRACEABILITY_SERVICENAME="ServiceA"
+Log.Logger = new LoggerConfiguration()
+    .WithTraceability() // Source da env var, output JSON
+    .WriteTo.Console(new JsonFormatter())
+    .CreateLogger();
+
+// export TRACEABILITY_SERVICENAME="ServiceB"
+Log.Logger = new LoggerConfiguration()
+    .WithTraceability() // Source da env var, output JSON
+    .WriteTo.Console(new JsonFormatter())
+    .CreateLogger();
+```
 
 ### Trade-offs e Limitações Conhecidas
 
