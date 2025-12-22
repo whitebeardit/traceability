@@ -183,3 +183,4 @@ src/Traceability/
 - **Quando usar**: Para funcionalidades específicas do Web API
 - **Arquivos**: MessageHandlers
 
+

@@ -172,3 +172,4 @@ Se você ainda está enfrentando problemas:
 2. Consulte os [Exemplos](examples/aspnet-core.md) para ver implementações funcionais
 3. Abra uma issue no repositório do projeto
 
+

@@ -45,3 +45,4 @@ Se você já sabe o que é correlation-id e quer começar rapidamente, vá diret
 - [Exemplos](../examples/aspnet-core.md) - Mais exemplos práticos
 - [API Reference](../api-reference.md) - Referência completa da API
 
+

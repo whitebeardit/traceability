@@ -165,3 +165,4 @@ builder.Services.AddTraceability("UserService", options =>
 
 Agora que você sabe configurar opções, vamos ver exemplos práticos completos na [Lição 9: Exemplos Práticos](09-examples.md).
 
+

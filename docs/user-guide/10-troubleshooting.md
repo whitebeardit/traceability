@@ -207,3 +207,4 @@ Continue explorando:
 - [Exemplos Práticos](../examples/aspnet-core.md)
 - [API Reference](../api-reference.md)
 
+

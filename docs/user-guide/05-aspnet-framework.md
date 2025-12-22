@@ -145,3 +145,4 @@ No .NET Framework 4.8:
 
 Agora que você sabe integrar com ambos os frameworks, vamos ver como usar com logging na [Lição 6: Logging](06-logging.md).
 
+

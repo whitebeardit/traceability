@@ -138,3 +138,4 @@ public void Current_WhenNoValue_ShouldGenerateNew()
 ### Testes
 - Todos os testes: `tests/Traceability.Tests/`
 
+

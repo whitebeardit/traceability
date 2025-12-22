@@ -146,3 +146,4 @@ O correlation-id é um GUID formatado **sem hífens** (32 caracteres):
 
 Agora que você sabe usar o `CorrelationContext`, vamos ver como integrá-lo com ASP.NET Core na [Lição 4: ASP.NET Core](04-aspnet-core.md).
 
+

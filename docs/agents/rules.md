@@ -75,3 +75,4 @@ Ao adicionar/modificar código, verificar:
 - [ ] Funciona em .NET Framework 4.8
 - [ ] Sem breaking changes (ou documentados)
 
+

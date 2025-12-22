@@ -155,3 +155,4 @@ builder.Services.AddTraceability();
 - Veja [Exemplos](examples/aspnet-core.md) para mais cenários de uso
 - Leia [Configuração](configuration.md) para opções avançadas
 
+

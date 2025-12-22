@@ -30,6 +30,7 @@ Bem-vindo à documentação completa do pacote Traceability para gerenciamento a
 
 Para desenvolvedores que desejam contribuir ou entender a arquitetura interna:
 
+- [CI/CD e Releases](development/ci-cd.md) - Pipeline de CI/CD e processo de release
 - [Documentação para LLMs](../AGENTS.md) - Arquitetura e guia técnico completo
 
 ## O que é Traceability?

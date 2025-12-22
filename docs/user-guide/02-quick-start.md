@@ -99,3 +99,4 @@ Isso adiciona o campo `Source` aos logs (veremos mais sobre isso na Lição 6).
 
 Agora que você viu o básico, vamos aprender mais sobre o `CorrelationContext` na [Lição 3: Uso Básico](03-basic-usage.md).
 
+

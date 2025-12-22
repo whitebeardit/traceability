@@ -50,3 +50,4 @@ Use o **Traceability** quando você precisa:
 
 Agora que você entende o que é Traceability, vamos começar a usá-lo! Continue para a [Lição 2: Quick Start](02-quick-start.md).
 
+

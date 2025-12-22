@@ -14,3 +14,4 @@
 - **Socket Exhaustion**: Problema que ocorre quando muitas conexões HTTP são criadas sem reutilização, esgotando os sockets disponíveis
 - **IHttpClientFactory**: Factory do .NET que gerencia o pool de conexões HTTP, prevenindo socket exhaustion
 
+

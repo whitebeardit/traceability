@@ -222,3 +222,4 @@ O formato JSON padrão inclui:
 - `Data`: Objetos serializados (quando presente)
 - `Exception`: Informações de exceção (quando presente)
 
+

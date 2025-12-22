@@ -160,3 +160,4 @@ Quando você tem uma cadeia de chamadas (Serviço A → Serviço B → Serviço 
 
 Agora que você sabe usar logging, vamos ver como usar com HttpClient na [Lição 7: HttpClient](07-httpclient.md).
 
+

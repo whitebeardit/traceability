@@ -63,3 +63,4 @@ Após a instalação, consulte:
 - [Quick Start](getting-started.md) para começar rapidamente
 - [Manual do Usuário](user-guide/index.md) para um guia completo
 
+

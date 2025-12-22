@@ -148,3 +148,4 @@ Log.Logger = new LoggerConfiguration()
 - **.NET Framework**: Configuração estática agora usa `volatile` e `lock` para garantir thread-safety
 - **CorrelationContext**: Melhorias na implementação para garantir thread-safety em todos os cenários
 
+

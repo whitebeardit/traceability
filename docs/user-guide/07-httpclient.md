@@ -159,3 +159,4 @@ public class ExternalApiService
 
 Agora que você sabe usar HttpClient, vamos ver opções de configuração na [Lição 8: Configuração](08-configuration.md).
 
+

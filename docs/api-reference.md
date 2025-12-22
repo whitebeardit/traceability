@@ -184,3 +184,4 @@ Opções de configuração para o pacote.
 
 Veja [Configuração](configuration.md) para detalhes completos.
 
+

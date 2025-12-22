@@ -180,3 +180,4 @@ app.Run();
 
 Agora que você sabe integrar com ASP.NET Core, vamos ver como fazer o mesmo com .NET Framework na [Lição 5: ASP.NET Framework](05-aspnet-framework.md), ou pule para [Lição 6: Logging](06-logging.md) se você só usa .NET 8.
 
+

@@ -165,6 +165,10 @@ var client = _httpClientFactory.CreateClient("ExternalApi");
 
 Contribuições são bem-vindas! Por favor, abra uma issue ou pull request.
 
+Para desenvolvedores que desejam contribuir:
+- **[CI/CD e Releases](docs/development/ci-cd.md)** - Processo de versionamento e publicação
+- **[Documentação Técnica](AGENTS.md)** - Arquitetura e guia técnico completo
+
 ## Licença
 
 MIT

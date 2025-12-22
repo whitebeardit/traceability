@@ -174,3 +174,4 @@ telemetryClient.Context.Properties["CorrelationId"] = correlationId;
 4. **Mantenha logs em JSON**: Garante uniformização entre serviços
 5. **Não modifique correlation-id existente**: Preserva rastreabilidade na cadeia
 
+
