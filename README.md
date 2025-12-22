@@ -1145,6 +1145,405 @@ fail: MyApp.MyService[0]
          at MyApp.MyService.ProcessRequestAsync()
 ```
 
+## Cenário Real: Rastreamento em Múltiplos Serviços
+
+Este exemplo demonstra como o Traceability funciona em um cenário real de arquitetura de microsserviços, onde um serviço faz chamadas para múltiplos outros serviços, e como o correlation-id permite rastrear toda a requisição através de todos os serviços.
+
+### Fluxo de Requisições
+
+O diagrama abaixo mostra o fluxo completo de uma requisição que passa por 4 serviços diferentes:
+
+```mermaid
+sequenceDiagram
+    participant Client as Cliente
+    participant UserService as UserService<br/>API Gateway
+    participant OrderService as OrderService
+    participant PaymentService as PaymentService
+    participant NotificationService as NotificationService
+
+    Client->>UserService: POST /api/orders<br/>Request #0<br/>(sem X-Correlation-Id)
+    Note over UserService: Middleware gera<br/>correlation-id:<br/>abc123def456...
+    UserService->>UserService: Log: Recebendo requisição<br/>CorrelationId: abc123...
+    
+    UserService->>OrderService: POST /api/orders<br/>Request #1<br/>X-Correlation-Id: abc123...
+    Note over OrderService: Middleware lê<br/>correlation-id do header
+    OrderService->>OrderService: Log: Criando pedido<br/>CorrelationId: abc123...
+    OrderService->>OrderService: Log: Pedido criado: #12345<br/>CorrelationId: abc123...
+    OrderService-->>UserService: Response #1<br/>OrderId: 12345<br/>X-Correlation-Id: abc123...
+    
+    UserService->>PaymentService: POST /api/payments<br/>Request #2<br/>X-Correlation-Id: abc123...
+    Note over PaymentService: Middleware lê<br/>correlation-id do header
+    PaymentService->>PaymentService: Log: Processando pagamento<br/>CorrelationId: abc123...
+    PaymentService->>PaymentService: Log: Pagamento aprovado<br/>CorrelationId: abc123...
+    PaymentService-->>UserService: Response #2<br/>PaymentId: 789<br/>X-Correlation-Id: abc123...
+    
+    UserService->>NotificationService: POST /api/notifications<br/>Request #3<br/>X-Correlation-Id: abc123...
+    Note over NotificationService: Middleware lê<br/>correlation-id do header
+    NotificationService->>NotificationService: Log: Enviando notificação<br/>CorrelationId: abc123...
+    NotificationService->>NotificationService: Log: Notificação enviada<br/>CorrelationId: abc123...
+    NotificationService-->>UserService: Response #3<br/>NotificationId: 456<br/>X-Correlation-Id: abc123...
+    
+    UserService->>UserService: Log: Pedido processado<br/>CorrelationId: abc123...
+    UserService-->>Client: Response #0<br/>OrderId: 12345<br/>X-Correlation-Id: abc123...
+```
+
+### Implementação
+
+**Program.cs (UserService):**
+
+```csharp
+using Traceability.Extensions;
+using Traceability.Logging;
+using Serilog;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Configurar Serilog com SourceEnricher e CorrelationIdEnricher
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .Enrich.With(new SourceEnricher("UserService"))
+    .Enrich.With<CorrelationIdEnricher>()
+    .WriteTo.Console(
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+
+// Configurar traceability
+builder.Services.AddTraceabilityLogging("UserService");
+
+// Configurar HttpClients para cada serviço com correlation-id automático
+builder.Services.AddTraceableHttpClient("OrderService", client =>
+{
+    client.BaseAddress = new Uri("https://order-service.example.com/");
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
+builder.Services.AddTraceableHttpClient("PaymentService", client =>
+{
+    client.BaseAddress = new Uri("https://payment-service.example.com/");
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
+builder.Services.AddTraceableHttpClient("NotificationService", client =>
+{
+    client.BaseAddress = new Uri("https://notification-service.example.com/");
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
+builder.Services.AddControllers();
+
+var app = builder.Build();
+
+app.UseCorrelationId();
+app.MapControllers();
+
+app.Run();
+```
+
+**OrderController.cs (UserService):**
+
+```csharp
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Traceability;
+
+[ApiController]
+[Route("api/[controller]")]
+public class OrdersController : ControllerBase
+{
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<OrdersController> _logger;
+
+    public OrdersController(
+        IHttpClientFactory httpClientFactory,
+        ILogger<OrdersController> logger)
+    {
+        _httpClientFactory = httpClientFactory;
+        _logger = logger;
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest request)
+    {
+        var correlationId = CorrelationContext.Current;
+        _logger.LogInformation("Recebendo requisição para criar pedido. UserId: {UserId}", request.UserId);
+
+        // Request #1: Criar pedido no OrderService
+        var orderClient = _httpClientFactory.CreateClient("OrderService");
+        var orderResponse = await orderClient.PostAsJsonAsync("api/orders", new
+        {
+            userId = request.UserId,
+            items = request.Items
+        });
+        orderResponse.EnsureSuccessStatusCode();
+        var orderResult = await orderResponse.Content.ReadFromJsonAsync<OrderResponse>();
+        _logger.LogInformation("Pedido criado no OrderService. OrderId: {OrderId}", orderResult.OrderId);
+
+        // Request #2: Processar pagamento no PaymentService
+        var paymentClient = _httpClientFactory.CreateClient("PaymentService");
+        var paymentResponse = await paymentClient.PostAsJsonAsync("api/payments", new
+        {
+            orderId = orderResult.OrderId,
+            amount = request.TotalAmount,
+            paymentMethod = request.PaymentMethod
+        });
+        paymentResponse.EnsureSuccessStatusCode();
+        var paymentResult = await paymentResponse.Content.ReadFromJsonAsync<PaymentResponse>();
+        _logger.LogInformation("Pagamento processado. PaymentId: {PaymentId}, Status: {Status}", 
+            paymentResult.PaymentId, paymentResult.Status);
+
+        // Request #3: Enviar notificação no NotificationService
+        var notificationClient = _httpClientFactory.CreateClient("NotificationService");
+        var notificationResponse = await notificationClient.PostAsJsonAsync("api/notifications", new
+        {
+            userId = request.UserId,
+            orderId = orderResult.OrderId,
+            message = $"Pedido #{orderResult.OrderId} criado com sucesso!"
+        });
+        notificationResponse.EnsureSuccessStatusCode();
+        var notificationResult = await notificationResponse.Content.ReadFromJsonAsync<NotificationResponse>();
+        _logger.LogInformation("Notificação enviada. NotificationId: {NotificationId}", notificationResult.NotificationId);
+
+        _logger.LogInformation("Pedido processado com sucesso. OrderId: {OrderId}", orderResult.OrderId);
+
+        return Ok(new
+        {
+            orderId = orderResult.OrderId,
+            paymentId = paymentResult.PaymentId,
+            notificationId = notificationResult.NotificationId,
+            correlationId = correlationId
+        });
+    }
+}
+```
+
+### Logs Gerados
+
+Todos os serviços geram logs com o **mesmo correlation-id**, permitindo rastrear toda a requisição através de todos os serviços:
+
+**UserService (Logs):**
+
+```
+[14:23:45 INF] UserService abc123def4567890123456789012345678 Recebendo requisição para criar pedido. UserId: 1001
+[14:23:45 INF] UserService abc123def4567890123456789012345678 Pedido criado no OrderService. OrderId: 12345
+[14:23:46 INF] UserService abc123def4567890123456789012345678 Pagamento processado. PaymentId: 789, Status: Approved
+[14:23:46 INF] UserService abc123def4567890123456789012345678 Notificação enviada. NotificationId: 456
+[14:23:46 INF] UserService abc123def4567890123456789012345678 Pedido processado com sucesso. OrderId: 12345
+```
+
+**OrderService (Logs):**
+
+```
+[14:23:45 INF] OrderService abc123def4567890123456789012345678 Recebendo requisição para criar pedido
+[14:23:45 INF] OrderService abc123def4567890123456789012345678 Validando itens do pedido
+[14:23:45 INF] OrderService abc123def4567890123456789012345678 Pedido criado com sucesso. OrderId: 12345, Total: 299.99
+[14:23:45 INF] OrderService abc123def4567890123456789012345678 Retornando resposta ao UserService
+```
+
+**PaymentService (Logs):**
+
+```
+[14:23:45 INF] PaymentService abc123def4567890123456789012345678 Recebendo requisição de pagamento. OrderId: 12345
+[14:23:45 INF] PaymentService abc123def4567890123456789012345678 Validando método de pagamento
+[14:23:46 INF] PaymentService abc123def4567890123456789012345678 Processando pagamento no gateway
+[14:23:46 INF] PaymentService abc123def4567890123456789012345678 Pagamento aprovado. PaymentId: 789, Amount: 299.99
+[14:23:46 INF] PaymentService abc123def4567890123456789012345678 Retornando resposta ao UserService
+```
+
+**NotificationService (Logs):**
+
+```
+[14:23:46 INF] NotificationService abc123def4567890123456789012345678 Recebendo requisição de notificação. OrderId: 12345
+[14:23:46 INF] NotificationService abc123def4567890123456789012345678 Preparando notificação para envio
+[14:23:46 INF] NotificationService abc123def4567890123456789012345678 Notificação enviada com sucesso. NotificationId: 456
+[14:23:46 INF] NotificationService abc123def4567890123456789012345678 Retornando resposta ao UserService
+```
+
+### Outputs e Respostas
+
+**Request #0 - Cliente → UserService:**
+
+```http
+POST /api/orders HTTP/1.1
+Host: user-service.example.com
+Content-Type: application/json
+
+{
+  "userId": 1001,
+  "items": [
+    { "productId": 1, "quantity": 2, "price": 99.99 }
+  ],
+  "totalAmount": 199.98,
+  "paymentMethod": "credit_card"
+}
+```
+
+**Response #0 - UserService → Cliente:**
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+X-Correlation-Id: abc123def4567890123456789012345678
+
+{
+  "orderId": 12345,
+  "paymentId": 789,
+  "notificationId": 456,
+  "correlationId": "abc123def4567890123456789012345678"
+}
+```
+
+**Request #1 - UserService → OrderService (automático via CorrelationIdHandler):**
+
+```http
+POST /api/orders HTTP/1.1
+Host: order-service.example.com
+Content-Type: application/json
+X-Correlation-Id: abc123def4567890123456789012345678
+
+{
+  "userId": 1001,
+  "items": [
+    { "productId": 1, "quantity": 2, "price": 99.99 }
+  ]
+}
+```
+
+**Response #1 - OrderService → UserService:**
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+X-Correlation-Id: abc123def4567890123456789012345678
+
+{
+  "orderId": 12345,
+  "status": "created",
+  "total": 199.98
+}
+```
+
+**Request #2 - UserService → PaymentService (automático via CorrelationIdHandler):**
+
+```http
+POST /api/payments HTTP/1.1
+Host: payment-service.example.com
+Content-Type: application/json
+X-Correlation-Id: abc123def4567890123456789012345678
+
+{
+  "orderId": 12345,
+  "amount": 199.98,
+  "paymentMethod": "credit_card"
+}
+```
+
+**Response #2 - PaymentService → UserService:**
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+X-Correlation-Id: abc123def4567890123456789012345678
+
+{
+  "paymentId": 789,
+  "status": "approved",
+  "amount": 199.98
+}
+```
+
+**Request #3 - UserService → NotificationService (automático via CorrelationIdHandler):**
+
+```http
+POST /api/notifications HTTP/1.1
+Host: notification-service.example.com
+Content-Type: application/json
+X-Correlation-Id: abc123def4567890123456789012345678
+
+{
+  "userId": 1001,
+  "orderId": 12345,
+  "message": "Pedido #12345 criado com sucesso!"
+}
+```
+
+**Response #3 - NotificationService → UserService:**
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+X-Correlation-Id: abc123def4567890123456789012345678
+
+{
+  "notificationId": 456,
+  "status": "sent",
+  "deliveredAt": "2024-01-15T14:23:46Z"
+}
+```
+
+### Vantagens do Traceability
+
+#### 1. Rastreamento Completo da Requisição
+
+Com o correlation-id `abc123def4567890123456789012345678`, você pode buscar em todos os logs de todos os serviços e ver exatamente o que aconteceu em cada etapa:
+
+```bash
+# Buscar todos os logs relacionados a esta requisição
+grep "abc123def4567890123456789012345678" /var/log/*.log
+
+# Resultado mostra logs de todos os 4 serviços na ordem cronológica
+```
+
+#### 2. Debugging Simplificado
+
+Quando um erro ocorre, você pode identificar rapidamente em qual serviço e em qual etapa:
+
+**Exemplo de Erro:**
+
+```
+[14:23:45 INF] UserService abc123... Recebendo requisição
+[14:23:45 INF] OrderService abc123... Pedido criado
+[14:23:46 ERR] PaymentService abc123... Erro ao processar pagamento: Card declined
+[14:23:46 ERR] UserService abc123... Falha ao processar pedido
+```
+
+Com o mesmo correlation-id, você vê que o problema ocorreu no `PaymentService` durante o processamento do pagamento.
+
+#### 3. Análise de Performance
+
+Você pode medir o tempo total de uma requisição através de múltiplos serviços:
+
+```
+[14:23:45.123 INF] UserService abc123... Recebendo requisição
+[14:23:45.456 INF] OrderService abc123... Pedido criado (333ms)
+[14:23:46.123 INF] PaymentService abc123... Pagamento processado (667ms)
+[14:23:46.234 INF] NotificationService abc123... Notificação enviada (111ms)
+[14:23:46.250 INF] UserService abc123... Pedido processado (1127ms total)
+```
+
+#### 4. Correlação em Sistemas Distribuídos
+
+Em ambientes com múltiplos servidores, load balancers e filas de mensageria, o correlation-id permite rastrear uma requisição mesmo quando ela passa por diferentes instâncias do mesmo serviço.
+
+#### 5. Integração com Ferramentas de Observabilidade
+
+O correlation-id pode ser usado com ferramentas como:
+- **Application Insights**: Filtrar traces por correlation-id
+- **ELK Stack**: Buscar logs por correlation-id
+- **Grafana**: Criar dashboards baseados em correlation-id
+- **Jaeger/Zipkin**: Rastrear distributed traces
+
+#### 6. Sem Código Adicional
+
+O Traceability faz tudo automaticamente:
+- ✅ Gera correlation-id quando necessário
+- ✅ Propaga em todas as chamadas HTTP
+- ✅ Adiciona aos logs automaticamente
+- ✅ Retorna no header da resposta
+
+Você não precisa se preocupar em passar o correlation-id manualmente entre serviços!
+
 ## API Reference
 
 ### CorrelationContext
