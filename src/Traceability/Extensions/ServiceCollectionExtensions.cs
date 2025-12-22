@@ -59,7 +59,7 @@ namespace Traceability.Extensions
                 var assemblyName = Assembly.GetEntryAssembly()?.GetName().Name;
                 if (!string.IsNullOrWhiteSpace(assemblyName))
                 {
-                    return assemblyName;
+                    return assemblyName!; // Null-forgiving: já validado com IsNullOrWhiteSpace
                 }
             }
 
