@@ -40,7 +40,7 @@ namespace Traceability.Logging
             // Tenta obter correlation-id sem criar um novo (evita criar indesejadamente)
             if (CorrelationContext.TryGetValue(out var correlationId) && !string.IsNullOrEmpty(correlationId))
             {
-                var correlationIdScope = CreateScope(correlationId);
+                var correlationIdScope = CreateScope(correlationId!);
                 callback(correlationIdScope, state);
             }
 
@@ -56,7 +56,7 @@ namespace Traceability.Logging
             // Tenta obter correlation-id sem criar um novo (evita criar indesejadamente)
             if (CorrelationContext.TryGetValue(out var correlationId) && !string.IsNullOrEmpty(correlationId))
             {
-                var correlationIdScope = CreateScope(correlationId);
+                var correlationIdScope = CreateScope(correlationId!);
                 var innerScope = _innerProvider?.Push(correlationIdScope);
                 return new CorrelationIdScope(innerScope, correlationIdScope);
             }

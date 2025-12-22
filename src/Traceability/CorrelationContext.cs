@@ -9,7 +9,7 @@ namespace Traceability
     /// </summary>
     public static class CorrelationContext
     {
-        private static readonly AsyncLocal<string> _correlationId = new AsyncLocal<string>();
+        private static readonly AsyncLocal<string?> _correlationId = new AsyncLocal<string?>();
 
         /// <summary>
         /// Obtém ou define o correlation-id atual no contexto assíncrono.
@@ -24,7 +24,7 @@ namespace Traceability
                 {
                     _correlationId.Value = GenerateNew();
                 }
-                return _correlationId.Value;
+                return _correlationId.Value!;
             }
             set => _correlationId.Value = value;
         }

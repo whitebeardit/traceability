@@ -44,7 +44,7 @@ namespace Traceability.WebApi
                 return false;
 
             // Valida tamanho máximo (128 caracteres)
-            if (correlationId.Length > 128)
+            if (correlationId!.Length > 128)
                 return false;
 
             return true;
@@ -85,7 +85,7 @@ namespace Traceability.WebApi
             else
             {
                 // Se existir, usa o valor do header
-                CorrelationContext.Current = correlationId;
+                CorrelationContext.Current = correlationId!;
             }
 
             // Continua o pipeline usando async/await para melhor propagação de exceções
@@ -109,7 +109,7 @@ namespace Traceability.WebApi
                 }
             }
 
-            return response;
+            return response!;
         }
     }
 }
