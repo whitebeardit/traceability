@@ -129,6 +129,26 @@ namespace Traceability.Configuration
         /// </para>
         /// </remarks>
         public LogEventLevel? MinimumLogLevel { get; set; }
+
+        /// <summary>
+        /// Se false, desabilita o registro automático do middleware CorrelationIdMiddleware.
+        /// Padrão: true (middleware é registrado automaticamente via IStartupFilter).
+        /// Defina como false apenas se precisar de controle manual sobre a ordem do middleware.
+        /// </summary>
+        public bool AutoRegisterMiddleware { get; set; } = true;
+
+        /// <summary>
+        /// Se false, desabilita a configuração automática de todos os HttpClients com CorrelationIdHandler.
+        /// Padrão: true (todos os HttpClients criados via IHttpClientFactory terão o handler automaticamente).
+        /// Defina como false apenas se precisar configurar HttpClients manualmente.
+        /// </summary>
+        public bool AutoConfigureHttpClient { get; set; } = true;
+
+        /// <summary>
+        /// Se false, desabilita o uso do assembly name como fallback para Source quando nenhum Source for fornecido.
+        /// Padrão: true (usa assembly name se nenhum Source estiver disponível).
+        /// </summary>
+        public bool UseAssemblyNameAsFallback { get; set; } = true;
     }
 }
 
