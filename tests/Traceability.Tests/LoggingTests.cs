@@ -50,7 +50,10 @@ namespace Traceability.Tests
             // Act
             provider.ForEachScope<object?>((scope, state) =>
             {
-                scopes.Add(scope);
+                if (scope != null)
+                {
+                    scopes.Add(scope);
+                }
             }, null);
 
             // Assert
@@ -138,7 +141,10 @@ namespace Traceability.Tests
             // Act
             provider.ForEachScope<object?>((scope, state) =>
             {
-                scopes.Add(scope);
+                if (scope != null)
+                {
+                    scopes.Add(scope);
+                }
             }, null);
 
             // Assert
@@ -287,7 +293,10 @@ namespace Traceability.Tests
             // Act
             provider.ForEachScope<object?>((scope, state) =>
             {
-                scopes.Add(scope);
+                if (scope != null)
+                {
+                    scopes.Add(scope);
+                }
             }, null);
 
             // Assert
@@ -309,7 +318,10 @@ namespace Traceability.Tests
             CorrelationContext.Clear();
             provider.ForEachScope<object?>((scope, state) =>
             {
-                scopes.Add(scope);
+                if (scope != null)
+                {
+                    scopes.Add(scope);
+                }
             }, null);
 
             // Assert
@@ -383,7 +395,10 @@ namespace Traceability.Tests
             // Act
             provider.ForEachScope<object?>((scope, state) =>
             {
-                allScopes.Add(scope);
+                if (scope != null)
+                {
+                    allScopes.Add(scope);
+                }
             }, null);
 
             // Assert

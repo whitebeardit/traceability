@@ -105,14 +105,14 @@ namespace Traceability.Tests
         }
 
         [Fact]
-        public void Current_ShouldBeIsolatedBetweenAsyncContexts()
+        public async Task Current_ShouldBeIsolatedBetweenAsyncContexts()
         {
             // Arrange
             CorrelationContext.Clear();
             var correlationId1 = Guid.NewGuid().ToString("N");
             var correlationId2 = Guid.NewGuid().ToString("N");
-            string result1 = null;
-            string result2 = null;
+            string? result1 = null;
+            string? result2 = null;
 
             // Act
             var task1 = Task.Run(async () =>
@@ -129,7 +129,7 @@ namespace Traceability.Tests
                 result2 = CorrelationContext.Current;
             });
 
-            Task.WaitAll(task1, task2);
+            await Task.WhenAll(task1, task2);
 
             // Assert
             result1.Should().Be(correlationId1);
@@ -138,22 +138,20 @@ namespace Traceability.Tests
         }
 
         [Fact]
-        public void Current_ShouldMaintainValueAcrossAsyncOperations()
+        public async Task Current_ShouldMaintainValueAcrossAsyncOperations()
         {
             // Arrange
             CorrelationContext.Clear();
             var expectedId = Guid.NewGuid().ToString("N");
             CorrelationContext.Current = expectedId;
-            string result = null;
+            string? result = null;
 
             // Act
-            var task = Task.Run(async () =>
+            await Task.Run(async () =>
             {
                 await Task.Delay(10);
                 result = CorrelationContext.Current;
             });
-
-            task.Wait();
 
             // Assert
             result.Should().Be(expectedId);

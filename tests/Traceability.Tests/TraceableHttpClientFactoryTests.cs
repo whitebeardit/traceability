@@ -60,7 +60,7 @@ namespace Traceability.Tests
             // Assert
             result.Should().NotBeNull();
             result.BaseAddress.Should().NotBeNull();
-            result.BaseAddress.ToString().Should().Be(baseAddress + "/");
+            result.BaseAddress!.ToString().Should().Be(baseAddress + "/");
         }
 
         [Fact]
