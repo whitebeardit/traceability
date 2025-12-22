@@ -20,11 +20,13 @@ namespace Traceability
         {
             get
             {
-                if (_correlationId.Value == null)
+                var value = _correlationId.Value;
+                if (value == null)
                 {
-                    _correlationId.Value = GenerateNew();
+                    value = GenerateNew();
+                    _correlationId.Value = value;
                 }
-                return _correlationId.Value!;
+                return value;
             }
             set => _correlationId.Value = value;
         }
@@ -47,14 +49,12 @@ namespace Traceability
 
         /// <summary>
         /// Obtém o correlation-id existente ou cria um novo se não existir.
+        /// Thread-safe: usa Current property que já é thread-safe.
         /// </summary>
         /// <returns>O correlation-id atual ou um novo se não existir.</returns>
         public static string GetOrCreate()
         {
-            if (!HasValue)
-            {
-                Current = GenerateNew();
-            }
+            // Usa Current property que já garante criação thread-safe
             return Current;
         }
 
