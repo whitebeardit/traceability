@@ -29,7 +29,7 @@ builder.Services.AddControllers();
 // Não precisa de .AddHttpMessageHandler<CorrelationIdHandler>()
 builder.Services.AddHttpClient("ExternalApi", client =>
 {
-    client.BaseAddress = new Uri("https://jsonplaceholder.typicode.com/");
+    client.BaseAddress = new Uri("https://whitebeard.dev/");
 });
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

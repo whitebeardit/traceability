@@ -471,7 +471,7 @@ builder.Services.AddControllers();
 // Configurar HttpClient traceable (CorrelationIdHandler é adicionado automaticamente)
 builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 {
-    client.BaseAddress = new Uri("https://jsonplaceholder.typicode.com/");
+    client.BaseAddress = new Uri("https://whitebeard.dev/");
 });
 
 var app = builder.Build();
@@ -558,7 +558,7 @@ O HttpClient automaticamente adiciona o correlation-id no header:
 
 ```http
 GET /posts/1 HTTP/1.1
-Host: jsonplaceholder.typicode.com
+Host: whitebeard.dev
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 ```
 
@@ -1246,7 +1246,7 @@ public class ValuesController : ApiController
         };
         return new HttpClient(handler)
         {
-            BaseAddress = new System.Uri("https://jsonplaceholder.typicode.com/")
+            BaseAddress = new System.Uri("https://whitebeard.dev/")
         };
     }
 
@@ -1298,7 +1298,7 @@ O HttpClient automaticamente adiciona o correlation-id no header:
 
 ```http
 GET /posts/1 HTTP/1.1
-Host: jsonplaceholder.typicode.com
+Host: whitebeard.dev
 X-Correlation-Id: f1e2d3c4b5a6978012345678901234cd
 ```
 
