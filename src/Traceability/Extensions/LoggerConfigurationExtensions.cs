@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using Serilog;
 using Serilog.Events;
 using Traceability.Configuration;
@@ -19,6 +20,7 @@ namespace Traceability.Extensions
         /// 1) Parâmetro source (se fornecido e não vazio)
         /// 2) options.Source (se definido)
         /// 3) Variável de ambiente TRACEABILITY_SERVICENAME
+        /// 4) Assembly name (se UseAssemblyNameAsFallback = true)
         /// Se nenhum estiver disponível, lança InvalidOperationException.
         /// </summary>
         /// <param name="source">Source fornecido como parâmetro (opcional).</param>
@@ -46,9 +48,19 @@ namespace Traceability.Extensions
                 return envValue;
             }
 
+            // Prioridade 4: Assembly name (se UseAssemblyNameAsFallback = true)
+            if (options == null || options.UseAssemblyNameAsFallback)
+            {
+                var assemblyName = Assembly.GetEntryAssembly()?.GetName().Name;
+                if (!string.IsNullOrWhiteSpace(assemblyName))
+                {
+                    return assemblyName;
+                }
+            }
+
             // Se nenhum estiver disponível, lançar erro
             throw new InvalidOperationException(
-                $"Source (ServiceName) must be provided either as a parameter, in TraceabilityOptions.Source, or via the {ServiceNameEnvironmentVariable} environment variable. " +
+                $"Source (ServiceName) must be provided either as a parameter, in TraceabilityOptions.Source, via the {ServiceNameEnvironmentVariable} environment variable, or (if UseAssemblyNameAsFallback = true) it will use the assembly name. " +
                 "At least one of these must be specified to ensure uniform logging across all applications and services.");
         }
 

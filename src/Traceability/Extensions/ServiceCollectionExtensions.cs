@@ -2,6 +2,7 @@
 using System;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -24,6 +25,7 @@ namespace Traceability.Extensions
         /// 1) Parâmetro source (se fornecido e não vazio)
         /// 2) options.Source (se definido)
         /// 3) Variável de ambiente TRACEABILITY_SERVICENAME
+        /// 4) Assembly name (se UseAssemblyNameAsFallback = true)
         /// Se nenhum estiver disponível, lança InvalidOperationException.
         /// </summary>
         /// <param name="source">Source fornecido como parâmetro (opcional).</param>
@@ -51,9 +53,19 @@ namespace Traceability.Extensions
                 return envValue;
             }
 
+            // Prioridade 4: Assembly name (se UseAssemblyNameAsFallback = true)
+            if (options == null || options.UseAssemblyNameAsFallback)
+            {
+                var assemblyName = Assembly.GetEntryAssembly()?.GetName().Name;
+                if (!string.IsNullOrWhiteSpace(assemblyName))
+                {
+                    return assemblyName;
+                }
+            }
+
             // Se nenhum estiver disponível, lançar erro
             throw new InvalidOperationException(
-                $"Source (ServiceName) must be provided either as a parameter, in TraceabilityOptions.Source, or via the {ServiceNameEnvironmentVariable} environment variable. " +
+                $"Source (ServiceName) must be provided either as a parameter, in TraceabilityOptions.Source, via the {ServiceNameEnvironmentVariable} environment variable, or (if UseAssemblyNameAsFallback = true) it will use the assembly name. " +
                 "At least one of these must be specified to ensure uniform logging across all applications and services.");
         }
 
@@ -182,6 +194,25 @@ namespace Traceability.Extensions
             if (!services.Any(s => s.ServiceType == typeof(IHttpClientFactory)))
             {
                 services.AddHttpClient(); // Registra IHttpClientFactory
+            }
+
+            // Auto-registra middleware via IStartupFilter se habilitado
+            if (tempOptions.AutoRegisterMiddleware)
+            {
+                services.AddSingleton<Microsoft.AspNetCore.Hosting.IStartupFilter, CorrelationIdStartupFilter>();
+            }
+
+            // Auto-configura todos os HttpClients com CorrelationIdHandler se habilitado
+            if (tempOptions.AutoConfigureHttpClient)
+            {
+                services.ConfigureAll<HttpClientFactoryOptions>(options =>
+                {
+                    options.HttpMessageHandlerBuilderActions.Add(builder =>
+                    {
+                        var handler = builder.Services.GetRequiredService<CorrelationIdHandler>();
+                        builder.AdditionalHandlers.Add(handler);
+                    });
+                });
             }
             
             return services;
