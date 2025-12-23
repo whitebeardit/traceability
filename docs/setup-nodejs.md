@@ -1,85 +1,84 @@
-# Configuração do Node.js e npm
+# Node.js and npm Setup
 
-Este projeto usa `semantic-release` que requer Node.js e npm instalados localmente.
+This project uses `semantic-release` which requires Node.js and npm installed locally.
 
-## Instalação no Windows
+## Installation on Windows
 
-### Opção 1: Instalação direta (mais simples)
+### Option 1: Direct installation (simplest)
 
-1. Acesse [https://nodejs.org](https://nodejs.org)
-2. Baixe a versão **LTS** (recomendada)
-3. Execute o instalador `.msi`
-4. Siga as instruções, mantendo as opções padrão
-5. Reinicie o terminal/PowerShell após a instalação
+1. Go to [https://nodejs.org](https://nodejs.org)
+2. Download the **LTS** version (recommended)
+3. Run the `.msi` installer
+4. Follow the instructions, keeping default options
+5. Restart terminal/PowerShell after installation
 
-### Opção 2: Usando nvm-windows (recomendado para desenvolvedores)
+### Option 2: Using nvm-windows (recommended for developers)
 
-1. Baixe o nvm-windows de: [https://github.com/coreybutler/nvm-windows/releases](https://github.com/coreybutler/nvm-windows/releases)
-2. Instale o arquivo `nvm-setup.exe`
-3. Abra um novo terminal e execute:
+1. Download nvm-windows from: [https://github.com/coreybutler/nvm-windows/releases](https://github.com/coreybutler/nvm-windows/releases)
+2. Install the `nvm-setup.exe` file
+3. Open a new terminal and run:
    ```powershell
    nvm install 20.11.0
    nvm use 20.11.0
    ```
 
-## Verificação da Instalação
+## Installation Verification
 
-Após instalar, execute no terminal:
+After installing, run in terminal:
 
 ```powershell
 node --version
 npm --version
 ```
 
-Você deve ver as versões instaladas. Para este projeto, recomendamos:
-- Node.js: versão 18 ou superior (20 LTS recomendado)
-- npm: vem junto com Node.js
+You should see the installed versions. For this project, we recommend:
+- Node.js: version 18 or higher (20 LTS recommended)
+- npm: comes with Node.js
 
-## Instalação das Dependências do Projeto
+## Installing Project Dependencies
 
-Após instalar Node.js, execute no diretório do projeto:
+After installing Node.js, run in the project directory:
 
 ```powershell
 npm install
 ```
 
-Isso instalará todas as dependências do `semantic-release` listadas no `package.json`.
+This will install all `semantic-release` dependencies listed in `package.json`.
 
 ## Troubleshooting
 
-### Comando não encontrado após instalação
+### Command not found after installation
 
-Se após instalar o Node.js o comando não for reconhecido no PowerShell:
+If after installing Node.js the command is not recognized in PowerShell:
 
-1. **Solução Rápida**: Feche e reabra o terminal/PowerShell
-2. **Solução Permanente**: Adicione ao perfil do PowerShell:
+1. **Quick Solution**: Close and reopen terminal/PowerShell
+2. **Permanent Solution**: Add to PowerShell profile:
    ```powershell
-   # Recarregar PATH do sistema no inicio da sessao
+   # Reload system PATH at session start
    $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')
    ```
    
-   Para adicionar automaticamente:
+   To add automatically:
    ```powershell
    if (-not (Test-Path $PROFILE)) { New-Item -Path $PROFILE -ItemType File -Force }
    Add-Content -Path $PROFILE -Value "`$env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')"
    ```
    
-   Depois, recarregue o perfil:
+   Then, reload the profile:
    ```powershell
    . $PROFILE
    ```
 
-3. **Verificar PATH**: Execute:
+3. **Check PATH**: Run:
    ```powershell
    $env:PATH -split ';' | Select-String node
    ```
    
-   Se não aparecer nada, o Node.js pode não estar no PATH do sistema.
+   If nothing appears, Node.js may not be in the system PATH.
 
-### Script de Diagnóstico
+### Diagnostic Script
 
-Execute o script de diagnóstico para verificar o PATH:
+Run the diagnostic script to check PATH:
 ```powershell
 .\scripts\fix-powershell-path.ps1
 ```
-

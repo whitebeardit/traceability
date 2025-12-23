@@ -1,53 +1,51 @@
-# Lição 1: O que é Traceability?
+# Lesson 1: What is Traceability?
 
-## O Que É Correlation-ID?
+## What is Correlation-ID?
 
-**Correlation-ID** (também conhecido como correlation identifier ou request ID) é um identificador único usado para rastrear uma requisição através de múltiplos serviços em uma arquitetura distribuída.
+**Correlation-ID** (also known as correlation identifier or request ID) is a unique identifier used to track a request across multiple services in a distributed architecture.
 
-### Exemplo Prático
+### Practical Example
 
-Imagine uma requisição de pedido que passa por três serviços:
+Imagine an order request that goes through three services:
 
 ```
-Cliente → API Gateway → Serviço de Pedidos → Serviço de Pagamento → Serviço de Notificação
+Client → API Gateway → Order Service → Payment Service → Notification Service
 ```
 
-Sem correlation-id, você teria que procurar logs em cada serviço separadamente. Com o **Traceability**, todos os logs terão o mesmo correlation-id (`a1b2c3d4...`), permitindo buscar por este ID em todos os serviços e ver o fluxo completo da requisição.
+Without correlation-id, you would have to search logs in each service separately. With **Traceability**, all logs will have the same correlation-id (`a1b2c3d4...`), allowing you to search for this ID across all services and see the complete request flow.
 
-## Quando Usar o Traceability?
+## When to Use Traceability?
 
-Use o **Traceability** quando você precisa:
+Use **Traceability** when you need:
 
-1. **Rastreabilidade em Microserviços**: Rastrear uma requisição através de múltiplos serviços em uma arquitetura distribuída, permitindo correlacionar logs de diferentes serviços usando o mesmo correlation-id.
+1. **Microservices Traceability**: Track a request across multiple services in a distributed architecture, allowing you to correlate logs from different services using the same correlation-id.
 
-2. **Debugging Simplificado**: Identificar rapidamente todos os logs relacionados a uma requisição específica, mesmo quando ela passa por vários serviços, facilitando a investigação de problemas.
+2. **Simplified Debugging**: Quickly identify all logs related to a specific request, even when it passes through multiple services, facilitating problem investigation.
 
-3. **Análise de Performance**: Medir o tempo total de processamento de uma requisição através de múltiplos serviços, identificando gargalos na cadeia de chamadas.
+3. **Performance Analysis**: Measure the total processing time of a request across multiple services, identifying bottlenecks in the call chain.
 
-4. **Monitoramento e Observabilidade**: Correlacionar métricas, traces e logs de diferentes serviços usando o mesmo identificador, melhorando a visibilidade do sistema.
+4. **Monitoring and Observability**: Correlate metrics, traces, and logs from different services using the same identifier, improving system visibility.
 
-5. **Suporte Multi-Framework**: Trabalhar com aplicações .NET 8.0 (ASP.NET Core) e .NET Framework 4.8 (ASP.NET Web API e ASP.NET Tradicional) usando a mesma biblioteca.
+5. **Multi-Framework Support**: Work with .NET 8.0 (ASP.NET Core) and .NET Framework 4.8 (ASP.NET Web API and Traditional ASP.NET) applications using the same library.
 
-6. **Integração Automática**: Ter correlation-id automaticamente propagado em chamadas HTTP, adicionado aos logs (Serilog e Microsoft.Extensions.Logging) e gerenciado sem código boilerplate.
+6. **Automatic Integration**: Have correlation-id automatically propagated in HTTP calls, added to logs (Serilog and Microsoft.Extensions.Logging), and managed without boilerplate code.
 
-## Benefícios
+## Benefits
 
-- ✅ **Zero Configuração**: Funciona out-of-the-box com configuração mínima
-- ✅ **Thread-Safe e Async-Safe**: Usa `AsyncLocal` para garantir isolamento correto em contextos assíncronos
-- ✅ **Prevenção de Socket Exhaustion**: Integração nativa com `IHttpClientFactory` para gerenciamento eficiente de conexões HTTP
-- ✅ **Integração com Logging**: Suporte automático para Serilog e Microsoft.Extensions.Logging
-- ✅ **Propagação Automática**: Correlation-id é automaticamente propagado em todas as chamadas HTTP encadeadas
+- ✅ **Zero Configuration**: Works out-of-the-box with minimal configuration
+- ✅ **Thread-Safe and Async-Safe**: Uses `AsyncLocal` to ensure correct isolation in asynchronous contexts
+- ✅ **Socket Exhaustion Prevention**: Native integration with `IHttpClientFactory` for efficient HTTP connection management
+- ✅ **Logging Integration**: Automatic support for Serilog and Microsoft.Extensions.Logging
+- ✅ **Automatic Propagation**: Correlation-id is automatically propagated in all chained HTTP calls
 
-## Como Funciona?
+## How Does It Work?
 
-1. **Requisição HTTP chega**: O middleware/handler lê o header `X-Correlation-Id` (se existir) ou gera um novo GUID
-2. **Correlation-id armazenado**: O ID é armazenado no contexto assíncrono usando `AsyncLocal`
-3. **Propagação automática**: Todas as chamadas HTTP subsequentes incluem automaticamente o correlation-id no header
-4. **Logs automáticos**: Todos os logs incluem automaticamente o correlation-id
-5. **Resposta HTTP**: O correlation-id é retornado no header da resposta
+1. **HTTP request arrives**: The middleware/handler reads the `X-Correlation-Id` header (if it exists) or generates a new GUID
+2. **Correlation-id stored**: The ID is stored in the asynchronous context using `AsyncLocal`
+3. **Automatic propagation**: All subsequent HTTP calls automatically include the correlation-id in the header
+4. **Automatic logs**: All logs automatically include the correlation-id
+5. **HTTP response**: The correlation-id is returned in the response header
 
-## Próximos Passos
+## Next Steps
 
-Agora que você entende o que é Traceability, vamos começar a usá-lo! Continue para a [Lição 2: Quick Start](02-quick-start.md).
-
-
+Now that you understand what Traceability is, let's start using it! Continue to [Lesson 2: Quick Start](02-quick-start.md).

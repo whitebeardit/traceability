@@ -1,76 +1,76 @@
-# Lição 10: Troubleshooting
+# Lesson 10: Troubleshooting
 
-Nesta lição, você aprenderá a resolver problemas comuns ao usar o Traceability.
+In this lesson, you'll learn to resolve common problems when using Traceability.
 
-## Correlation-id não está sendo propagado
+## Correlation-id is not being propagated
 
-### Problema
+### Problem
 
-O correlation-id não aparece nas chamadas HTTP ou nos logs.
+The correlation-id doesn't appear in HTTP calls or logs.
 
-### Soluções
+### Solutions
 
-1. **Verifique se o middleware está configurado:**
+1. **Check if middleware is configured:**
    ```csharp
-   // Certifique-se de que AddTraceability() foi chamado
+   // Make sure AddTraceability() was called
    builder.Services.AddTraceability("UserService");
    ```
 
-2. **Verifique se HttpClient está usando CorrelationIdHandler:**
+2. **Check if HttpClient is using CorrelationIdHandler:**
    ```csharp
-   // Use AddTraceableHttpClient ou adicione o handler manualmente
+   // Use AddTraceableHttpClient or add handler manually
    builder.Services.AddTraceableHttpClient("ExternalApi", client =>
    {
        client.BaseAddress = new Uri("https://api.example.com/");
    });
    ```
 
-3. **Verifique se AutoConfigureHttpClient não está desabilitado:**
+3. **Check if AutoConfigureHttpClient is not disabled:**
    ```csharp
    builder.Services.AddTraceability("UserService", options =>
    {
-       options.AutoConfigureHttpClient = true; // Deve ser true (padrão)
+       options.AutoConfigureHttpClient = true; // Should be true (default)
    });
    ```
 
-## Correlation-id não aparece nos logs
+## Correlation-id does not appear in logs
 
-### Para Serilog
+### For Serilog
 
-**Solução:**
+**Solution:**
 ```csharp
 Log.Logger = new LoggerConfiguration()
-    .WithTraceability("UserService") // Adicione esta linha
+    .WithTraceability("UserService") // Add this line
     .WriteTo.Console(
         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}")
     .CreateLogger();
 ```
 
-### Para Microsoft.Extensions.Logging
+### For Microsoft.Extensions.Logging
 
-**Solução:**
+**Solution:**
 ```csharp
 builder.Services.AddTraceability("UserService");
-builder.Logging.AddConsole(options => options.IncludeScopes = true); // Habilite scopes
+builder.Logging.AddConsole(options => options.IncludeScopes = true); // Enable scopes
 ```
 
-## Source não está sendo definido
+## Source is not being defined
 
-### Erro: InvalidOperationException
+### Error: InvalidOperationException
 
-Se você receber uma exceção informando que Source deve ser fornecido:
+If you receive an exception stating that Source must be provided:
 
-**Solução 1: Forneça Source explicitamente**
+**Solution 1: Provide Source explicitly**
 ```csharp
 builder.Services.AddTraceability("UserService");
 ```
 
-**Solução 2: Defina variável de ambiente**
+**Solution 2: Set environment variable**
 ```bash
 export TRACEABILITY_SERVICENAME="UserService"
 ```
 
-**Solução 3: Configure nas opções**
+**Solution 3: Configure in options**
 ```csharp
 builder.Services.AddTraceability(options =>
 {
@@ -78,13 +78,13 @@ builder.Services.AddTraceability(options =>
 });
 ```
 
-## Problemas com .NET Framework 4.8
+## Problems with .NET Framework 4.8
 
-### Web API - Handler não funciona
+### Web API - Handler doesn't work
 
-**Solução:**
+**Solution:**
 ```csharp
-// Certifique-se de que o handler está no Global.asax.cs
+// Make sure handler is in Global.asax.cs
 GlobalConfiguration.Configure(config =>
 {
     config.MessageHandlers.Add(new CorrelationIdMessageHandler());
@@ -92,11 +92,11 @@ GlobalConfiguration.Configure(config =>
 });
 ```
 
-### ASP.NET Tradicional - Módulo não funciona
+### Traditional ASP.NET - Module doesn't work
 
-**Solução:**
+**Solution:**
 ```xml
-<!-- Certifique-se de que o módulo está no web.config -->
+<!-- Make sure module is in web.config -->
 <system.webServer>
   <modules>
     <add name="CorrelationIdHttpModule" 
@@ -105,106 +105,104 @@ GlobalConfiguration.Configure(config =>
 </system.webServer>
 ```
 
-## HttpClient causando socket exhaustion
+## HttpClient causing socket exhaustion
 
-### Problema
+### Problem
 
-Muitas conexões HTTP são criadas sem reutilização.
+Many HTTP connections are created without reuse.
 
-### Solução
+### Solution
 
-**❌ Incorreto:**
+**❌ Incorrect:**
 ```csharp
-var client = new HttpClient(); // Causa socket exhaustion
+var client = new HttpClient(); // Causes socket exhaustion
 ```
 
-**✅ Correto:**
+**✅ Correct:**
 ```csharp
-// Configure no Program.cs
+// Configure in Program.cs
 builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 {
     client.BaseAddress = new Uri("https://api.example.com/");
 });
 
-// Use no serviço
+// Use in service
 var client = _httpClientFactory.CreateClient("ExternalApi");
 ```
 
-## Correlation-id não preservado em Task.Run()
+## Correlation-id not preserved in Task.Run()
 
-### Problema
+### Problem
 
-O correlation-id não é preservado quando você usa `Task.Run()`.
+The correlation-id is not preserved when you use `Task.Run()`.
 
-### Explicação
+### Explanation
 
-`Task.Run()` cria um novo contexto assíncrono isolado. O correlation-id não é preservado automaticamente.
+`Task.Run()` creates a new isolated asynchronous context. The correlation-id is not automatically preserved.
 
-### Solução
+### Solution
 
-Use `await` ao invés de `Task.Run()` quando possível:
+Use `await` instead of `Task.Run()` when possible:
 
-**❌ Incorreto:**
+**❌ Incorrect:**
 ```csharp
 Task.Run(() =>
 {
-    var id = CorrelationContext.Current; // Pode ser diferente ou null
+    var id = CorrelationContext.Current; // May be different or null
 });
 ```
 
-**✅ Correto:**
+**✅ Correct:**
 ```csharp
-await ProcessarAsync(); // Preserva o contexto
+await ProcessAsync(); // Preserves context
 
-async Task ProcessarAsync()
+async Task ProcessAsync()
 {
-    var id = CorrelationContext.Current; // Preservado
+    var id = CorrelationContext.Current; // Preserved
 }
 ```
 
 ## FAQ
 
-### P: Posso usar correlation-id em aplicações console?
+### Q: Can I use correlation-id in console applications?
 
-R: Sim! Use `CorrelationContext.GetOrCreate()` para gerar um correlation-id manualmente.
+A: Yes! Use `CorrelationContext.GetOrCreate()` to manually generate a correlation-id.
 
-### P: O correlation-id é preservado em Task.Run()?
+### Q: Is correlation-id preserved in Task.Run()?
 
-R: Não. `Task.Run()` cria um novo contexto assíncrono isolado. Use `await` para preservar o contexto.
+A: No. `Task.Run()` creates a new isolated asynchronous context. Use `await` to preserve the context.
 
-### P: Posso customizar o nome do header?
+### Q: Can I customize the header name?
 
-R: Sim, use `TraceabilityOptions.HeaderName` para definir um nome customizado.
+A: Yes, use `TraceabilityOptions.HeaderName` to define a custom name.
 
-### P: Como desabilitar o auto-registro do middleware?
+### Q: How to disable middleware auto-registration?
 
-R: Defina `AutoRegisterMiddleware = false` nas opções e registre manualmente com `app.UseCorrelationId()`.
+A: Set `AutoRegisterMiddleware = false` in options and register manually with `app.UseCorrelationId()`.
 
-### P: Os logs são sempre em JSON?
+### Q: Are logs always in JSON?
 
-R: Sim, todos os logs gerados pelo Traceability são sempre em formato JSON para garantir uniformização.
+A: Yes, all logs generated by Traceability are always in JSON format to ensure uniformity.
 
-## Ainda com problemas?
+## Still having problems?
 
-Se você ainda está enfrentando problemas:
+If you're still experiencing issues:
 
-1. Verifique a [Documentação Técnica](../../AGENTS.md) para entender a arquitetura interna
-2. Consulte os [Exemplos](../examples/aspnet-core.md) para ver implementações funcionais
-3. Abra uma issue no repositório do projeto
+1. Check the [Technical Documentation](../../AGENTS.md) to understand the internal architecture
+2. See the [Examples](../examples/aspnet-core.md) for working implementations
+3. Open an issue in the project repository
 
-## Parabéns!
+## Congratulations!
 
-Você completou o manual do usuário! Agora você sabe:
+You've completed the user manual! Now you know:
 
-- ✅ O que é Traceability e quando usar
-- ✅ Como configurar e usar o pacote
-- ✅ Como integrar com logging e HttpClient
-- ✅ Como configurar opções avançadas
-- ✅ Como resolver problemas comuns
+- ✅ What Traceability is and when to use it
+- ✅ How to configure and use the package
+- ✅ How to integrate with logging and HttpClient
+- ✅ How to configure advanced options
+- ✅ How to resolve common problems
 
-Continue explorando:
-- [Documentação Completa](../index.md)
-- [Exemplos Práticos](../examples/aspnet-core.md)
+Continue exploring:
+- [Complete Documentation](../index.md)
+- [Practical Examples](../examples/aspnet-core.md)
 - [API Reference](../api-reference.md)
-
-

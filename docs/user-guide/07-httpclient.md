@@ -1,20 +1,20 @@
-# Lição 7: HttpClient
+# Lesson 7: HttpClient
 
-Nesta lição, você aprenderá a usar o Traceability com HttpClient para propagar correlation-id automaticamente.
+In this lesson, you'll learn to use Traceability with HttpClient to automatically propagate correlation-id.
 
-## Configuração Básica
+## Basic Configuration
 
 **Program.cs:**
 ```csharp
 builder.Services.AddTraceability("UserService");
-// HttpClient já está configurado automaticamente com CorrelationIdHandler!
+// HttpClient is already automatically configured with CorrelationIdHandler!
 builder.Services.AddHttpClient("ExternalApi", client =>
 {
     client.BaseAddress = new Uri("https://api.example.com/");
 });
 ```
 
-## Usando HttpClient
+## Using HttpClient
 
 **Controller:**
 ```csharp
@@ -30,7 +30,7 @@ public class ValuesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        // Correlation-id é automaticamente adicionado no header
+        // Correlation-id is automatically added to header
         var client = _httpClientFactory.CreateClient("ExternalApi");
         var response = await client.GetAsync("endpoint");
         return Ok(await response.Content.ReadAsStringAsync());
@@ -38,37 +38,37 @@ public class ValuesController : ControllerBase
 }
 ```
 
-## O Que Acontece Automaticamente
+## What Happens Automatically
 
-Quando você faz uma chamada HTTP, o `CorrelationIdHandler` automaticamente:
+When you make an HTTP call, `CorrelationIdHandler` automatically:
 
-1. ✅ Obtém o correlation-id do contexto atual
-2. ✅ Adiciona o header `X-Correlation-Id` na requisição
-3. ✅ Propaga o correlation-id para o serviço externo
+1. ✅ Gets the correlation-id from the current context
+2. ✅ Adds the `X-Correlation-Id` header to the request
+3. ✅ Propagates the correlation-id to the external service
 
-**Requisição HTTP enviada:**
+**HTTP request sent:**
 ```http
 GET /endpoint HTTP/1.1
 Host: api.example.com
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 ```
 
-## Propagação em Cadeia
+## Propagation in Chain
 
-O correlation-id é automaticamente propagado em chamadas HTTP encadeadas:
+The correlation-id is automatically propagated in chained HTTP calls:
 
-**Cenário:** Serviço A → Serviço B → Serviço C
+**Scenario:** Service A → Service B → Service C
 
-1. **Serviço A** recebe requisição sem header → gera `abc123`
-2. **Serviço A** chama **Serviço B** com header `X-Correlation-Id: abc123`
-3. **Serviço B** lê header e usa `abc123` (não gera novo)
-4. **Serviço B** chama **Serviço C** com mesmo header `X-Correlation-Id: abc123`
+1. **Service A** receives request without header → generates `abc123`
+2. **Service A** calls **Service B** with header `X-Correlation-Id: abc123`
+3. **Service B** reads header and uses `abc123` (doesn't generate new one)
+4. **Service B** calls **Service C** with same header `X-Correlation-Id: abc123`
 
-**Resultado:** Todos os serviços na cadeia usam o mesmo correlation-id!
+**Result:** All services in the chain use the same correlation-id!
 
-## Usando AddTraceableHttpClient (Recomendado)
+## Using AddTraceableHttpClient (Recommended)
 
-Para garantir que o HttpClient está configurado corretamente:
+To ensure HttpClient is configured correctly:
 
 **Program.cs:**
 ```csharp
@@ -79,12 +79,12 @@ builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 });
 ```
 
-**Uso:**
+**Usage:**
 ```csharp
 var client = _httpClientFactory.CreateClient("ExternalApi");
 ```
 
-## Com Polly (Políticas de Resiliência)
+## With Polly (Resilience Policies)
 
 **Program.cs:**
 ```csharp
@@ -103,12 +103,12 @@ builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 .AddPolicyHandler(retryPolicy);
 ```
 
-## Prevenção de Socket Exhaustion
+## Socket Exhaustion Prevention
 
-**✅ Sempre use `IHttpClientFactory`:**
+**✅ Always use `IHttpClientFactory`:**
 
 ```csharp
-// Correto - usa IHttpClientFactory
+// Correct - uses IHttpClientFactory
 builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 {
     client.BaseAddress = new Uri("https://api.example.com/");
@@ -117,14 +117,14 @@ builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 var client = _httpClientFactory.CreateClient("ExternalApi");
 ```
 
-**❌ Nunca crie instâncias diretas:**
+**❌ Never create direct instances:**
 
 ```csharp
-// Incorreto - causa socket exhaustion
+// Incorrect - causes socket exhaustion
 var client = new HttpClient();
 ```
 
-## Exemplo Completo
+## Complete Example
 
 **Program.cs:**
 ```csharp
@@ -155,8 +155,6 @@ public class ExternalApiService
 }
 ```
 
-## Próximos Passos
+## Next Steps
 
-Agora que você sabe usar HttpClient, vamos ver opções de configuração na [Lição 8: Configuração](08-configuration.md).
-
-
+Now that you know how to use HttpClient, let's see configuration options in [Lesson 8: Configuration](08-configuration.md).

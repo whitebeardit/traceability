@@ -1,32 +1,32 @@
 # Troubleshooting
 
-Solução de problemas comuns ao usar o Traceability.
+Common problem solutions when using Traceability.
 
-## O correlation-id não está sendo propagado
+## Correlation-id is not being propagated
 
-### Possíveis Causas e Soluções
+### Possible Causes and Solutions
 
-1. **Middleware/Handler não está configurado**
-   - Certifique-se de que o middleware/handler está configurado corretamente
-   - Para ASP.NET Core: Verifique se `AddTraceability()` foi chamado ou se `app.UseCorrelationId()` está no pipeline
-   - Para .NET Framework: Verifique se `CorrelationIdMessageHandler` ou `CorrelationIdHttpModule` está configurado
+1. **Middleware/Handler is not configured**
+   - Make sure the middleware/handler is configured correctly
+   - For ASP.NET Core: Check if `AddTraceability()` was called or if `app.UseCorrelationId()` is in the pipeline
+   - For .NET Framework: Check if `CorrelationIdMessageHandler` or `CorrelationIdHttpModule` is configured
 
-2. **HttpClient não está usando CorrelationIdHandler**
-   - Certifique-se de que está usando `IHttpClientFactory` com `AddTraceableHttpClient()` ou `.AddHttpMessageHandler<CorrelationIdHandler>()`
-   - Verifique se `AutoConfigureHttpClient` não está desabilitado nas opções
+2. **HttpClient is not using CorrelationIdHandler**
+   - Make sure you're using `IHttpClientFactory` with `AddTraceableHttpClient()` or `.AddHttpMessageHandler<CorrelationIdHandler>()`
+   - Check if `AutoConfigureHttpClient` is not disabled in options
 
-3. **Contexto assíncrono não está sendo preservado**
-   - Certifique-se de que não está usando `Task.Run()` sem preservar o contexto
-   - Use `await` corretamente para preservar o contexto assíncrono
+3. **Asynchronous context is not being preserved**
+   - Make sure you're not using `Task.Run()` without preserving the context
+   - Use `await` correctly to preserve the asynchronous context
 
-## Correlation-id não aparece nos logs
+## Correlation-id does not appear in logs
 
-### Para Serilog
+### For Serilog
 
-1. Use `WithTraceability("SuaOrigem")` ou configure `SourceEnricher` + `CorrelationIdEnricher` manualmente
-2. Verifique o template de output do logger para incluir `{CorrelationId}`
+1. Use `WithTraceability("YourOrigin")` or configure `SourceEnricher` + `CorrelationIdEnricher` manually
+2. Check the logger output template to include `{CorrelationId}`
 
-**Exemplo:**
+**Example:**
 ```csharp
 Log.Logger = new LoggerConfiguration()
     .WithTraceability("UserService")
@@ -35,30 +35,30 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 ```
 
-### Para Microsoft.Extensions.Logging (.NET 8)
+### For Microsoft.Extensions.Logging (.NET 8)
 
-1. Chame `AddTraceability("SuaOrigem")` e habilite scopes no Console (`IncludeScopes = true`)
-2. Verifique se o logger está configurado corretamente
+1. Call `AddTraceability("YourOrigin")` and enable scopes in Console (`IncludeScopes = true`)
+2. Check if the logger is configured correctly
 
-**Exemplo:**
+**Example:**
 ```csharp
 builder.Services.AddTraceability("UserService");
 builder.Logging.AddConsole(options => options.IncludeScopes = true);
 ```
 
-## Problemas com .NET Framework 4.8
+## Problems with .NET Framework 4.8
 
-### Dependências
+### Dependencies
 
-1. Certifique-se de que as versões corretas das dependências estão instaladas
-2. Verifique se todas as referências NuGet estão corretas
+1. Make sure the correct versions of dependencies are installed
+2. Check if all NuGet references are correct
 
 ### Web API
 
-1. Adicione o `CorrelationIdMessageHandler` no `Global.asax.cs`
-2. Verifique se o handler está na ordem correta do pipeline
+1. Add `CorrelationIdMessageHandler` in `Global.asax.cs`
+2. Check if the handler is in the correct order in the pipeline
 
-**Exemplo:**
+**Example:**
 ```csharp
 GlobalConfiguration.Configure(config =>
 {
@@ -67,12 +67,12 @@ GlobalConfiguration.Configure(config =>
 });
 ```
 
-### ASP.NET Tradicional
+### Traditional ASP.NET
 
-1. Configure o `CorrelationIdHttpModule` no `web.config`
-2. Verifique se o módulo está registrado corretamente
+1. Configure `CorrelationIdHttpModule` in `web.config`
+2. Check if the module is registered correctly
 
-**Exemplo (web.config):**
+**Example (web.config):**
 ```xml
 <system.webServer>
   <modules>
@@ -82,11 +82,11 @@ GlobalConfiguration.Configure(config =>
 </system.webServer>
 ```
 
-### Configuração de Opções
+### Options Configuration
 
-Para configurar opções, use `CorrelationIdHttpModule.Configure()` ou `CorrelationIdMessageHandler.Configure()` antes de usar.
+To configure options, use `CorrelationIdHttpModule.Configure()` or `CorrelationIdMessageHandler.Configure()` before using.
 
-**Exemplo:**
+**Example:**
 ```csharp
 CorrelationIdMessageHandler.Configure(new TraceabilityOptions
 {
@@ -95,23 +95,23 @@ CorrelationIdMessageHandler.Configure(new TraceabilityOptions
 });
 ```
 
-## Source não está sendo definido
+## Source is not being defined
 
-### Erro: InvalidOperationException
+### Error: InvalidOperationException
 
-Se você receber uma exceção informando que Source deve ser fornecido:
+If you receive an exception stating that Source must be provided:
 
-1. **Forneça Source explicitamente:**
+1. **Provide Source explicitly:**
    ```csharp
    builder.Services.AddTraceability("UserService");
    ```
 
-2. **Ou defina variável de ambiente:**
+2. **Or set environment variable:**
    ```bash
    export TRACEABILITY_SERVICENAME="UserService"
    ```
 
-3. **Ou configure nas opções:**
+3. **Or configure in options:**
    ```csharp
    builder.Services.AddTraceability(options =>
    {
@@ -119,57 +119,55 @@ Se você receber uma exceção informando que Source deve ser fornecido:
    });
    ```
 
-## HttpClient causando socket exhaustion
+## HttpClient causing socket exhaustion
 
-### Solução
+### Solution
 
-Sempre use `IHttpClientFactory` ao invés de criar instâncias diretas de `HttpClient`.
+Always use `IHttpClientFactory` instead of creating direct instances of `HttpClient`.
 
-**❌ Incorreto:**
+**❌ Incorrect:**
 ```csharp
-var client = new HttpClient(); // Causa socket exhaustion
+var client = new HttpClient(); // Causes socket exhaustion
 ```
 
-**✅ Correto:**
+**✅ Correct:**
 ```csharp
-// Configure no Program.cs
+// Configure in Program.cs
 builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 {
     client.BaseAddress = new Uri("https://api.example.com/");
 });
 
-// Use no serviço
+// Use in service
 var client = _httpClientFactory.CreateClient("ExternalApi");
 ```
 
 ## FAQ
 
-### P: Posso usar correlation-id em aplicações console?
+### Q: Can I use correlation-id in console applications?
 
-R: Sim! Use `CorrelationContext.GetOrCreate()` para gerar um correlation-id manualmente.
+A: Yes! Use `CorrelationContext.GetOrCreate()` to manually generate a correlation-id.
 
-### P: O correlation-id é preservado em Task.Run()?
+### Q: Is correlation-id preserved in Task.Run()?
 
-R: Não. `Task.Run()` cria um novo contexto assíncrono isolado. Use `await` para preservar o contexto.
+A: No. `Task.Run()` creates a new isolated asynchronous context. Use `await` to preserve the context.
 
-### P: Posso customizar o nome do header?
+### Q: Can I customize the header name?
 
-R: Sim, use `TraceabilityOptions.HeaderName` para definir um nome customizado.
+A: Yes, use `TraceabilityOptions.HeaderName` to define a custom name.
 
-### P: Como desabilitar o auto-registro do middleware?
+### Q: How to disable auto-registration of middleware?
 
-R: Defina `AutoRegisterMiddleware = false` nas opções e registre manualmente com `app.UseCorrelationId()`.
+A: Set `AutoRegisterMiddleware = false` in options and register manually with `app.UseCorrelationId()`.
 
-### P: Os logs são sempre em JSON?
+### Q: Are logs always in JSON?
 
-R: Sim, todos os logs gerados pelo Traceability são sempre em formato JSON para garantir uniformização.
+A: Yes, all logs generated by Traceability are always in JSON format to ensure uniformity.
 
-## Ainda com problemas?
+## Still having problems?
 
-Se você ainda está enfrentando problemas:
+If you're still experiencing issues:
 
-1. Verifique a [Documentação Técnica](../AGENTS.md) para entender a arquitetura interna
-2. Consulte os [Exemplos](examples/aspnet-core.md) para ver implementações funcionais
-3. Abra uma issue no repositório do projeto
-
-
+1. Check the [Technical Documentation](../AGENTS.md) to understand the internal architecture
+2. See the [Examples](examples/aspnet-core.md) for working implementations
+3. Open an issue in the project repository

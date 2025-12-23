@@ -1,8 +1,8 @@
-# Lição 4: ASP.NET Core
+# Lesson 4: ASP.NET Core
 
-Nesta lição, você aprenderá a integrar o Traceability com ASP.NET Core (.NET 8).
+In this lesson, you'll learn to integrate Traceability with ASP.NET Core (.NET 8).
 
-## Configuração Básica
+## Basic Configuration
 
 **Program.cs:**
 ```csharp
@@ -18,12 +18,12 @@ app.MapControllers();
 app.Run();
 ```
 
-**O que acontece automaticamente:**
-- ✅ Middleware é registrado automaticamente via `IStartupFilter`
-- ✅ HttpClient é configurado automaticamente com `CorrelationIdHandler`
-- ✅ Correlation-id é gerado automaticamente em cada requisição
+**What happens automatically:**
+- ✅ Middleware is automatically registered via `IStartupFilter`
+- ✅ HttpClient is automatically configured with `CorrelationIdHandler`
+- ✅ Correlation-id is automatically generated for each request
 
-## Usando em um Controller
+## Using in a Controller
 
 **ValuesController.cs:**
 ```csharp
@@ -37,54 +37,54 @@ public class ValuesController : ControllerBase
     [HttpGet]
     public IActionResult Get()
     {
-        // Correlation-id está automaticamente disponível
+        // Correlation-id is automatically available
         var correlationId = CorrelationContext.Current;
         return Ok(new { CorrelationId = correlationId });
     }
 }
 ```
 
-## Testando
+## Testing
 
-**Requisição:**
+**Request:**
 ```bash
 curl -X GET http://localhost:5000/api/values
 ```
 
-**Resposta:**
+**Response:**
 ```json
 {
   "correlationId": "a1b2c3d4e5f6789012345678901234ab"
 }
 ```
 
-**Headers da resposta:**
+**Response headers:**
 ```
 HTTP/1.1 200 OK
 Content-Type: application/json
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 ```
 
-## Requisição com Correlation-ID Existente
+## Request with Existing Correlation-ID
 
-Se você enviar uma requisição com o header `X-Correlation-Id`, o middleware reutiliza o valor:
+If you send a request with the `X-Correlation-Id` header, the middleware reuses the value:
 
-**Requisição:**
+**Request:**
 ```bash
 curl -X GET http://localhost:5000/api/values \
   -H "X-Correlation-Id: 12345678901234567890123456789012"
 ```
 
-**Resposta:**
+**Response:**
 ```json
 {
   "correlationId": "12345678901234567890123456789012"
 }
 ```
 
-O mesmo correlation-id é retornado, garantindo rastreabilidade na cadeia.
+The same correlation-id is returned, ensuring traceability in the chain.
 
-## Exemplo com Logging
+## Example with Logging
 
 **Program.cs:**
 ```csharp
@@ -106,26 +106,26 @@ public class ValuesController : ControllerBase
     [HttpGet]
     public IActionResult Get()
     {
-        // Correlation-id aparece automaticamente nos logs
-        _logger.LogInformation("Processando requisição");
+        // Correlation-id appears automatically in logs
+        _logger.LogInformation("Processing request");
         return Ok();
     }
 }
 ```
 
-**Output nos logs:**
+**Log output:**
 ```
 info: MyApp.ValuesController[0]
       => CorrelationId: a1b2c3d4e5f6789012345678901234ab
-      Processando requisição
+      Processing request
 ```
 
-## Exemplo com HttpClient
+## Example with HttpClient
 
 **Program.cs:**
 ```csharp
 builder.Services.AddTraceability("UserService");
-// HttpClient já está configurado automaticamente!
+// HttpClient is already automatically configured!
 builder.Services.AddHttpClient("ExternalApi", client =>
 {
     client.BaseAddress = new Uri("https://api.example.com/");
@@ -146,7 +146,7 @@ public class ValuesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        // Correlation-id é automaticamente adicionado no header
+        // Correlation-id is automatically added to header
         var client = _httpClientFactory.CreateClient("ExternalApi");
         var response = await client.GetAsync("endpoint");
         return Ok(await response.Content.ReadAsStringAsync());
@@ -154,14 +154,14 @@ public class ValuesController : ControllerBase
 }
 ```
 
-A requisição HTTP externa automaticamente inclui o header:
+The external HTTP request automatically includes the header:
 ```
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 ```
 
-## Desabilitar Auto-Registro (Avançado)
+## Disable Auto-Registration (Advanced)
 
-Se você precisar de controle manual sobre a ordem do middleware:
+If you need manual control over middleware order:
 
 **Program.cs:**
 ```csharp
@@ -171,13 +171,11 @@ builder.Services.AddTraceability("UserService", options =>
 });
 
 var app = builder.Build();
-app.UseCorrelationId(); // Registro manual
+app.UseCorrelationId(); // Manual registration
 app.MapControllers();
 app.Run();
 ```
 
-## Próximos Passos
+## Next Steps
 
-Agora que você sabe integrar com ASP.NET Core, vamos ver como fazer o mesmo com .NET Framework na [Lição 5: ASP.NET Framework](05-aspnet-framework.md), ou pule para [Lição 6: Logging](06-logging.md) se você só usa .NET 8.
-
-
+Now that you know how to integrate with ASP.NET Core, let's see how to do the same with .NET Framework in [Lesson 5: ASP.NET Framework](05-aspnet-framework.md), or skip to [Lesson 6: Logging](06-logging.md) if you only use .NET 8.

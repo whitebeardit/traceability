@@ -1,10 +1,10 @@
-# Configuração
+# Configuration
 
-O Traceability oferece várias opções de configuração para customizar o comportamento do pacote.
+Traceability offers several configuration options to customize the package behavior.
 
 ## TraceabilityOptions
 
-A classe `TraceabilityOptions` permite configurar todas as opções do pacote:
+The `TraceabilityOptions` class allows you to configure all package options:
 
 ```csharp
 public class TraceabilityOptions
@@ -28,10 +28,10 @@ public class TraceabilityOptions
 }
 ```
 
-## Opções de Configuração
+## Configuration Options
 
 ### HeaderName
-Nome do header HTTP para correlation-id (padrão: "X-Correlation-Id")
+HTTP header name for correlation-id (default: "X-Correlation-Id")
 
 ```csharp
 builder.Services.AddTraceability(options =>
@@ -41,7 +41,7 @@ builder.Services.AddTraceability(options =>
 ```
 
 ### AlwaysGenerateNew
-Se true, gera um novo correlation-id mesmo se já existir um no contexto (padrão: false)
+If true, generates a new correlation-id even if one already exists in the context (default: false)
 
 ```csharp
 builder.Services.AddTraceability(options =>
@@ -51,7 +51,7 @@ builder.Services.AddTraceability(options =>
 ```
 
 ### ValidateCorrelationIdFormat
-Se true, valida o formato do correlation-id recebido no header (padrão: false)
+If true, validates the format of the correlation-id received in the header (default: false)
 
 ```csharp
 builder.Services.AddTraceability(options =>
@@ -61,7 +61,7 @@ builder.Services.AddTraceability(options =>
 ```
 
 ### Source
-Nome da origem/serviço que está gerando os logs (opcional, mas recomendado)
+Name of the origin/service that is generating the logs (optional, but recommended)
 
 ```csharp
 builder.Services.AddTraceability(options =>
@@ -71,7 +71,7 @@ builder.Services.AddTraceability(options =>
 ```
 
 ### LogOutputFormat
-Formato de saída para logs (padrão: JsonCompact)
+Output format for logs (default: JsonCompact)
 
 ```csharp
 builder.Services.AddTraceability(options =>
@@ -80,9 +80,9 @@ builder.Services.AddTraceability(options =>
 });
 ```
 
-### Opções de Log
+### Log Options
 
-Controle quais campos são incluídos nos logs:
+Control which fields are included in logs:
 
 ```csharp
 builder.Services.AddTraceability(options =>
@@ -99,12 +99,12 @@ builder.Services.AddTraceability(options =>
 
 ### MinimumLogLevel
 
-Nível mínimo de log para filtrar eventos (opcional).
+Minimum log level to filter events (optional).
 
-**Prioridade de Configuração:**
-1. Variável de ambiente `LOG_LEVEL` (prioridade máxima)
-2. `TraceabilityOptions.MinimumLogLevel` definido nas opções
-3. Information (padrão)
+**Configuration Priority:**
+1. `LOG_LEVEL` environment variable (highest priority)
+2. `TraceabilityOptions.MinimumLogLevel` defined in options
+3. Information (default)
 
 ```csharp
 builder.Services.AddTraceability(options =>
@@ -113,11 +113,11 @@ builder.Services.AddTraceability(options =>
 });
 ```
 
-**Nota:** A variável de ambiente `LOG_LEVEL` tem prioridade máxima para facilitar alteração do log level em produção sem necessidade de recompilar ou reimplantar a aplicação.
+**Note:** The `LOG_LEVEL` environment variable has the highest priority to facilitate changing the log level in production without needing to recompile or redeploy the application.
 
 ### UseAssemblyNameAsFallback
 
-Se false, desabilita o uso do assembly name como fallback para Source quando nenhum Source for fornecido (padrão: true).
+If false, disables using the assembly name as fallback for Source when no Source is provided (default: true).
 
 ```csharp
 builder.Services.AddTraceability(options =>
@@ -126,39 +126,39 @@ builder.Services.AddTraceability(options =>
 });
 ```
 
-### Auto-Registro
+### Auto-Registration
 
-Controle o registro automático de middleware e HttpClient:
+Control automatic registration of middleware and HttpClient:
 
 ```csharp
 builder.Services.AddTraceability(options =>
 {
-    options.AutoRegisterMiddleware = false;  // Desabilita auto-registro do middleware
-    options.AutoConfigureHttpClient = false; // Desabilita auto-configuração de HttpClient
+    options.AutoRegisterMiddleware = false;  // Disables auto-registration of middleware
+    options.AutoConfigureHttpClient = false; // Disables auto-configuration of HttpClient
 });
 ```
 
-Se desabilitar, você precisará registrar manualmente:
+If disabled, you will need to register manually:
 
 ```csharp
 var app = builder.Build();
-app.UseCorrelationId(); // Registro manual do middleware
+app.UseCorrelationId(); // Manual middleware registration
 ```
 
-## Variáveis de Ambiente
+## Environment Variables
 
 ### TRACEABILITY_SERVICENAME
 
-Define o nome do serviço/origem que está gerando os logs.
+Defines the name of the service/origin that is generating the logs.
 
-**Prioridade de Configuração:**
-1. Parâmetro `source` fornecido explicitamente (prioridade máxima)
-2. `TraceabilityOptions.Source` definido nas opções
-3. Variável de ambiente `TRACEABILITY_SERVICENAME`
-4. Assembly name (se `UseAssemblyNameAsFallback = true`, padrão: true)
-5. Se nenhum estiver disponível, uma exceção será lançada
+**Configuration Priority:**
+1. `source` parameter provided explicitly (highest priority)
+2. `TraceabilityOptions.Source` defined in options
+3. `TRACEABILITY_SERVICENAME` environment variable
+4. Assembly name (if `UseAssemblyNameAsFallback = true`, default: true)
+5. If none is available, an exception will be thrown
 
-**Configuração:**
+**Configuration:**
 
 **Linux/Mac:**
 ```bash
@@ -177,14 +177,14 @@ set TRACEABILITY_SERVICENAME=UserService
 
 ### LOG_LEVEL
 
-Define o nível mínimo de log (Verbose, Debug, Information, Warning, Error, Fatal).
+Defines the minimum log level (Verbose, Debug, Information, Warning, Error, Fatal).
 
-**Prioridade de Configuração:**
-1. Variável de ambiente `LOG_LEVEL` (prioridade máxima)
-2. `TraceabilityOptions.MinimumLogLevel` definido nas opções
-3. Information (padrão)
+**Configuration Priority:**
+1. `LOG_LEVEL` environment variable (highest priority)
+2. `TraceabilityOptions.MinimumLogLevel` defined in options
+3. Information (default)
 
-**Configuração:**
+**Configuration:**
 
 **Linux/Mac:**
 ```bash
@@ -196,15 +196,15 @@ export LOG_LEVEL="Information"
 $env:LOG_LEVEL="Information"
 ```
 
-## Exemplos de Configuração
+## Configuration Examples
 
-### Configuração Básica
+### Basic Configuration
 
 ```csharp
 builder.Services.AddTraceability("UserService");
 ```
 
-### Configuração com Opções
+### Configuration with Options
 
 ```csharp
 builder.Services.AddTraceability(options =>
@@ -216,7 +216,7 @@ builder.Services.AddTraceability(options =>
 });
 ```
 
-### Configuração com Source e Opções
+### Configuration with Source and Options
 
 ```csharp
 builder.Services.AddTraceability("UserService", options =>
@@ -226,7 +226,7 @@ builder.Services.AddTraceability("UserService", options =>
 });
 ```
 
-### Desabilitar Auto-Registro
+### Disable Auto-Registration
 
 ```csharp
 builder.Services.AddTraceability("UserService", options =>
@@ -236,20 +236,18 @@ builder.Services.AddTraceability("UserService", options =>
 });
 
 var app = builder.Build();
-app.UseCorrelationId(); // Registro manual
+app.UseCorrelationId(); // Manual registration
 ```
 
-## Output JSON
+## JSON Output
 
-Todos os logs gerados pelo Traceability são sempre em formato JSON para garantir uniformização entre diferentes aplicações e serviços.
+All logs generated by Traceability are always in JSON format to ensure uniformity across different applications and services.
 
-O formato JSON padrão inclui:
-- `Timestamp`: Data e hora do log
-- `Level`: Nível do log (Information, Warning, Error, etc.)
-- `Source`: Nome do serviço
-- `CorrelationId`: ID de correlação (quando disponível)
-- `Message`: Mensagem do log
-- `Data`: Objetos serializados (quando presente)
-- `Exception`: Informações de exceção (quando presente)
-
-
+The default JSON format includes:
+- `Timestamp`: Log date and time
+- `Level`: Log level (Information, Warning, Error, etc.)
+- `Source`: Service name
+- `CorrelationId`: Correlation ID (when available)
+- `Message`: Log message
+- `Data`: Serialized objects (when present)
+- `Exception`: Exception information (when present)

@@ -1,19 +1,19 @@
-# Metadata e Contexto Inicial
+# Metadata and Initial Context
 
-## Informações do Projeto
+## Project Information
 
-- **Nome**: Traceability
-- **Versão**: 1.1.0
-- **Tipo**: Pacote NuGet
-- **Licença**: MIT
-- **Autor**: WhiteBeard IT
+- **Name**: Traceability
+- **Version**: 1.1.0
+- **Type**: NuGet Package
+- **License**: MIT
+- **Author**: WhiteBeard IT
 
-## Frameworks Suportados
+## Supported Frameworks
 
-- **.NET 8.0**: Suporte completo para ASP.NET Core
-- **.NET Framework 4.8**: Suporte para ASP.NET Web API e ASP.NET Tradicional
+- **.NET 8.0**: Full support for ASP.NET Core
+- **.NET Framework 4.8**: Support for ASP.NET Web API and Traditional ASP.NET
 
-## Dependências Principais
+## Main Dependencies
 
 ### .NET 8.0
 - `Microsoft.AspNetCore.Http.Abstractions` (2.2.0)
@@ -27,20 +27,18 @@
 - `Microsoft.Extensions.Logging.Abstractions` (2.1.1)
 - `Microsoft.Extensions.DependencyInjection.Abstractions` (2.1.1)
 
-### Comum
+### Common
 - `Serilog` (3.1.1) - PrivateAssets: all
 
-## Estrutura de Namespaces
+## Namespace Structure
 
 ```
 Traceability
 ├── Traceability                          # Core: CorrelationContext
-├── Traceability.Configuration            # Opções de configuração
-├── Traceability.Extensions               # Extensões para DI e middleware
-├── Traceability.HttpClient               # Integração com HttpClient
-├── Traceability.Logging                  # Integrações de logging
-├── Traceability.Middleware               # Middleware e handlers HTTP
-└── Traceability.WebApi                   # Handlers específicos Web API
+├── Traceability.Configuration            # Configuration options
+├── Traceability.Extensions               # Extensions for DI and middleware
+├── Traceability.HttpClient               # HttpClient integration
+├── Traceability.Logging                  # Logging integrations
+├── Traceability.Middleware               # Middleware and HTTP handlers
+└── Traceability.WebApi                   # Web API specific handlers
 ```
-
-

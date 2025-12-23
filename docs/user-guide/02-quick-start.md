@@ -1,24 +1,24 @@
-# Lição 2: Quick Start
+# Lesson 2: Quick Start
 
-Vamos começar a usar o Traceability! Nesta lição, você verá como configurar o pacote com o mínimo de código possível.
+Let's start using Traceability! In this lesson, you'll see how to configure the package with minimal code.
 
-## Instalação
+## Installation
 
-Primeiro, instale o pacote via NuGet:
+First, install the package via NuGet:
 
 ```bash
 dotnet add package WhiteBeard.Traceability
 ```
 
-Ou via Package Manager Console:
+Or via Package Manager Console:
 
 ```powershell
 Install-Package WhiteBeard.Traceability
 ```
 
-## Configuração Mínima (ASP.NET Core)
+## Minimal Configuration (ASP.NET Core)
 
-A configuração mais simples possível - apenas uma linha de código!
+The simplest possible configuration - just one line of code!
 
 **Program.cs:**
 ```csharp
@@ -26,7 +26,7 @@ using Traceability.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Zero configuração - tudo é automático!
+// Zero configuration - everything is automatic!
 builder.Services.AddTraceability();
 builder.Services.AddControllers();
 
@@ -35,9 +35,9 @@ app.MapControllers();
 app.Run();
 ```
 
-**Pronto!** Agora o Traceability está configurado e funcionando. Vamos ver como usar.
+**Done!** Now Traceability is configured and working. Let's see how to use it.
 
-## Usando em um Controller
+## Using in a Controller
 
 **ValuesController.cs:**
 ```csharp
@@ -51,52 +51,50 @@ public class ValuesController : ControllerBase
     [HttpGet]
     public IActionResult Get()
     {
-        // Correlation-id está automaticamente disponível
+        // Correlation-id is automatically available
         var correlationId = CorrelationContext.Current;
         return Ok(new { CorrelationId = correlationId });
     }
 }
 ```
 
-## Testando
+## Testing
 
-Faça uma requisição para o endpoint:
+Make a request to the endpoint:
 
 ```bash
 curl -X GET http://localhost:5000/api/values
 ```
 
-**Resposta esperada:**
+**Expected response:**
 ```json
 {
   "correlationId": "a1b2c3d4e5f6789012345678901234ab"
 }
 ```
 
-E no header da resposta:
+And in the response header:
 ```
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 ```
 
-## O Que Aconteceu?
+## What Happened?
 
-1. ✅ O middleware foi registrado automaticamente
-2. ✅ Um correlation-id foi gerado automaticamente (GUID de 32 caracteres)
-3. ✅ O correlation-id foi adicionado ao contexto assíncrono
-4. ✅ O correlation-id foi retornado no header da resposta
+1. ✅ The middleware was automatically registered
+2. ✅ A correlation-id was automatically generated (32-character GUID)
+3. ✅ The correlation-id was added to the asynchronous context
+4. ✅ The correlation-id was returned in the response header
 
-## Com Source Explícito (Opcional)
+## With Explicit Source (Optional)
 
-Se você quiser definir o nome do serviço explicitamente:
+If you want to define the service name explicitly:
 
 ```csharp
 builder.Services.AddTraceability("MyService");
 ```
 
-Isso adiciona o campo `Source` aos logs (veremos mais sobre isso na Lição 6).
+This adds the `Source` field to logs (we'll see more about this in Lesson 6).
 
-## Próximos Passos
+## Next Steps
 
-Agora que você viu o básico, vamos aprender mais sobre o `CorrelationContext` na [Lição 3: Uso Básico](03-basic-usage.md).
-
-
+Now that you've seen the basics, let's learn more about `CorrelationContext` in [Lesson 3: Basic Usage](03-basic-usage.md).

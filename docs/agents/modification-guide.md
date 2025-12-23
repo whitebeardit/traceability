@@ -1,46 +1,46 @@
-# Guia de Modificação para LLMs
+# Modification Guide for LLMs
 
-## Como Adicionar Novo Componente
+## How to Add New Component
 
-1. **Identificar localização**
-   - Verificar estrutura de diretórios
-   - Escolher diretório apropriado ou criar novo
+1. **Identify location**
+   - Check directory structure
+   - Choose appropriate directory or create new one
 
-2. **Definir responsabilidade única**
-   - Componente deve ter uma responsabilidade clara
-   - Seguir padrões existentes
+2. **Define single responsibility**
+   - Component should have a clear responsibility
+   - Follow existing patterns
 
-3. **Implementar com conditional compilation**
+3. **Implement with conditional compilation**
    ```csharp
    #if NET8_0
-   // Código .NET 8
+   // .NET 8 code
    #endif
    
    #if NET48
-   // Código .NET Framework
+   // .NET Framework code
    #endif
    ```
 
-4. **Adicionar dependências**
-   - Usar `CorrelationContext` se precisar de correlation-id
-   - Seguir padrão de injeção de dependência se aplicável
+4. **Add dependencies**
+   - Use `CorrelationContext` if you need correlation-id
+   - Follow dependency injection pattern if applicable
 
-5. **Adicionar testes**
-   - Criar arquivo em `tests/Traceability.Tests/`
-   - Testar ambos os frameworks se aplicável
+5. **Add tests**
+   - Create file in `tests/Traceability.Tests/`
+   - Test both frameworks if applicable
 
-6. **Atualizar documentação**
-   - Adicionar XML comments
-   - Atualizar README.md se necessário
-   - Atualizar documentação em `docs/agents/`
+6. **Update documentation**
+   - Add XML comments
+   - Update README.md if necessary
+   - Update documentation in `docs/agents/`
 
-## Como Manter Compatibilidade Multi-Framework
+## How to Maintain Multi-Framework Compatibility
 
-1. **Identificar código específico de framework**
-   - APIs diferentes entre .NET 8 e .NET Framework
-   - Namespaces diferentes
+1. **Identify framework-specific code**
+   - Different APIs between .NET 8 and .NET Framework
+   - Different namespaces
 
-2. **Usar conditional compilation**
+2. **Use conditional compilation**
    ```csharp
    #if NET8_0
    using Microsoft.AspNetCore.Http;
@@ -51,17 +51,17 @@
    #endif
    ```
 
-3. **Testar em ambos os frameworks**
-   - Executar testes para .NET 8
-   - Executar testes para .NET Framework 4.8
+3. **Test in both frameworks**
+   - Run tests for .NET 8
+   - Run tests for .NET Framework 4.8
 
-4. **Manter API pública consistente**
-   - Mesma interface pública em ambos os frameworks
-   - Comportamento idêntico
+4. **Maintain consistent public API**
+   - Same public interface in both frameworks
+   - Identical behavior
 
-## Onde Adicionar Testes
+## Where to Add Tests
 
-**Estrutura de Testes**:
+**Test Structure**:
 ```
 tests/Traceability.Tests/
 ├── CorrelationContextTests.cs
@@ -71,13 +71,13 @@ tests/Traceability.Tests/
 └── TraceableHttpClientFactoryTests.cs
 ```
 
-**Padrão de Teste**:
-- Usar xUnit
-- Usar FluentAssertions para assertions
-- Usar Moq para mocks quando necessário
-- Nomear testes: `MethodName_Scenario_ExpectedBehavior`
+**Test Pattern**:
+- Use xUnit
+- Use FluentAssertions for assertions
+- Use Moq for mocks when necessary
+- Name tests: `MethodName_Scenario_ExpectedBehavior`
 
-**Exemplo**:
+**Example**:
 ```csharp
 [Fact]
 public void Current_WhenNoValue_ShouldGenerateNew()
@@ -94,27 +94,27 @@ public void Current_WhenNoValue_ShouldGenerateNew()
 }
 ```
 
-## Como Atualizar Documentação
+## How to Update Documentation
 
 1. **XML Comments**
-   - Adicionar `<summary>` para classes públicas
-   - Adicionar `<param>` para parâmetros
-   - Adicionar `<returns>` para retornos
-   - Adicionar `<example>` quando útil
+   - Add `<summary>` for public classes
+   - Add `<param>` for parameters
+   - Add `<returns>` for returns
+   - Add `<example>` when useful
 
 2. **README.md**
-   - Adicionar exemplos de uso
-   - Atualizar seções relevantes
-   - Manter consistência com código
+   - Add usage examples
+   - Update relevant sections
+   - Maintain consistency with code
 
-3. **Documentação em `docs/agents/`**
-   - Adicionar novo componente em `components.md`
-   - Atualizar diagramas em `architecture.md` se necessário
-   - Adicionar exemplos de uso em `code-examples.md`
+3. **Documentation in `docs/agents/`**
+   - Add new component in `components.md`
+   - Update diagrams in `architecture.md` if necessary
+   - Add usage examples in `code-examples.md`
 
-## Referências Rápidas
+## Quick References
 
-### Arquivos Principais
+### Main Files
 - Core: `src/Traceability/CorrelationContext.cs`
 - Middleware (.NET 8): `src/Traceability/Middleware/CorrelationIdMiddleware.cs`
 - HttpModule (.NET Framework): `src/Traceability/Middleware/CorrelationIdHttpModule.cs`
@@ -130,12 +130,10 @@ public void Current_WhenNoValue_ShouldGenerateNew()
 - MEL Source: `src/Traceability/Logging/SourceScopeProvider.cs`
 - Configuration: `src/Traceability/Configuration/TraceabilityOptions.cs`
 
-### Exemplos
+### Examples
 - ASP.NET Core: `samples/Sample.WebApi.Net8/`
 - Console: `samples/Sample.Console.Net8/`
 - .NET Framework: `samples/Sample.WebApi.NetFramework/`
 
-### Testes
-- Todos os testes: `tests/Traceability.Tests/`
-
-
+### Tests
+- All tests: `tests/Traceability.Tests/`

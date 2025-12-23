@@ -1,49 +1,49 @@
-# Lição 3: Uso Básico
+# Lesson 3: Basic Usage
 
-Nesta lição, você aprenderá a usar o `CorrelationContext` diretamente para gerenciar correlation-id.
+In this lesson, you'll learn to use `CorrelationContext` directly to manage correlation-id.
 
 ## CorrelationContext
 
-O `CorrelationContext` é uma classe estática que gerencia o correlation-id no contexto assíncrono da thread atual.
+`CorrelationContext` is a static class that manages correlation-id in the current thread's asynchronous context.
 
-## Propriedades e Métodos
+## Properties and Methods
 
 ### Current
 
-Obtém ou define o correlation-id atual. Se não existir, cria um novo automaticamente.
+Gets or sets the current correlation-id. If it doesn't exist, creates a new one automatically.
 
 ```csharp
 using Traceability;
 
-// Obter correlation-id (cria se não existir)
+// Get correlation-id (creates if it doesn't exist)
 var correlationId = CorrelationContext.Current;
 Console.WriteLine($"Correlation ID: {correlationId}");
 ```
 
-**Output esperado:**
+**Expected output:**
 ```
 Correlation ID: a1b2c3d4e5f6789012345678901234ab
 ```
 
 ### HasValue
 
-Verifica se existe um correlation-id no contexto.
+Checks if a correlation-id exists in the context.
 
 ```csharp
 if (CorrelationContext.HasValue)
 {
     var id = CorrelationContext.Current;
-    Console.WriteLine($"Correlation ID existe: {id}");
+    Console.WriteLine($"Correlation ID exists: {id}");
 }
 else
 {
-    Console.WriteLine("Nenhum correlation-id no contexto");
+    Console.WriteLine("No correlation-id in context");
 }
 ```
 
 ### GetOrCreate()
 
-Obtém o correlation-id existente ou cria um novo explicitamente.
+Gets the existing correlation-id or creates a new one explicitly.
 
 ```csharp
 var correlationId = CorrelationContext.GetOrCreate();
@@ -52,98 +52,96 @@ Console.WriteLine($"Correlation ID: {correlationId}");
 
 ### TryGetValue()
 
-Tenta obter o correlation-id existente **sem criar um novo** se não existir. Retorna `true` se um correlation-id existe, `false` caso contrário.
+Attempts to get the existing correlation-id **without creating a new one** if it doesn't exist. Returns `true` if a correlation-id exists, `false` otherwise.
 
 ```csharp
 if (CorrelationContext.TryGetValue(out var correlationId))
 {
-    Console.WriteLine($"Correlation ID encontrado: {correlationId}");
+    Console.WriteLine($"Correlation ID found: {correlationId}");
 }
 else
 {
-    Console.WriteLine("Nenhum correlation-id no contexto");
+    Console.WriteLine("No correlation-id in context");
 }
 ```
 
-**Por que usar `TryGetValue()`?**
-- Evita criar correlation-id indesejadamente
-- Útil quando você só quer ler o valor se ele já existir
+**Why use `TryGetValue()`?**
+- Avoids creating correlation-id unintentionally
+- Useful when you only want to read the value if it already exists
 
 ### Clear()
 
-Limpa o correlation-id do contexto.
+Clears the correlation-id from the context.
 
 ```csharp
 CorrelationContext.Clear();
 ```
 
-## Exemplo Completo
+## Complete Example
 
 ```csharp
 using Traceability;
 
-// Exemplo 1: Obter ou criar
+// Example 1: Get or create
 var correlationId1 = CorrelationContext.Current;
 Console.WriteLine($"Correlation ID 1: {correlationId1}");
 
-// Exemplo 2: Verificar se existe
+// Example 2: Check if exists
 if (CorrelationContext.HasValue)
 {
     var correlationId2 = CorrelationContext.Current;
     Console.WriteLine($"Correlation ID 2: {correlationId2}");
-    // correlationId1 e correlationId2 são iguais
+    // correlationId1 and correlationId2 are equal
 }
 
-// Exemplo 3: Tentar obter sem criar
+// Example 3: Try to get without creating
 if (CorrelationContext.TryGetValue(out var correlationId3))
 {
     Console.WriteLine($"Correlation ID 3: {correlationId3}");
 }
 
-// Exemplo 4: Limpar contexto
+// Example 4: Clear context
 CorrelationContext.Clear();
-Console.WriteLine($"Após Clear, HasValue: {CorrelationContext.HasValue}"); // False
+Console.WriteLine($"After Clear, HasValue: {CorrelationContext.HasValue}"); // False
 ```
 
-**Output esperado:**
+**Expected output:**
 ```
 Correlation ID 1: a1b2c3d4e5f6789012345678901234ab
 Correlation ID 2: a1b2c3d4e5f6789012345678901234ab
 Correlation ID 3: a1b2c3d4e5f6789012345678901234ab
-Após Clear, HasValue: False
+After Clear, HasValue: False
 ```
 
-## Preservação em Operações Assíncronas
+## Preservation in Asynchronous Operations
 
-O correlation-id é preservado através de operações assíncronas:
+The correlation-id is preserved across asynchronous operations:
 
 ```csharp
 var correlationIdBefore = CorrelationContext.GetOrCreate();
-Console.WriteLine($"Antes do await: {correlationIdBefore}");
+Console.WriteLine($"Before await: {correlationIdBefore}");
 
 await Task.Delay(100);
 
 var correlationIdAfter = CorrelationContext.Current;
-Console.WriteLine($"Após o await: {correlationIdAfter}");
-Console.WriteLine($"Preservado: {correlationIdBefore == correlationIdAfter}"); // True
+Console.WriteLine($"After await: {correlationIdAfter}");
+Console.WriteLine($"Preserved: {correlationIdBefore == correlationIdAfter}"); // True
 ```
 
-**Output esperado:**
+**Expected output:**
 ```
-Antes do await: a1b2c3d4e5f6789012345678901234ab
-Após o await: a1b2c3d4e5f6789012345678901234ab
-Preservado: True
+Before await: a1b2c3d4e5f6789012345678901234ab
+After await: a1b2c3d4e5f6789012345678901234ab
+Preserved: True
 ```
 
-## Formato do Correlation-ID
+## Correlation-ID Format
 
-O correlation-id é um GUID formatado **sem hífens** (32 caracteres):
+The correlation-id is a GUID formatted **without hyphens** (32 characters):
 
-- ✅ Formato correto: `a1b2c3d4e5f6789012345678901234ab` (32 caracteres)
-- ❌ Formato incorreto: `a1b2c3d4-e5f6-7890-1234-5678901234ab` (36 caracteres com hífens)
+- ✅ Correct format: `a1b2c3d4e5f6789012345678901234ab` (32 characters)
+- ❌ Incorrect format: `a1b2c3d4-e5f6-7890-1234-5678901234ab` (36 characters with hyphens)
 
-## Próximos Passos
+## Next Steps
 
-Agora que você sabe usar o `CorrelationContext`, vamos ver como integrá-lo com ASP.NET Core na [Lição 4: ASP.NET Core](04-aspnet-core.md).
-
-
+Now that you know how to use `CorrelationContext`, let's see how to integrate it with ASP.NET Core in [Lesson 4: ASP.NET Core](04-aspnet-core.md).

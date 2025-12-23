@@ -1,12 +1,12 @@
-# Lição 8: Configuração
+# Lesson 8: Configuration
 
-Nesta lição, você aprenderá a configurar opções avançadas do Traceability.
+In this lesson, you'll learn to configure advanced Traceability options.
 
-## Opções Básicas
+## Basic Options
 
 ### HeaderName
 
-Customize o nome do header HTTP:
+Customize the HTTP header name:
 
 ```csharp
 builder.Services.AddTraceability("UserService", options =>
@@ -17,7 +17,7 @@ builder.Services.AddTraceability("UserService", options =>
 
 ### ValidateCorrelationIdFormat
 
-Habilite validação do formato do correlation-id:
+Enable correlation-id format validation:
 
 ```csharp
 builder.Services.AddTraceability("UserService", options =>
@@ -28,7 +28,7 @@ builder.Services.AddTraceability("UserService", options =>
 
 ### AlwaysGenerateNew
 
-Gere um novo correlation-id mesmo se já existir:
+Generate a new correlation-id even if one already exists:
 
 ```csharp
 builder.Services.AddTraceability("UserService", options =>
@@ -37,11 +37,11 @@ builder.Services.AddTraceability("UserService", options =>
 });
 ```
 
-## Opções de Log
+## Log Options
 
 ### LogOutputFormat
 
-Escolha o formato de saída dos logs:
+Choose the log output format:
 
 ```csharp
 builder.Services.AddTraceability("UserService", options =>
@@ -50,14 +50,14 @@ builder.Services.AddTraceability("UserService", options =>
 });
 ```
 
-Opções disponíveis:
-- `JsonCompact` (padrão) - JSON em uma linha
-- `JsonIndented` - JSON indentado
-- `Text` - Formato texto
+Available options:
+- `JsonCompact` (default) - JSON in one line
+- `JsonIndented` - Indented JSON
+- `Text` - Text format
 
-### Campos de Log
+### Log Fields
 
-Controle quais campos são incluídos nos logs:
+Control which fields are included in logs:
 
 ```csharp
 builder.Services.AddTraceability("UserService", options =>
@@ -72,9 +72,9 @@ builder.Services.AddTraceability("UserService", options =>
 });
 ```
 
-## Auto-Registro
+## Auto-Registration
 
-### Desabilitar Auto-Registro do Middleware
+### Disable Middleware Auto-Registration
 
 ```csharp
 builder.Services.AddTraceability("UserService", options =>
@@ -83,12 +83,12 @@ builder.Services.AddTraceability("UserService", options =>
 });
 
 var app = builder.Build();
-app.UseCorrelationId(); // Registro manual
+app.UseCorrelationId(); // Manual registration
 app.MapControllers();
 app.Run();
 ```
 
-### Desabilitar Auto-Configuração de HttpClient
+### Disable HttpClient Auto-Configuration
 
 ```csharp
 builder.Services.AddTraceability("UserService", options =>
@@ -96,16 +96,16 @@ builder.Services.AddTraceability("UserService", options =>
     options.AutoConfigureHttpClient = false;
 });
 
-// Configure HttpClient manualmente
+// Configure HttpClient manually
 builder.Services.AddHttpClient("ExternalApi")
     .AddHttpMessageHandler<CorrelationIdHandler>();
 ```
 
-## Variáveis de Ambiente
+## Environment Variables
 
 ### TRACEABILITY_SERVICENAME
 
-Defina o nome do serviço via variável de ambiente:
+Set the service name via environment variable:
 
 **Linux/Mac:**
 ```bash
@@ -117,16 +117,16 @@ export TRACEABILITY_SERVICENAME="UserService"
 $env:TRACEABILITY_SERVICENAME="UserService"
 ```
 
-Com a variável definida, você pode usar:
+With the variable set, you can use:
 
 ```csharp
-// Source vem automaticamente de TRACEABILITY_SERVICENAME
+// Source comes automatically from TRACEABILITY_SERVICENAME
 builder.Services.AddTraceability();
 ```
 
 ### LOG_LEVEL
 
-Defina o nível mínimo de log:
+Set the minimum log level:
 
 **Linux/Mac:**
 ```bash
@@ -138,17 +138,17 @@ export LOG_LEVEL="Information"
 $env:LOG_LEVEL="Information"
 ```
 
-## Prioridade de Configuração
+## Configuration Priority
 
-Para Source (ServiceName):
+For Source (ServiceName):
 
-1. Parâmetro `source` fornecido explicitamente (prioridade máxima)
-2. `TraceabilityOptions.Source` definido nas opções
-3. Variável de ambiente `TRACEABILITY_SERVICENAME`
-4. Assembly name (se `UseAssemblyNameAsFallback = true`, padrão: true)
-5. Se nenhum estiver disponível, uma exceção será lançada
+1. `source` parameter provided explicitly (highest priority)
+2. `TraceabilityOptions.Source` defined in options
+3. `TRACEABILITY_SERVICENAME` environment variable
+4. Assembly name (if `UseAssemblyNameAsFallback = true`, default: true)
+5. If none is available, an exception will be thrown
 
-## Exemplo Completo
+## Complete Example
 
 ```csharp
 builder.Services.AddTraceability("UserService", options =>
@@ -161,8 +161,6 @@ builder.Services.AddTraceability("UserService", options =>
 });
 ```
 
-## Próximos Passos
+## Next Steps
 
-Agora que você sabe configurar opções, vamos ver exemplos práticos completos na [Lição 9: Exemplos Práticos](09-examples.md).
-
-
+Now that you know how to configure options, let's see complete practical examples in [Lesson 9: Practical Examples](09-examples.md).

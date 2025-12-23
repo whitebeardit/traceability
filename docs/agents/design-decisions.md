@@ -1,151 +1,149 @@
-# Decisões de Design e Racionais
+# Design Decisions and Rationales
 
-## Por que `AsyncLocal` ao invés de `ThreadLocal`?
+## Why `AsyncLocal` instead of `ThreadLocal`?
 
-**Razão**: `AsyncLocal` preserva valores através de continuidades assíncronas, enquanto `ThreadLocal` não.
+**Reason**: `AsyncLocal` preserves values across asynchronous continuations, while `ThreadLocal` does not.
 
-**Exemplo do problema com `ThreadLocal`**:
+**Example of problem with `ThreadLocal`**:
 ```csharp
-// ❌ Com ThreadLocal (não funciona)
+// ❌ With ThreadLocal (doesn't work)
 ThreadLocal<string> correlationId = new ThreadLocal<string>();
 correlationId.Value = "abc123";
-await SomeAsyncMethod(); // Contexto pode mudar de thread
-// correlationId.Value pode ser null ou diferente
+await SomeAsyncMethod(); // Context may change thread
+// correlationId.Value may be null or different
 ```
 
-**Solução com `AsyncLocal`**:
+**Solution with `AsyncLocal`**:
 ```csharp
-// ✅ Com AsyncLocal (funciona)
+// ✅ With AsyncLocal (works)
 AsyncLocal<string> correlationId = new AsyncLocal<string>();
 correlationId.Value = "abc123";
-await SomeAsyncMethod(); // Valor preservado
-// correlationId.Value ainda é "abc123"
+await SomeAsyncMethod(); // Value preserved
+// correlationId.Value is still "abc123"
 ```
 
-## Por que suporte multi-framework?
+## Why multi-framework support?
 
-**Razão**: 
-- Muitas empresas ainda usam .NET Framework 4.8
-- Migração gradual é comum
-- Necessidade de rastreabilidade em ambos os ambientes
+**Reason**: 
+- Many companies still use .NET Framework 4.8
+- Gradual migration is common
+- Need for traceability in both environments
 
-**Trade-off**: Código mais complexo com conditional compilation, mas maior compatibilidade.
+**Trade-off**: More complex code with conditional compilation, but greater compatibility.
 
-## Por que não usar `Activity` do .NET?
+## Why not use .NET's `Activity`?
 
-**Razão**:
-- `Activity` é parte do sistema de diagnóstico do .NET
-- Mais pesado e complexo
-- Requer configuração adicional
-- `AsyncLocal` é mais simples e direto para este caso de uso
-- Não requer dependências adicionais
+**Reason**:
+- `Activity` is part of .NET's diagnostics system
+- Heavier and more complex
+- Requires additional configuration
+- `AsyncLocal` is simpler and more direct for this use case
+- Doesn't require additional dependencies
 
-**Quando considerar `Activity`**:
-- Se precisar de integração com Application Insights
-- Se precisar de distributed tracing completo
-- Se precisar de spans e traces hierárquicos
+**When to consider `Activity`**:
+- If you need Application Insights integration
+- If you need complete distributed tracing
+- If you need hierarchical spans and traces
 
-## Por que Uniformização de Logs JSON e Variáveis de Ambiente?
+## Why JSON Log Uniformization and Environment Variables?
 
-**Razão**: Garantir que todos os logs de diferentes aplicações e serviços sigam o mesmo padrão, facilitando análise, correlação e monitoramento em ambientes distribuídos.
+**Reason**: Ensure that all logs from different applications and services follow the same pattern, facilitating analysis, correlation, and monitoring in distributed environments.
 
-**Decisões de Design**:
+**Design Decisions**:
 
-1. **Output Sempre JSON**:
-   - **Razão**: Formato JSON é estruturado, facilmente parseável e suportado por todas as ferramentas de log aggregation (ELK, Splunk, etc.)
-   - **Benefício**: Uniformização automática entre diferentes aplicações e serviços
-   - **Implementação**: Todos os métodos `WithTraceability()` e `WithTraceabilityJson()` garantem output JSON
+1. **Always JSON Output**:
+   - **Reason**: JSON format is structured, easily parseable, and supported by all log aggregation tools (ELK, Splunk, etc.)
+   - **Benefit**: Automatic uniformization across different applications and services
+   - **Implementation**: All `WithTraceability()` and `WithTraceabilityJson()` methods ensure JSON output
 
-2. **Variáveis de Ambiente para Source e LogLevel**:
-   - **Razão**: Reduzir verbosidade na configuração e permitir alteração sem recompilação
-   - **Benefício**: Configuração centralizada via variáveis de ambiente facilita gerenciamento em produção
-   - **Prioridade**: Parâmetro > Options > Env Var > Erro (garante flexibilidade mas força padrão)
+2. **Environment Variables for Source and LogLevel**:
+   - **Reason**: Reduce verbosity in configuration and allow changes without recompilation
+   - **Benefit**: Centralized configuration via environment variables facilitates management in production
+   - **Priority**: Parameter > Options > Env Var > Error (ensures flexibility but enforces standard)
 
-3. **Erro Quando Source Não Disponível**:
-   - **Razão**: Forçar que todos os serviços tenham Source definido para garantir rastreabilidade
-   - **Benefício**: Previne logs sem identificação de origem, facilitando debugging em ambientes distribuídos
-   - **Trade-off**: Pode ser mais restritivo, mas garante qualidade dos logs
+3. **Error When Source Not Available**:
+   - **Reason**: Force all services to have Source defined to ensure traceability
+   - **Benefit**: Prevents logs without origin identification, facilitating debugging in distributed environments
+   - **Trade-off**: May be more restrictive, but ensures log quality
 
-4. **Fluxo de Decisão para Source**:
-   - **Razão**: Permitir múltiplas formas de configuração mantendo prioridade clara
-   - **Benefício**: Flexibilidade para diferentes cenários (desenvolvimento, testes, produção)
-   - **Implementação**: Método `TraceabilityUtilities.GetServiceName()` centraliza a lógica de decisão
-   - **Sanitização**: Source é automaticamente sanitizado via `TraceabilityUtilities.SanitizeSource()` para garantir segurança
+4. **Decision Flow for Source**:
+   - **Reason**: Allow multiple configuration forms while maintaining clear priority
+   - **Benefit**: Flexibility for different scenarios (development, testing, production)
+   - **Implementation**: `TraceabilityUtilities.GetServiceName()` method centralizes decision logic
+   - **Sanitization**: Source is automatically sanitized via `TraceabilityUtilities.SanitizeSource()` to ensure security
 
-**Exemplo do Problema Resolvido**:
+**Example of Problem Solved**:
 ```csharp
-// ❌ Antes: Cada serviço configura Source de forma diferente
-// Serviço A
+// ❌ Before: Each service configures Source differently
+// Service A
 Log.Logger = new LoggerConfiguration()
     .Enrich.With(new SourceEnricher("ServiceA"))
-    .WriteTo.Console() // Formato texto diferente
+    .WriteTo.Console() // Different text format
     .CreateLogger();
 
-// Serviço B
+// Service B
 Log.Logger = new LoggerConfiguration()
     .Enrich.With(new SourceEnricher("ServiceB"))
-    .WriteTo.File("log.txt") // Formato diferente
+    .WriteTo.File("log.txt") // Different format
     .CreateLogger();
 
-// ✅ Agora: Todos os serviços seguem o mesmo padrão
+// ✅ Now: All services follow the same pattern
 // export TRACEABILITY_SERVICENAME="ServiceA"
 Log.Logger = new LoggerConfiguration()
-    .WithTraceability() // Source da env var, output JSON
+    .WithTraceability() // Source from env var, JSON output
     .WriteTo.Console(new JsonFormatter())
     .CreateLogger();
 
 // export TRACEABILITY_SERVICENAME="ServiceB"
 Log.Logger = new LoggerConfiguration()
-    .WithTraceability() // Source da env var, output JSON
+    .WithTraceability() // Source from env var, JSON output
     .WriteTo.Console(new JsonFormatter())
     .CreateLogger();
 ```
 
-## Trade-offs e Limitações Conhecidas
+## Trade-offs and Known Limitations
 
-1. **✅ RESOLVIDO**: `TraceabilityOptions` agora está totalmente integrado
-   - Header pode ser customizado via `HeaderName`
-   - `AlwaysGenerateNew` é usado nos middlewares/handlers
-   - `ValidateCorrelationIdFormat` adicionado para validação opcional
+1. **✅ RESOLVED**: `TraceabilityOptions` is now fully integrated
+   - Header can be customized via `HeaderName`
+   - `AlwaysGenerateNew` is used in middlewares/handlers
+   - `ValidateCorrelationIdFormat` added for optional validation
 
-2. **✅ RESOLVIDO**: `ITraceableHttpClient` interface foi removida
-   - Interface não utilizada foi removida para simplificar a API
-   - `AddTraceableHttpClient<TClient>` agora funciona com qualquer classe (sem constraint de interface)
+2. **✅ RESOLVED**: `ITraceableHttpClient` interface was removed
+   - Unused interface was removed to simplify API
+   - `AddTraceableHttpClient<TClient>` now works with any class (no interface constraint)
 
-3. **Trade-off**: Conditional compilation aumenta complexidade
-   - Benefício: Suporte multi-framework
-   - Custo: Mais difícil de manter
+3. **Trade-off**: Conditional compilation increases complexity
+   - Benefit: Multi-framework support
+   - Cost: More difficult to maintain
 
-4. **Limitação**: Não há suporte para correlation-id em mensageria (RabbitMQ, Kafka, etc.)
-   - Apenas HTTP atualmente
+4. **Limitation**: No support for correlation-id in messaging (RabbitMQ, Kafka, etc.)
+   - Only HTTP currently
 
-5. **Trade-off**: GUID simples ao invés de IDs mais informativos
-   - Benefício: Simples, único, sem colisões
-   - Custo: Não contém informação semântica
+5. **Trade-off**: Simple GUID instead of more informative IDs
+   - Benefit: Simple, unique, no collisions
+   - Cost: Doesn't contain semantic information
 
-6. **✅ RESOLVIDO - Socket Exhaustion**: Métodos que causavam socket exhaustion foram removidos
-   - **Solução implementada**: Todos os métodos de criação de HttpClient usam `IHttpClientFactory`
-   - **Métodos disponíveis**: `CreateFromFactory()` e `AddTraceableHttpClient()` (extensão)
-   - **Status**: API limpa que força uso de boas práticas desde o início
+6. **✅ RESOLVED - Socket Exhaustion**: Methods that caused socket exhaustion were removed
+   - **Implemented solution**: All HttpClient creation methods use `IHttpClientFactory`
+   - **Available methods**: `CreateFromFactory()` and `AddTraceableHttpClient()` (extension)
+   - **Status**: Clean API that enforces best practices from the start
 
-## Melhorias de Segurança e Robustez Implementadas
+## Security and Robustness Improvements Implemented
 
-### Proteções contra Stack Overflow
-- **JsonFormatter**: Limite de 10 níveis em cadeias de InnerException
-- **DataEnricher**: Limite de 10 níveis de profundidade em objetos aninhados
-- **DataEnricher**: Detecção automática de referências circulares
+### Stack Overflow Protections
+- **JsonFormatter**: Limit of 10 levels in InnerException chains
+- **DataEnricher**: Limit of 10 levels of depth in nested objects
+- **DataEnricher**: Automatic circular reference detection
 
-### Proteções contra OutOfMemoryException
-- **DataEnricher**: Limite de 1000 elementos por coleção (Dictionary, Structure, Sequence)
-- Mensagens informativas quando limites são atingidos
+### OutOfMemoryException Protections
+- **DataEnricher**: Limit of 1000 elements per collection (Dictionary, Structure, Sequence)
+- Informative messages when limits are reached
 
-### Validação e Sanitização
-- **HeaderName**: Validação automática com fallback para "X-Correlation-Id" padrão
-- **Source**: Sanitização automática para remover caracteres inválidos e limitar tamanho (100 caracteres)
-- **CorrelationId**: Validação opcional de formato (tamanho máximo 128 caracteres)
+### Validation and Sanitization
+- **HeaderName**: Automatic validation with fallback to default "X-Correlation-Id"
+- **Source**: Automatic sanitization to remove invalid characters and limit size (100 characters)
+- **CorrelationId**: Optional format validation (maximum size 128 characters)
 
 ### Thread-Safety
-- **.NET Framework**: Configuração estática agora usa `volatile` e `lock` para garantir thread-safety
-- **CorrelationContext**: Melhorias na implementação para garantir thread-safety em todos os cenários
-
-
+- **.NET Framework**: Static configuration now uses `volatile` and `lock` to ensure thread-safety
+- **CorrelationContext**: Implementation improvements to ensure thread-safety in all scenarios

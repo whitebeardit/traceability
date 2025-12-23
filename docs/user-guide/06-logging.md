@@ -1,10 +1,10 @@
-# Lição 6: Logging
+# Lesson 6: Logging
 
-Nesta lição, você aprenderá a integrar o Traceability com sistemas de logging.
+In this lesson, you'll learn to integrate Traceability with logging systems.
 
 ## Serilog
 
-### Configuração Básica
+### Basic Configuration
 
 **Program.cs:**
 ```csharp
@@ -27,7 +27,7 @@ app.MapControllers();
 app.Run();
 ```
 
-### Usando nos Logs
+### Using in Logs
 
 **Controller:**
 ```csharp
@@ -38,21 +38,21 @@ public class ValuesController : ControllerBase
     [HttpGet]
     public IActionResult Get()
     {
-        // Correlation-id aparece automaticamente nos logs
-        Log.Information("Processando requisição");
+        // Correlation-id appears automatically in logs
+        Log.Information("Processing request");
         return Ok();
     }
 }
 ```
 
-**Output esperado:**
+**Expected output:**
 ```
-[14:23:45 INF] UserService a1b2c3d4e5f6789012345678901234ab Processando requisição
+[14:23:45 INF] UserService a1b2c3d4e5f6789012345678901234ab Processing request
 ```
 
-### Template JSON
+### JSON Template
 
-Para output em JSON:
+For JSON output:
 
 **Program.cs:**
 ```csharp
@@ -68,14 +68,14 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 ```
 
-**Output esperado (JSON):**
+**Expected output (JSON):**
 ```json
-{"Timestamp":"2024-01-15T14:23:45.123Z","Level":"Information","Source":"UserService","CorrelationId":"a1b2c3d4e5f6789012345678901234ab","Message":"Processando requisição"}
+{"Timestamp":"2024-01-15T14:23:45.123Z","Level":"Information","Source":"UserService","CorrelationId":"a1b2c3d4e5f6789012345678901234ab","Message":"Processing request"}
 ```
 
 ## Microsoft.Extensions.Logging
 
-### Configuração
+### Configuration
 
 **Program.cs:**
 ```csharp
@@ -83,7 +83,7 @@ builder.Services.AddTraceability("UserService");
 builder.Logging.AddConsole(options => options.IncludeScopes = true);
 ```
 
-### Usando nos Logs
+### Using in Logs
 
 **Controller:**
 ```csharp
@@ -99,65 +99,63 @@ public class ValuesController : ControllerBase
     [HttpGet]
     public IActionResult Get()
     {
-        // Correlation-id aparece automaticamente nos logs
-        _logger.LogInformation("Processando requisição");
+        // Correlation-id appears automatically in logs
+        _logger.LogInformation("Processing request");
         return Ok();
     }
 }
 ```
 
-**Output esperado:**
+**Expected output:**
 ```
 info: MyApp.ValuesController[0]
       => CorrelationId: a1b2c3d4e5f6789012345678901234ab
-      Processando requisição
+      Processing request
 ```
 
-## Campo Source
+## Source Field
 
-O campo `Source` identifica a origem/serviço que está gerando os logs. É essencial para unificar logs em ambientes distribuídos.
+The `Source` field identifies the origin/service that is generating the logs. It's essential for unifying logs in distributed environments.
 
-**Configuração:**
+**Configuration:**
 ```csharp
 builder.Services.AddTraceability("UserService");
 ```
 
-Ou via variável de ambiente:
+Or via environment variable:
 ```bash
 export TRACEABILITY_SERVICENAME="UserService"
 ```
 
-**Output com Source:**
+**Output with Source:**
 ```
-[14:23:45 INF] UserService a1b2c3d4e5f6789012345678901234ab Processando requisição
-```
-
-## Logs em Cadeia de Chamadas
-
-Quando você tem uma cadeia de chamadas (Serviço A → Serviço B → Serviço C), todos os logs terão o mesmo correlation-id:
-
-**Serviço A (Logs):**
-```
-[14:23:45 INF] ServiceA a1b2c3d4e5f6789012345678901234ab Recebendo requisição
-[14:23:45 INF] ServiceA a1b2c3d4e5f6789012345678901234ab Chamando Serviço B
+[14:23:45 INF] UserService a1b2c3d4e5f6789012345678901234ab Processing request
 ```
 
-**Serviço B (Logs):**
-```
-[14:23:45 INF] ServiceB a1b2c3d4e5f6789012345678901234ab Recebendo requisição do Serviço A
-[14:23:45 INF] ServiceB a1b2c3d4e5f6789012345678901234ab Chamando Serviço C
-```
+## Logs in Call Chains
 
-**Serviço C (Logs):**
+When you have a call chain (Service A → Service B → Service C), all logs will have the same correlation-id:
+
+**Service A (Logs):**
 ```
-[14:23:45 INF] ServiceC a1b2c3d4e5f6789012345678901234ab Recebendo requisição do Serviço B
-[14:23:46 INF] ServiceC a1b2c3d4e5f6789012345678901234ab Processamento concluído
+[14:23:45 INF] ServiceA a1b2c3d4e5f6789012345678901234ab Receiving request
+[14:23:45 INF] ServiceA a1b2c3d4e5f6789012345678901234ab Calling Service B
 ```
 
-**Benefício:** Você pode buscar por `a1b2c3d4e5f6789012345678901234ab` em todos os logs e rastrear toda a cadeia de execução!
+**Service B (Logs):**
+```
+[14:23:45 INF] ServiceB a1b2c3d4e5f6789012345678901234ab Receiving request from Service A
+[14:23:45 INF] ServiceB a1b2c3d4e5f6789012345678901234ab Calling Service C
+```
 
-## Próximos Passos
+**Service C (Logs):**
+```
+[14:23:45 INF] ServiceC a1b2c3d4e5f6789012345678901234ab Receiving request from Service B
+[14:23:46 INF] ServiceC a1b2c3d4e5f6789012345678901234ab Processing completed
+```
 
-Agora que você sabe usar logging, vamos ver como usar com HttpClient na [Lição 7: HttpClient](07-httpclient.md).
+**Benefit:** You can search for `a1b2c3d4e5f6789012345678901234ab` across all logs and track the entire execution chain!
 
+## Next Steps
 
+Now that you know how to use logging, let's see how to use with HttpClient in [Lesson 7: HttpClient](07-httpclient.md).
