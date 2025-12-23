@@ -8,9 +8,37 @@ O projeto utiliza `semantic-release` para automatizar completamente o processo d
 
 ## Fluxo de Trabalho
 
+### Fluxo para Branch Staging
+
 ```mermaid
 flowchart TD
-    A[Push para staging/main] --> B[Trigger CI/CD]
+    A[Push/Merge em staging] --> B[Trigger CI]
+    B --> C[Build .NET 8.0]
+    B --> D[Build .NET 4.8]
+    C --> E[Test .NET 8.0]
+    D --> F[Test .NET 4.8]
+    E --> G{Todos passaram?}
+    F --> G
+    G -->|Não| H[Falha - Não cria PR]
+    G -->|Sim| I[Criar/Atualizar PR staging → main]
+    I --> J[PR aguardando review]
+    J --> K[Review obrigatório aprovado]
+    K --> L[Merge automático para main]
+    L --> M[Trigger CI em main]
+    M --> N[Release para NuGet]
+    
+    style A fill:#e1f5ff
+    style J fill:#fff4e1
+    style K fill:#e8f5e9
+    style L fill:#e8f5e9
+    style N fill:#c8e6c9
+```
+
+### Fluxo para Branch Main
+
+```mermaid
+flowchart TD
+    A[Push em main] --> B[Trigger CI/CD]
     B --> C[Build .NET 8.0]
     B --> D[Build .NET 4.8]
     C --> E[Test .NET 8.0]
@@ -20,19 +48,13 @@ flowchart TD
     G -->|Não| H[Falha do Pipeline]
     G -->|Sim| I[Calcular Versão com semantic-release]
     I --> J[Analisar Commits Conventional]
-    J --> K{Branch?}
-    K -->|staging| L[Prerelease Version<br/>ex: 1.0.1-alpha.1]
-    K -->|main| M[Release Version<br/>ex: 1.0.1]
-    L --> N[Gerar CHANGELOG.md]
-    M --> N
-    N --> O[Atualizar versão no .csproj]
-    O --> P[Build e Pack NuGet]
-    P --> Q[Publicar no NuGet.org]
-    Q --> R{Criar Release?}
-    R -->|main| S[Criar Tag Git<br/>Criar Release GitHub<br/>Commit CHANGELOG]
-    R -->|staging| T[Criar Release GitHub<br/>Prerelease]
-    S --> U[Concluído]
-    T --> U
+    J --> K[Release Version<br/>ex: 1.0.1]
+    K --> L[Gerar CHANGELOG.md]
+    L --> M[Atualizar versão no .csproj]
+    M --> N[Build e Pack NuGet]
+    N --> O[Publicar no NuGet.org]
+    O --> P[Criar Tag Git<br/>Criar Release GitHub<br/>Commit CHANGELOG]
+    P --> Q[Concluído]
 ```
 
 ## Branches e Estratégias
@@ -40,7 +62,7 @@ flowchart TD
 ### Branch `main`
 
 - **Tipo de Release**: Versões estáveis (ex: `1.0.0`, `1.1.0`, `2.0.0`)
-- **Quando publica**: A cada push que contém commits com Conventional Commits
+- **Quando publica**: A cada push que contém commits com Conventional Commits (após merge de PR de staging)
 - **Ações realizadas**:
   - Calcula versão baseada nos commits
   - Gera/atualiza `CHANGELOG.md`
@@ -53,15 +75,42 @@ flowchart TD
 
 ### Branch `staging`
 
-- **Tipo de Release**: Versões pré-release (ex: `1.0.1-alpha.1`, `1.0.1-alpha.2`)
-- **Quando publica**: A cada push que contém commits com Conventional Commits
+- **Tipo de Release**: Não publica releases automáticos
+- **Quando executa CI**: A cada push/merge em staging
 - **Ações realizadas**:
-  - Calcula versão pré-release baseada nos commits
-  - Gera/atualiza `CHANGELOG.md`
-  - Atualiza versão no `.csproj`
-  - Cria pacote NuGet
-  - Publica no NuGet.org como prerelease
-  - Cria release no GitHub marcado como prerelease
+  - Executa build e testes (.NET 8.0 e .NET 4.8)
+  - Se CI passar, cria/atualiza PR `staging → main` automaticamente
+  - PR aguarda aprovação obrigatória
+  - Após aprovação, merge automático para `main`
+  - Release acontece apenas quando código chega em `main`
+
+## Fluxo Staging → Main
+
+O projeto utiliza um fluxo automatizado para garantir que a branch `main` sempre tenha o mesmo código que `staging`, mas apenas após aprovação obrigatória:
+
+1. **Desenvolvedor faz push/merge em `staging`**
+   - CI executa automaticamente (build + testes)
+
+2. **Se CI passar, cria/atualiza PR `staging → main`**
+   - PR é criada automaticamente com label `staging-sync`
+   - PR anterior é fechada se existir
+
+3. **Revisor aprova a PR**
+   - Review obrigatório é exigido (via Branch Protection Rules)
+   - Validações de segurança:
+     - Autor não pode aprovar sua própria PR
+     - Não pode haver "request changes" pendentes
+     - PR deve estar atualizada com base branch
+     - Todos os checks obrigatórios devem passar
+
+4. **Merge automático acontece quando PR é aprovada**
+   - Workflow `auto-merge-staging-pr.yml` detecta aprovação
+   - Verifica todas as condições de segurança
+   - Faz merge automático para `main`
+
+5. **CI em `main` executa release para NuGet**
+   - Após merge, CI em `main` dispara release
+   - Versão estável é publicada no NuGet.org
 
 ## Conventional Commits
 
@@ -130,7 +179,7 @@ O pipeline requer os seguintes secrets configurados no GitHub:
    - Publicação no NuGet.org
    - Criação de release no GitHub
 
-### Para Publicar uma Versão Pré-release
+### Para Publicar uma Versão Estável via Staging
 
 1. Certifique-se de estar na branch `staging`
 2. Faça commits seguindo Conventional Commits:
@@ -141,7 +190,12 @@ O pipeline requer os seguintes secrets configurados no GitHub:
    git commit -m "feat: adiciona nova funcionalidade"
    git push origin staging
    ```
-3. O pipeline executará automaticamente criando uma versão pré-release
+3. O pipeline executará automaticamente:
+   - Build e testes
+   - Se passar, cria/atualiza PR `staging → main`
+4. Aprove a PR (review obrigatório)
+5. O merge automático acontecerá após aprovação
+6. CI em `main` executará release para NuGet
 
 ## Estrutura do Pipeline
 
@@ -155,14 +209,39 @@ O pipeline requer os seguintes secrets configurados no GitHub:
    - Executa em: `windows-latest`
    - Ações: Restore, Build e Test para .NET Framework 4.8
 
-3. **`release`**
+3. **`create-pr-staging-to-main`** (novo)
    - Executa em: `ubuntu-latest`
    - Depende de: `build-and-test-net8` e `build-and-test-net48`
-   - Condição: Apenas em push para `main` ou `staging`
+   - Condição: Apenas em push para `staging`
+   - Ações:
+     - Cria ou atualiza PR `staging → main` automaticamente
+     - Fecha PR anterior se existir
+     - Adiciona labels `automated` e `staging-sync`
+
+4. **`release`**
+   - Executa em: `ubuntu-latest`
+   - Depende de: `build-and-test-net8` e `build-and-test-net48`
+   - Condição: Apenas em push para `main`
    - Ações:
      - Setup Node.js e .NET
      - Instala dependências npm
      - Executa `semantic-release`
+
+### Workflow de Auto-Merge
+
+**`.github/workflows/auto-merge-staging-pr.yml`**
+
+- **Trigger**: Quando uma PR `staging → main` recebe aprovação
+- **Validações**:
+  - Verifica se PR tem label `staging-sync`
+  - Verifica se revisor não é o autor (self-approval)
+  - Verifica se não há "request changes" pendentes
+  - Verifica se PR está atualizada com base branch
+  - Aguarda todos os checks obrigatórios passarem (com timeout de 5 minutos)
+- **Ações**:
+  - Faz merge automático da PR
+  - Deleta branch após merge
+  - Notifica sucesso/erro na PR
 
 ### Plugins do semantic-release
 
@@ -175,6 +254,22 @@ O pipeline requer os seguintes secrets configurados no GitHub:
 5. **`@semantic-release/git`** - Commita `CHANGELOG.md` e `.csproj` atualizado
 6. **`@semantic-release/github`** - Cria release no GitHub
 
+## Branch Protection Rules
+
+Para garantir segurança e qualidade, configure as seguintes regras de proteção para a branch `main` no GitHub:
+
+1. **Require pull request reviews before merging**: ✅
+   - Required number of approvals: 1
+   - Dismiss stale reviews: ✅
+
+2. **Require status checks to pass before merging**: ✅
+   - Require branches to be up to date: ✅
+   - Status checks: `build-and-test-net8`, `build-and-test-net48`
+
+3. **Require conversation resolution before merging**: ✅
+
+4. **Do not allow bypassing the above settings**: ✅ (incluindo admins)
+
 ## Troubleshooting
 
 ### Pipeline não está publicando
@@ -182,7 +277,21 @@ O pipeline requer os seguintes secrets configurados no GitHub:
 1. Verifique se os commits seguem Conventional Commits
 2. Verifique se `NUGET_API_KEY` está configurado corretamente
 3. Verifique os logs do GitHub Actions para erros específicos
-4. Certifique-se de que está fazendo push para `main` ou `staging`
+4. Certifique-se de que está fazendo push para `main` (após merge da PR de staging)
+
+### PR staging → main não está sendo criada
+
+1. Verifique se o CI passou em staging
+2. Verifique os logs do job `create-pr-staging-to-main`
+3. Certifique-se de que está fazendo push para `staging` (não `main`)
+
+### Merge automático não está funcionando
+
+1. Verifique se a PR tem o label `staging-sync`
+2. Verifique se a PR foi aprovada por alguém diferente do autor
+3. Verifique se todos os checks obrigatórios passaram
+4. Verifique se a PR está atualizada com `main`
+5. Verifique os logs do workflow `auto-merge-staging-pr`
 
 ### Versão não está sendo incrementada
 

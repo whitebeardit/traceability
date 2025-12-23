@@ -3,7 +3,7 @@
 ## Informações do Projeto
 
 - **Nome**: Traceability
-- **Versão**: 1.0.0
+- **Versão**: 1.1.0
 - **Tipo**: Pacote NuGet
 - **Licença**: MIT
 - **Autor**: WhiteBeard IT
