@@ -65,14 +65,19 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Criar/Atualizar PR staging → main
-        uses: peter-evans/create-pull-request@v5
+        uses: actions/github-script@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          base: main
-          head: staging
-          title: "🚀 Sync staging → main"
-          body: |
-            Esta PR foi criada automaticamente após CI passar em staging.
+          script: |
+            // Verificar se já existe PR aberta staging → main
+            const existingPRs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              base: 'main',
+              head: 'staging',
+              state: 'open'
+            });
+            
+            const prBody = `Esta PR foi criada automaticamente após CI passar em staging.
             
             **Status do CI:**
             - ✅ Build .NET 8.0: Passou
@@ -83,12 +88,39 @@ jobs:
             - [ ] Revisar mudanças
             - [ ] Aprovar PR (merge automático após aprovação)
             
-            **Nota:** Esta PR será fechada e recriada a cada novo push em staging. O merge será automático após aprovação obrigatória.
-          close-previous: true
-          branch: staging-to-main-sync
-          delete-branch: true
-          labels: automated,staging-sync
-          draft: false
+            **Nota:** Esta PR será fechada e recriada a cada novo push em staging. O merge será automático após aprovação obrigatória.`;
+            
+            if (existingPRs.data.length > 0) {
+              // Fechar PR existente
+              const existingPR = existingPRs.data[0];
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: existingPR.number,
+                state: 'closed'
+              });
+              core.info(`PR #${existingPR.number} fechada`);
+            }
+            
+            // Criar nova PR
+            const pr = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚀 Sync staging → main',
+              head: 'staging',
+              base: 'main',
+              body: prBody
+            });
+            
+            // Adicionar labels
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.data.number,
+              labels: ['automated', 'staging-sync']
+            });
+            
+            core.info(`PR #${pr.data.number} criada com sucesso`);
 
   release:
     needs: [build-and-test-net8, build-and-test-net48]
