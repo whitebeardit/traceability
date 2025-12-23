@@ -21,6 +21,7 @@ public class TraceabilityOptions
     public bool LogIncludeMessage { get; set; } = true;
     public bool LogIncludeData { get; set; } = true;
     public bool LogIncludeException { get; set; } = true;
+    public LogEventLevel? MinimumLogLevel { get; set; }
     public bool AutoRegisterMiddleware { get; set; } = true;
     public bool AutoConfigureHttpClient { get; set; } = true;
     public bool UseAssemblyNameAsFallback { get; set; } = true;
@@ -93,6 +94,35 @@ builder.Services.AddTraceability(options =>
     options.LogIncludeMessage = true;
     options.LogIncludeData = true;
     options.LogIncludeException = true;
+});
+```
+
+### MinimumLogLevel
+
+Nível mínimo de log para filtrar eventos (opcional).
+
+**Prioridade de Configuração:**
+1. Variável de ambiente `LOG_LEVEL` (prioridade máxima)
+2. `TraceabilityOptions.MinimumLogLevel` definido nas opções
+3. Information (padrão)
+
+```csharp
+builder.Services.AddTraceability(options =>
+{
+    options.MinimumLogLevel = LogEventLevel.Debug;
+});
+```
+
+**Nota:** A variável de ambiente `LOG_LEVEL` tem prioridade máxima para facilitar alteração do log level em produção sem necessidade de recompilar ou reimplantar a aplicação.
+
+### UseAssemblyNameAsFallback
+
+Se false, desabilita o uso do assembly name como fallback para Source quando nenhum Source for fornecido (padrão: true).
+
+```csharp
+builder.Services.AddTraceability(options =>
+{
+    options.UseAssemblyNameAsFallback = false;
 });
 ```
 
