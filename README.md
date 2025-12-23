@@ -31,7 +31,7 @@ Use o **Traceability** quando você precisa:
 ## Instalação
 
 ```bash
-dotnet add package Traceability
+dotnet add package WhiteBeard.Traceability
 ```
 
 ## Quick Start
@@ -40,7 +40,7 @@ dotnet add package Traceability
 
 **1. Instale o pacote:**
 ```bash
-dotnet add package Traceability
+dotnet add package WhiteBeard.Traceability
 ```
 
 **2. Configure no `Program.cs` (uma única linha!):**

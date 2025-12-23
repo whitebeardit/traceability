@@ -7,7 +7,7 @@ Comece a usar o Traceability em minutos com configuração mínima.
 ### 1. Instale o pacote
 
 ```bash
-dotnet add package Traceability
+dotnet add package WhiteBeard.Traceability
 ```
 
 ### 2. Configure no `Program.cs` (uma única linha!)

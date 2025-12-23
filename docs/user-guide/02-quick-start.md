@@ -7,13 +7,13 @@ Vamos começar a usar o Traceability! Nesta lição, você verá como configurar
 Primeiro, instale o pacote via NuGet:
 
 ```bash
-dotnet add package Traceability
+dotnet add package WhiteBeard.Traceability
 ```
 
 Ou via Package Manager Console:
 
 ```powershell
-Install-Package Traceability
+Install-Package WhiteBeard.Traceability
 ```
 
 ## Configuração Mínima (ASP.NET Core)

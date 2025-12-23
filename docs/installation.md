@@ -10,20 +10,20 @@
 ### .NET CLI
 
 ```bash
-dotnet add package Traceability
+dotnet add package WhiteBeard.Traceability
 ```
 
 ### Package Manager Console
 
 ```powershell
-Install-Package Traceability
+Install-Package WhiteBeard.Traceability
 ```
 
 ### PackageReference (arquivo .csproj)
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Traceability" Version="1.0.0" />
+  <PackageReference Include="WhiteBeard.Traceability" Version="1.0.0" />
 </ItemGroup>
 ```
 

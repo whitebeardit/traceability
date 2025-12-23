@@ -65,7 +65,7 @@ Use o Traceability quando você precisa:
 ## Instalação Rápida
 
 ```bash
-dotnet add package Traceability
+dotnet add package WhiteBeard.Traceability
 ```
 
 Para mais detalhes, consulte [Instalação](installation.md).
