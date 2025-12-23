@@ -148,12 +148,34 @@ jobs:
       
       - name: Merge PR
         id: merge-pr
-        uses: peter-evans/merge-pull-request@v2
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          pull-request-number: ${{ github.event.pull_request.number }}
-          merge-method: merge
-          delete-branch: true
+          script: |
+            const prNumber = parseInt(process.env.PR_NUMBER);
+            
+            // Fazer merge da PR
+            const mergeResult = await github.rest.pulls.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              merge_method: 'merge'
+            });
+            
+            core.info(`PR #${prNumber} mergeada com sucesso`);
+            
+            // Tentar deletar a branch (pode falhar se já foi deletada ou se há proteções)
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${context.payload.pull_request.head.ref}`
+              });
+              core.info(`Branch ${context.payload.pull_request.head.ref} deletada`);
+            } catch (error) {
+              core.warning(`Não foi possível deletar a branch: ${error.message}`);
+            }
       
       - name: Notificar merge bem-sucedido
         if: success()
