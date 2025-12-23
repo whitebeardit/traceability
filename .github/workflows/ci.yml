@@ -51,10 +51,49 @@ jobs:
       - name: Test
         run: dotnet test --configuration Release --framework net48 --no-build --verbosity normal
 
+  create-pr-staging-to-main:
+    needs: [build-and-test-net8, build-and-test-net48]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Criar/Atualizar PR staging → main
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          head: staging
+          title: "🚀 Sync staging → main"
+          body: |
+            Esta PR foi criada automaticamente após CI passar em staging.
+            
+            **Status do CI:**
+            - ✅ Build .NET 8.0: Passou
+            - ✅ Build .NET 4.8: Passou
+            - ✅ Testes: Passaram
+            
+            **Ação necessária:**
+            - [ ] Revisar mudanças
+            - [ ] Aprovar PR (merge automático após aprovação)
+            
+            **Nota:** Esta PR será fechada e recriada a cada novo push em staging. O merge será automático após aprovação obrigatória.
+          close-previous: true
+          branch: staging-to-main-sync
+          delete-branch: true
+          labels: automated,staging-sync
+          draft: false
+
   release:
     needs: [build-and-test-net8, build-and-test-net48]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
     steps:
@@ -93,13 +132,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        if: github.ref == 'refs/heads/main'
         run: npm run semantic-release
-
-      - name: Run semantic-release (staging prerelease)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        if: github.ref == 'refs/heads/staging'
-        run: npm run semantic-release -- -e ./.releaserc.staging.json
 
