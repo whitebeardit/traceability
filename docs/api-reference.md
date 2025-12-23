@@ -48,14 +48,48 @@ Limpa o correlation-id do contexto.
 ```csharp
 public static IServiceCollection AddTraceability(
     this IServiceCollection services,
-    Action<TraceabilityOptions>? configureOptions = null)
-
-public static IServiceCollection AddTraceability(
-    this IServiceCollection services,
     string? source = null,
     Action<TraceabilityOptions>? configureOptions = null)
 ```
 Registra os serviços do Traceability no container de DI.
+
+**Parâmetros:**
+- `source` (opcional): Nome da origem/serviço. Se não fornecido, será lido de `TraceabilityOptions.Source`, variável de ambiente `TRACEABILITY_SERVICENAME`, ou assembly name (se `UseAssemblyNameAsFallback = true`).
+- `configureOptions` (opcional): Ação para configurar opções adicionais.
+
+**Exemplos:**
+```csharp
+// Com source explícito
+builder.Services.AddTraceability("UserService");
+
+// Com source e opções
+builder.Services.AddTraceability("UserService", options => {
+    options.HeaderName = "X-Custom-Id";
+});
+
+// Sem source (usa env var ou assembly name)
+builder.Services.AddTraceability();
+
+// Apenas opções (source vem de env var ou assembly name)
+builder.Services.AddTraceability(configureOptions: options => {
+    options.HeaderName = "X-Custom-Id";
+});
+```
+
+#### AddTraceabilityLogging
+```csharp
+public static IServiceCollection AddTraceabilityLogging(
+    this IServiceCollection services,
+    string? source = null,
+    Action<TraceabilityOptions>? configureOptions = null)
+```
+Adiciona os serviços de traceability com logging configurado. Configura apenas o Source para identificação da origem dos logs, sem registrar middleware ou HttpClient automaticamente.
+
+**Parâmetros:**
+- `source` (opcional): Nome da origem/serviço. Se não fornecido, será lido de `TraceabilityOptions.Source`, variável de ambiente `TRACEABILITY_SERVICENAME`, ou assembly name (se `UseAssemblyNameAsFallback = true`).
+- `configureOptions` (opcional): Ação para configurar opções adicionais.
+
+**Nota:** Este método configura apenas o logging. Para configuração completa (middleware + HttpClient + logging), use `AddTraceability()`.
 
 #### AddTraceableHttpClient
 ```csharp
