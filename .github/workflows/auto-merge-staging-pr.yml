@@ -112,6 +112,10 @@ jobs:
             const startTime = Date.now();
             const requiredChecks = ['build-and-test-net8', 'build-and-test-net48'];
             
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/273313cd-687d-4abf-87cf-0cbb24795711',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auto-merge-staging-pr.yml:110',message:'Iniciando verificação de checks',data:{requiredChecks,prNumber:pr.data.number,headSha:pr.data.head.sha},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+            
             while (Date.now() - startTime < maxWaitTime) {
               const checks = await github.rest.checks.listForRef({
                 owner: context.repo.owner,
@@ -119,22 +123,56 @@ jobs:
                 ref: pr.data.head.sha
               });
               
+              // #region agent log
+              fetch('http://127.0.0.1:7243/ingest/273313cd-687d-4abf-87cf-0cbb24795711',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auto-merge-staging-pr.yml:120',message:'Checks encontrados',data:{totalChecks:checks.data.check_runs.length,checkNames:checks.data.check_runs.map(c=>({name:c.name,status:c.status,conclusion:c.conclusion})),requiredChecks},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,C'})}).catch(()=>{});
+              // #endregion
+              
               const allCompleted = requiredChecks.every(checkName => {
                 const check = checks.data.check_runs.find(c => c.name === checkName);
-                return check && check.status === 'completed';
+                const found = !!check;
+                const completed = check && check.status === 'completed';
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/273313cd-687d-4abf-87cf-0cbb24795711',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auto-merge-staging-pr.yml:125',message:'Verificando check obrigatório',data:{checkName,found,completed,status:check?.status,conclusion:check?.conclusion},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,C'})}).catch(()=>{});
+                // #endregion
+                
+                return completed;
               });
               
+              // #region agent log
+              fetch('http://127.0.0.1:7243/ingest/273313cd-687d-4abf-87cf-0cbb24795711',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auto-merge-staging-pr.yml:135',message:'Status de conclusão dos checks',data:{allCompleted,elapsedTime:Date.now()-startTime},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+              // #endregion
+              
               if (allCompleted) {
-                const allPassed = requiredChecks.every(checkName => {
+                const checkResults = requiredChecks.map(checkName => {
                   const check = checks.data.check_runs.find(c => c.name === checkName);
-                  return check && check.conclusion === 'success';
+                  return {
+                    name: checkName,
+                    found: !!check,
+                    status: check?.status,
+                    conclusion: check?.conclusion,
+                    passed: check && check.conclusion === 'success'
+                  };
                 });
                 
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/273313cd-687d-4abf-87cf-0cbb24795711',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auto-merge-staging-pr.yml:145',message:'Resultados detalhados dos checks',data:{checkResults,allChecks:checks.data.check_runs.map(c=>({name:c.name,status:c.status,conclusion:c.conclusion}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,E'})}).catch(()=>{});
+                // #endregion
+                
+                const allPassed = checkResults.every(r => r.passed);
+                
                 if (allPassed) {
+                  // #region agent log
+                  fetch('http://127.0.0.1:7243/ingest/273313cd-687d-4abf-87cf-0cbb24795711',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auto-merge-staging-pr.yml:155',message:'Todos os checks passaram',data:{checkResults},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                  // #endregion
                   core.info('Todos os checks passaram');
                   break;
                 } else {
-                  core.setFailed('Alguns checks falharam');
+                  const failedChecks = checkResults.filter(r => !r.passed);
+                  // #region agent log
+                  fetch('http://127.0.0.1:7243/ingest/273313cd-687d-4abf-87cf-0cbb24795711',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auto-merge-staging-pr.yml:162',message:'Checks falharam - detalhes',data:{failedChecks,allCheckResults:checkResults},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                  // #endregion
+                  core.setFailed(`Checks falharam: ${failedChecks.map(c => `${c.name} (${c.conclusion || c.status})`).join(', ')}`);
                 }
               }
               
@@ -143,6 +181,9 @@ jobs:
             }
             
             if (Date.now() - startTime >= maxWaitTime) {
+              // #region agent log
+              fetch('http://127.0.0.1:7243/ingest/273313cd-687d-4abf-87cf-0cbb24795711',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auto-merge-staging-pr.yml:175',message:'Timeout aguardando checks',data:{elapsedTime:Date.now()-startTime,maxWaitTime},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+              // #endregion
               core.setFailed('Timeout aguardando checks');
             }
       
