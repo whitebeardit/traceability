@@ -10,7 +10,7 @@
     <Company>WhiteBeard IT</Company>
     <Product>Traceability</Product>
     <Description>Pacote NuGet para gerenciamento de correlation-id em aplicações .NET com suporte para .NET 8 e .NET Framework 4.8</Description>
-    <PackageId>Traceability</PackageId>
+    <PackageId>WhiteBeard.Traceability</PackageId>
     <PackageId Condition="'$(NUGET_PACKAGE_ID)' != ''">$(NUGET_PACKAGE_ID)</PackageId>
     <Version>1.0.0</Version>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
