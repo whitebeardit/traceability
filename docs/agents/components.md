@@ -610,12 +610,7 @@ public class TraceabilityOptions
 
 **Métodos**:
 ```csharp
-// Sobrecarga 1: Configuração via Action (Source pode vir de options ou env var)
-public static IServiceCollection AddTraceability(
-    this IServiceCollection services,
-    Action<TraceabilityOptions>? configureOptions = null);
-
-// Sobrecarga 2: Configuração com Source direto (opcional - pode vir de env var)
+// Método único com parâmetros opcionais (Source pode vir de parâmetro, options ou env var)
 public static IServiceCollection AddTraceability(
     this IServiceCollection services,
     string? source = null,
