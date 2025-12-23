@@ -88,5 +88,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        if: github.ref == 'refs/heads/main'
         run: npm run semantic-release
+
+      - name: Run semantic-release (staging prerelease)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        if: github.ref == 'refs/heads/staging'
+        run: npm run semantic-release -- -e ./.releaserc.staging.json
 
