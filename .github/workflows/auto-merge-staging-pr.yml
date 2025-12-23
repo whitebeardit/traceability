@@ -172,13 +172,39 @@ jobs:
           script: |
             const prNumber = parseInt(process.env.PR_NUMBER);
             
-            // Fazer merge da PR
-            const mergeResult = await github.rest.pulls.merge({
+            // Verificar qual método de merge está permitido
+            const pr = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: prNumber,
-              merge_method: 'merge'
+              pull_number: prNumber
             });
+            
+            // Tentar squash primeiro (mais comum quando merge commits não são permitidos)
+            // Se falhar, tentar rebase
+            let mergeMethod = 'squash';
+            let mergeResult;
+            
+            try {
+              mergeResult = await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                merge_method: mergeMethod
+              });
+            } catch (error) {
+              if (error.status === 405 && error.message.includes('squash')) {
+                // Se squash não for permitido, tentar rebase
+                mergeMethod = 'rebase';
+                mergeResult = await github.rest.pulls.merge({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber,
+                  merge_method: mergeMethod
+                });
+              } else {
+                throw error;
+              }
+            }
             
             core.info(`PR #${prNumber} mergeada com sucesso`);
             
