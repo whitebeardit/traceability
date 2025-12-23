@@ -81,4 +81,4 @@ src/Traceability/
 
 **Para documentação completa, consulte**: [docs/agents/index.md](docs/agents/index.md)
 
-**Última atualização**: Baseado na versão 1.0.0 do projeto Traceability
+**Última atualização**: Baseado na versão 1.1.0 do projeto Traceability
