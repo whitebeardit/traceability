@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/whitebeardit/traceability/compare/v1.0.1...v1.1.0) (2025-12-23)
+
+
+### Features
+
+* incluir README e documentaÃ§Ã£o completa no pacote NuGet ([e7e5d82](https://github.com/whitebeardit/traceability/commit/e7e5d8203412e9550bd3a67a08fcb86db770baff))
+
 ## [1.0.1](https://github.com/whitebeardit/traceability/compare/v1.0.0...v1.0.1) (2025-12-23)
 
 
