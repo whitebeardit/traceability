@@ -1,3 +1,11 @@
+## [1.0.1](https://github.com/whitebeardit/traceability/compare/v1.0.0...v1.0.1) (2025-12-23)
+
+
+### Bug Fixes
+
+* **ci:** configurar Git remote com token antes do semantic-release ([cd38411](https://github.com/whitebeardit/traceability/commit/cd38411e20ae28813d1c79c7c6c2dda4fa761d04))
+* **ci:** remover config manual de Git remote - checkout jÃ¡ faz isso ([07d25b6](https://github.com/whitebeardit/traceability/commit/07d25b68caa0149ca3065375392a2abccad5f030))
+
 # 1.0.0 (2025-12-23)
 
 
