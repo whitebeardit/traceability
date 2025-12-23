@@ -23,7 +23,7 @@ Install-Package WhiteBeard.Traceability
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="WhiteBeard.Traceability" Version="1.0.0" />
+  <PackageReference Include="WhiteBeard.Traceability" Version="1.1.0" />
 </ItemGroup>
 ```
 
