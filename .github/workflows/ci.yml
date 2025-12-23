@@ -18,37 +18,15 @@ jobs:
     steps:
       - name: Verificar se PR deve ser ignorada
         id: check
-        uses: actions/github-script@v7
-        with:
-          script: |
-            // Se não for pull_request, não pular
-            if (context.eventName !== 'pull_request') {
-              core.setOutput('skip', 'false');
-              return;
-            }
-            
-            // Verificar se é PR staging → main com label staging-sync (criada automaticamente)
-            if (context.payload.pull_request.base.ref === 'main' && 
-                context.payload.pull_request.head.ref === 'staging') {
-              const pr = await github.rest.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: context.payload.pull_request.number
-              });
-              
-              const hasStagingSyncLabel = pr.data.labels.some(label => label.name === 'staging-sync');
-              if (hasStagingSyncLabel) {
-                core.setOutput('skip', 'true');
-                core.info('PR criada automaticamente - pulando CI');
-                return;
-              }
-            }
-            core.setOutput('skip', 'false');
+        run: echo "skip=false" >> $GITHUB_OUTPUT
+        # Nota: Não pulamos mais o CI para PRs staging → main
+        # Os jobs de build/test devem sempre executar em PRs
+        # Apenas o job create-pr-staging-to-main não executa (já está condicionado a push)
 
   build-and-test-net8:
     if: |
       github.event_name == 'push' ||
-      (github.event_name == 'pull_request' && needs.check-pr-labels.outputs.skip-ci != 'true')
+      github.event_name == 'pull_request'
     needs: [check-pr-labels]
     runs-on: ubuntu-latest
     steps:
@@ -72,7 +50,7 @@ jobs:
   build-and-test-net48:
     if: |
       github.event_name == 'push' ||
-      (github.event_name == 'pull_request' && needs.check-pr-labels.outputs.skip-ci != 'true')
+      github.event_name == 'pull_request'
     needs: [check-pr-labels]
     runs-on: windows-latest
     steps:

@@ -168,11 +168,20 @@ jobs:
                   core.info('Todos os checks passaram');
                   break;
                 } else {
-                  const failedChecks = checkResults.filter(r => !r.passed);
+                  const failedChecks = checkResults.filter(r => !r.passed && r.conclusion !== 'skipped');
+                  const skippedChecks = checkResults.filter(r => r.conclusion === 'skipped');
+                  
                   // #region agent log
-                  fetch('http://127.0.0.1:7243/ingest/273313cd-687d-4abf-87cf-0cbb24795711',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auto-merge-staging-pr.yml:162',message:'Checks falharam - detalhes',data:{failedChecks,allCheckResults:checkResults},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                  fetch('http://127.0.0.1:7243/ingest/273313cd-687d-4abf-87cf-0cbb24795711',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auto-merge-staging-pr.yml:162',message:'Checks falharam ou foram pulados - detalhes',data:{failedChecks,skippedChecks,allCheckResults:checkResults},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
                   // #endregion
-                  core.setFailed(`Checks falharam: ${failedChecks.map(c => `${c.name} (${c.conclusion || c.status})`).join(', ')}`);
+                  
+                  if (failedChecks.length > 0) {
+                    core.setFailed(`Checks falharam: ${failedChecks.map(c => `${c.name} (${c.conclusion || c.status})`).join(', ')}`);
+                  } else if (skippedChecks.length > 0) {
+                    // Se todos os checks foram pulados, aguardar mais um pouco ou falhar
+                    core.warning(`Checks foram pulados: ${skippedChecks.map(c => c.name).join(', ')}. Aguardando execução...`);
+                    // Continuar o loop para aguardar que os checks sejam executados
+                  }
                 }
               }
               
