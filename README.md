@@ -2,35 +2,35 @@
 
 ![NuGet Version](https://img.shields.io/nuget/v/WhiteBeard.Traceability.svg?style=flat-square&label=version)
 
-Pacote NuGet para gerenciamento automático de correlation-id em aplicações .NET, com suporte para .NET 8 e .NET Framework 4.8.
+NuGet package for automatic correlation-id management in .NET applications, with support for .NET 8 and .NET Framework 4.8.
 
-> 📖 **[Quick Start](#quick-start)** | [Manual do Usuário](docs/user-guide/index.md) | [Documentação Completa](docs/index.md) | [Exemplos](docs/examples/aspnet-core.md)
+> 📖 **[Quick Start](#quick-start)** | [User Manual](docs/user-guide/index.md) | [Complete Documentation](docs/index.md) | [Examples](docs/examples/aspnet-core.md)
 
-## Motivação
+## Motivation
 
-Em arquiteturas distribuídas e microserviços, rastrear uma requisição através de múltiplos serviços é essencial para debugging, monitoramento e análise de performance. O **correlation-id** é um identificador único que permite rastrear uma requisição desde sua origem até todas as chamadas subsequentes.
+In distributed architectures and microservices, tracking a request across multiple services is essential for debugging, monitoring, and performance analysis. The **correlation-id** is a unique identifier that allows you to track a request from its origin to all subsequent calls.
 
-### Quando usar esta biblioteca?
+### When to use this library?
 
-Use o **Traceability** quando você precisa:
+Use **Traceability** when you need:
 
-1. **Rastreabilidade em Microserviços**: Rastrear uma requisição através de múltiplos serviços
-2. **Debugging Simplificado**: Identificar rapidamente todos os logs relacionados a uma requisição
-3. **Análise de Performance**: Medir o tempo total de processamento através de múltiplos serviços
-4. **Monitoramento e Observabilidade**: Correlacionar métricas, traces e logs de diferentes serviços
+1. **Traceability in Microservices**: Track a request across multiple services
+2. **Simplified Debugging**: Quickly identify all logs related to a request
+3. **Performance Analysis**: Measure total processing time across multiple services
+4. **Monitoring and Observability**: Correlate metrics, traces, and logs from different services
 
-## Características
+## Features
 
-- ✅ Gerenciamento automático de correlation-id usando `AsyncLocal`
-- ✅ Suporte para .NET 8.0 e .NET Framework 4.8
-- ✅ Middleware para ASP.NET Core (.NET 8)
-- ✅ HttpModule e MessageHandler para ASP.NET (.NET Framework 4.8)
-- ✅ Integração automática com HttpClient
-- ✅ Suporte para Serilog e Microsoft.Extensions.Logging
-- ✅ Integração com Polly para políticas de resiliência
-- ✅ Propagação automática em chamadas HTTP encadeadas
+- ✅ Automatic correlation-id management using `AsyncLocal`
+- ✅ Support for .NET 8.0 and .NET Framework 4.8
+- ✅ Middleware for ASP.NET Core (.NET 8)
+- ✅ HttpModule and MessageHandler for ASP.NET (.NET Framework 4.8)
+- ✅ Automatic integration with HttpClient
+- ✅ Support for Serilog and Microsoft.Extensions.Logging
+- ✅ Integration with Polly for resilience policies
+- ✅ Automatic propagation in chained HTTP calls
 
-## Instalação
+## Installation
 
 ```bash
 dotnet add package WhiteBeard.Traceability
@@ -38,24 +38,24 @@ dotnet add package WhiteBeard.Traceability
 
 ## Quick Start
 
-### ASP.NET Core (.NET 8) - Zero Configuração
+### ASP.NET Core (.NET 8) - Zero Configuration
 
-**1. Instale o pacote:**
+**1. Install the package:**
 ```bash
 dotnet add package WhiteBeard.Traceability
 ```
 
-**2. Configure no `Program.cs` (uma única linha!):**
+**2. Configure in `Program.cs` (just one line!):**
 
 ```csharp
 using Traceability.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Zero configuração - tudo é automático!
-// Source vem de TRACEABILITY_SERVICENAME ou assembly name
-// Middleware é registrado automaticamente
-// HttpClient é configurado automaticamente
+// Zero configuration - everything is automatic!
+// Source comes from TRACEABILITY_SERVICENAME or assembly name
+// Middleware is registered automatically
+// HttpClient is configured automatically
 builder.Services.AddTraceability();
 builder.Services.AddControllers();
 
@@ -64,12 +64,12 @@ app.MapControllers();
 app.Run();
 ```
 
-**Com Source explícito (opcional):**
+**With explicit Source (optional):**
 ```csharp
 builder.Services.AddTraceability("MyService");
 ```
 
-**3. Use em um Controller:**
+**3. Use in a Controller:**
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
@@ -82,22 +82,22 @@ public class ValuesController : ControllerBase
     [HttpGet]
     public IActionResult Get()
     {
-        // Correlation-id está automaticamente disponível
+        // Correlation-id is automatically available
         var correlationId = CorrelationContext.Current;
         return Ok(new { CorrelationId = correlationId });
     }
 }
 ```
 
-**Resultado:**
-- ✅ Correlation-id gerado automaticamente em cada requisição
-- ✅ Propagado automaticamente em chamadas HTTP
-- ✅ Incluído automaticamente nos logs
-- ✅ Retornado no header `X-Correlation-Id` da resposta
+**Result:**
+- ✅ Correlation-id automatically generated on each request
+- ✅ Automatically propagated in HTTP calls
+- ✅ Automatically included in logs
+- ✅ Returned in the `X-Correlation-Id` response header
 
-## Variáveis de Ambiente
+## Environment Variables
 
-Para reduzir verbosidade, você pode usar variáveis de ambiente:
+To reduce verbosity, you can use environment variables:
 
 **Linux/Mac:**
 ```bash
@@ -111,39 +111,39 @@ $env:TRACEABILITY_SERVICENAME="UserService"
 $env:LOG_LEVEL="Information"
 ```
 
-Com a variável de ambiente definida, você pode usar:
+With the environment variable defined, you can use:
 
 ```csharp
-// Source vem automaticamente de TRACEABILITY_SERVICENAME
+// Source comes automatically from TRACEABILITY_SERVICENAME
 builder.Services.AddTraceability();
 ```
 
-## Documentação
+## Documentation
 
-- **[Manual do Usuário](docs/user-guide/index.md)** - Guia progressivo para iniciantes
-- **[Quick Start](docs/getting-started.md)** - Comece a usar em minutos
-- **[Instalação](docs/installation.md)** - Guia de instalação
-- **[Configuração](docs/configuration.md)** - Opções de configuração detalhadas
-- **[Referência da API](docs/api-reference.md)** - Documentação completa da API
-- **[Exemplos](docs/examples/aspnet-core.md)** - Exemplos práticos
-- **[Troubleshooting](docs/troubleshooting.md)** - Solução de problemas comuns
-- **[Tópicos Avançados](docs/advanced.md)** - Recursos avançados
+- **[User Manual](docs/user-guide/index.md)** - Progressive guide for beginners
+- **[Quick Start](docs/getting-started.md)** - Get started in minutes
+- **[Installation](docs/installation.md)** - Installation guide
+- **[Configuration](docs/configuration.md)** - Detailed configuration options
+- **[API Reference](docs/api-reference.md)** - Complete API documentation
+- **[Examples](docs/examples/aspnet-core.md)** - Practical examples
+- **[Troubleshooting](docs/troubleshooting.md)** - Common problem solutions
+- **[Advanced Topics](docs/advanced.md)** - Advanced features
 
-## Exemplos Rápidos
+## Quick Examples
 
-### Com Logging
+### With Logging
 
 ```csharp
 // Program.cs
 builder.Services.AddTraceability("MyService");
 builder.Logging.AddConsole(options => options.IncludeScopes = true);
 
-// No Controller
-_logger.LogInformation("Processando requisição");
+// In Controller
+_logger.LogInformation("Processing request");
 // Output: => CorrelationId: a1b2c3d4e5f6789012345678901234ab
 ```
 
-### Com HttpClient
+### With HttpClient
 
 ```csharp
 // Program.cs
@@ -153,24 +153,24 @@ builder.Services.AddHttpClient("ExternalApi", client =>
     client.BaseAddress = new Uri("https://api.example.com/");
 });
 
-// No Controller
+// In Controller
 var client = _httpClientFactory.CreateClient("ExternalApi");
-// Correlation-id é automaticamente adicionado no header
+// Correlation-id is automatically added to the header
 ```
 
-## Frameworks Suportados
+## Supported Frameworks
 
-- **.NET 8.0**: Suporte completo para ASP.NET Core
-- **.NET Framework 4.8**: Suporte para ASP.NET Web API e ASP.NET Tradicional
+- **.NET 8.0**: Full support for ASP.NET Core
+- **.NET Framework 4.8**: Support for ASP.NET Web API and Traditional ASP.NET
 
-## Contribuindo
+## Contributing
 
-Contribuições são bem-vindas! Por favor, abra uma issue ou pull request.
+Contributions are welcome! Please open an issue or pull request.
 
-Para desenvolvedores que desejam contribuir:
-- **[CI/CD e Releases](docs/development/ci-cd.md)** - Processo de versionamento e publicação
-- **[Documentação Técnica](AGENTS.md)** - Arquitetura e guia técnico completo
+For developers who want to contribute:
+- **[CI/CD and Releases](docs/development/ci-cd.md)** - Versioning and publishing process
+- **[Technical Documentation](AGENTS.md)** - Complete architecture and technical guide
 
-## Licença
+## License
 
 MIT
