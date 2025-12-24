@@ -1,5 +1,7 @@
 # Traceability
 
+![NuGet Version](https://img.shields.io/nuget/v/WhiteBeard.Traceability.svg?style=flat-square&label=version)
+
 Pacote NuGet para gerenciamento automático de correlation-id em aplicações .NET, com suporte para .NET 8 e .NET Framework 4.8.
 
 > 📖 **[Quick Start](#quick-start)** | [Manual do Usuário](docs/user-guide/index.md) | [Documentação Completa](docs/index.md) | [Exemplos](docs/examples/aspnet-core.md)
@@ -172,7 +174,3 @@ Para desenvolvedores que desejam contribuir:
 ## Licença
 
 MIT
-
-## Versão
-
-1.1.0

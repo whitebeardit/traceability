@@ -192,6 +192,10 @@ If you're still experiencing issues:
 2. See the [Examples](../examples/aspnet-core.md) for working implementations
 3. Open an issue in the project repository
 
+## Next Steps
+
+Now that you know how to troubleshoot common issues, learn how to centralize your logs in [Lesson 11: Centralized Logging](11-centralized-logging.md).
+
 ## Congratulations!
 
 You've completed the user manual! Now you know:

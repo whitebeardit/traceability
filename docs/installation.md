@@ -1,5 +1,7 @@
 # Installation
 
+![NuGet Version](https://img.shields.io/nuget/v/WhiteBeard.Traceability.svg?style=flat-square&label=version)
+
 ## Requirements
 
 - .NET 8.0 or higher (for ASP.NET Core)
