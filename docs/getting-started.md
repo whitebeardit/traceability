@@ -1,26 +1,26 @@
 # Quick Start
 
-Comece a usar o Traceability em minutos com configuração mínima.
+Get started with Traceability in minutes with minimal configuration.
 
-## ASP.NET Core (.NET 8) - Zero Configuração
+## ASP.NET Core (.NET 8) - Zero Configuration
 
-### 1. Instale o pacote
+### 1. Install the package
 
 ```bash
 dotnet add package WhiteBeard.Traceability
 ```
 
-### 2. Configure no `Program.cs` (uma única linha!)
+### 2. Configure in `Program.cs` (just one line!)
 
 ```csharp
 using Traceability.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Zero configuração - tudo é automático!
-// Source vem de TRACEABILITY_SERVICENAME ou assembly name
-// Middleware é registrado automaticamente
-// HttpClient é configurado automaticamente
+// Zero configuration - everything is automatic!
+// Source comes from TRACEABILITY_SERVICENAME or assembly name
+// Middleware is registered automatically
+// HttpClient is configured automatically
 builder.Services.AddTraceability();
 builder.Services.AddControllers();
 
@@ -29,12 +29,12 @@ app.MapControllers();
 app.Run();
 ```
 
-**Com Source explícito (opcional):**
+**With explicit Source (optional):**
 ```csharp
 builder.Services.AddTraceability("MyService");
 ```
 
-### 3. Use em um Controller
+### 3. Use in a Controller
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
@@ -47,21 +47,21 @@ public class ValuesController : ControllerBase
     [HttpGet]
     public IActionResult Get()
     {
-        // Correlation-id está automaticamente disponível
+        // Correlation-id is automatically available
         var correlationId = CorrelationContext.Current;
         return Ok(new { CorrelationId = correlationId });
     }
 }
 ```
 
-### 4. Com Logging (Microsoft.Extensions.Logging)
+### 4. With Logging (Microsoft.Extensions.Logging)
 
 ```csharp
 // Program.cs
 builder.Services.AddTraceability("MyService");
 builder.Logging.AddConsole(options => options.IncludeScopes = true);
 
-// No Controller
+// In Controller
 public class ValuesController : ControllerBase
 {
     private readonly ILogger<ValuesController> _logger;
@@ -74,32 +74,32 @@ public class ValuesController : ControllerBase
     [HttpGet]
     public IActionResult Get()
     {
-        // Correlation-id aparece automaticamente nos logs
-        _logger.LogInformation("Processando requisição");
+        // Correlation-id appears automatically in logs
+        _logger.LogInformation("Processing request");
         return Ok();
     }
 }
 ```
 
-**Output nos Logs:**
+**Log Output:**
 ```
 info: MyApp.ValuesController[0]
       => CorrelationId: a1b2c3d4e5f6789012345678901234ab
-      Processando requisição
+      Processing request
 ```
 
-### 5. Com HttpClient (propagação automática)
+### 5. With HttpClient (automatic propagation)
 
 ```csharp
 // Program.cs
 builder.Services.AddTraceability("MyService");
-// HttpClient já está configurado automaticamente com CorrelationIdHandler!
+// HttpClient is already automatically configured with CorrelationIdHandler!
 builder.Services.AddHttpClient("ExternalApi", client =>
 {
     client.BaseAddress = new Uri("https://api.example.com/");
 });
 
-// No Controller ou Serviço
+// In Controller or Service
 public class MyService
 {
     private readonly IHttpClientFactory _httpClientFactory;
@@ -111,8 +111,8 @@ public class MyService
 
     public async Task<string> CallExternalApiAsync()
     {
-        // Correlation-id é automaticamente adicionado no header
-        // Não precisa de .AddHttpMessageHandler<CorrelationIdHandler>()!
+        // Correlation-id is automatically added to the header
+        // No need for .AddHttpMessageHandler<CorrelationIdHandler>()!
         var client = _httpClientFactory.CreateClient("ExternalApi");
         var response = await client.GetAsync("endpoint");
         return await response.Content.ReadAsStringAsync();
@@ -120,15 +120,15 @@ public class MyService
 }
 ```
 
-**Resultado:**
-- ✅ Correlation-id gerado automaticamente em cada requisição
-- ✅ Propagado automaticamente em chamadas HTTP
-- ✅ Incluído automaticamente nos logs
-- ✅ Retornado no header `X-Correlation-Id` da resposta
+**Result:**
+- ✅ Correlation-id automatically generated for each request
+- ✅ Automatically propagated in HTTP calls
+- ✅ Automatically included in logs
+- ✅ Returned in the `X-Correlation-Id` response header
 
-## Variáveis de Ambiente
+## Environment Variables
 
-Para reduzir verbosidade, você pode usar variáveis de ambiente:
+To reduce verbosity, you can use environment variables:
 
 **Linux/Mac:**
 ```bash
@@ -142,17 +142,17 @@ $env:TRACEABILITY_SERVICENAME="UserService"
 $env:LOG_LEVEL="Information"
 ```
 
-Com a variável de ambiente definida, você pode usar:
+With the environment variable set, you can use:
 
 ```csharp
-// Source vem automaticamente de TRACEABILITY_SERVICENAME
+// Source comes automatically from TRACEABILITY_SERVICENAME
 builder.Services.AddTraceability();
 ```
 
-## Próximos Passos
+## Next Steps
 
-- Consulte o [Manual do Usuário](user-guide/index.md) para um guia progressivo completo
-- Veja [Exemplos](examples/aspnet-core.md) para mais cenários de uso
-- Leia [Configuração](configuration.md) para opções avançadas
+- See the [User Manual](user-guide/index.md) for a complete progressive guide
+- Check [Examples](examples/aspnet-core.md) for more use cases
+- Read [Configuration](configuration.md) for advanced options
 
 

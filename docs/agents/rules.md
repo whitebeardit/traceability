@@ -1,78 +1,76 @@
-# Regras e Constraints para LLMs
+# Rules and Constraints for LLMs
 
-## Regras Obrigatórias
+## Mandatory Rules
 
-1. **Sempre usar `AsyncLocal` para contexto assíncrono**
-   - ❌ Nunca usar `ThreadLocal`
-   - ❌ Nunca usar variáveis estáticas simples
-   - ✅ Sempre usar `AsyncLocal<string>`
+1. **Always use `AsyncLocal` for asynchronous context**
+   - ❌ Never use `ThreadLocal`
+   - ❌ Never use simple static variables
+   - ✅ Always use `AsyncLocal<string>`
 
-2. **Sempre compilar condicionalmente código específico de framework**
-   - ❌ Nunca misturar código .NET 8 e .NET Framework sem `#if`
-   - ✅ Usar `#if NET8_0` para código ASP.NET Core
-   - ✅ Usar `#if NET48` para código .NET Framework
-   - ✅ Sempre fechar com `#endif`
+2. **Always conditionally compile framework-specific code**
+   - ❌ Never mix .NET 8 and .NET Framework code without `#if`
+   - ✅ Use `#if NET8_0` for ASP.NET Core code
+   - ✅ Use `#if NET48` for .NET Framework code
+   - ✅ Always close with `#endif`
 
-3. **Header padrão: `X-Correlation-Id`**
-   - ✅ Usar constante `"X-Correlation-Id"` (futuramente via `TraceabilityOptions`)
-   - ❌ Nunca usar outros nomes de header sem configuração
+3. **Default header: `X-Correlation-Id`**
+   - ✅ Use constant `"X-Correlation-Id"` (future via `TraceabilityOptions`)
+   - ❌ Never use other header names without configuration
 
-4. **GUID formatado sem hífens (32 caracteres)**
-   - ✅ Usar `Guid.NewGuid().ToString("N")`
-   - ❌ Nunca usar `ToString()` sem parâmetro (36 caracteres)
+4. **GUID formatted without hyphens (32 characters)**
+   - ✅ Use `Guid.NewGuid().ToString("N")`
+   - ❌ Never use `ToString()` without parameter (36 characters)
 
-5. **Nunca modificar correlation-id existente**
-   - ✅ Se header existe na requisição, usar o valor
-   - ✅ Se header não existe, gerar novo
-   - ❌ Nunca sobrescrever correlation-id existente no contexto
+5. **Never modify existing correlation-id**
+   - ✅ If header exists in request, use the value
+   - ✅ If header doesn't exist, generate new one
+   - ❌ Never overwrite existing correlation-id in context
 
-6. **Isolamento assíncrono obrigatório**
-   - ✅ Cada contexto assíncrono isolado mantém seu próprio correlation-id
-   - ✅ `Task.Run()` cria novo contexto isolado
-   - ✅ `await` preserva contexto
+6. **Mandatory asynchronous isolation**
+   - ✅ Each isolated asynchronous context maintains its own correlation-id
+   - ✅ `Task.Run()` creates new isolated context
+   - ✅ `await` preserves context
 
-## Constraints de Design
+## Design Constraints
 
-1. **Sem dependências circulares**: Componentes não devem depender uns dos outros circularmente
-2. **Thread-safe**: Todas as operações devem ser thread-safe
-3. **Async-safe**: Todas as operações devem funcionar corretamente com async/await
-4. **Zero configuração por padrão**: Funciona sem configuração, mas permite customização
+1. **No circular dependencies**: Components should not depend on each other circularly
+2. **Thread-safe**: All operations must be thread-safe
+3. **Async-safe**: All operations must work correctly with async/await
+4. **Zero configuration by default**: Works without configuration, but allows customization
 
-## Validações Obrigatórias
+## Mandatory Validations
 
-Ao adicionar/modificar código, verificar:
-- [ ] Compilação condicional correta (`#if NET8_0` / `#if NET48`)
-- [ ] Uso de `AsyncLocal` para contexto assíncrono
-- [ ] Header `X-Correlation-Id` usado consistentemente
-- [ ] GUID gerado sem hífens (`ToString("N")`)
-- [ ] Não modifica correlation-id existente
-- [ ] Thread-safe e async-safe
-- [ ] XML comments adicionados/atualizados
+When adding/modifying code, verify:
+- [ ] Correct conditional compilation (`#if NET8_0` / `#if NET48`)
+- [ ] Use of `AsyncLocal` for asynchronous context
+- [ ] Header `X-Correlation-Id` used consistently
+- [ ] GUID generated without hyphens (`ToString("N")`)
+- [ ] Doesn't modify existing correlation-id
+- [ ] Thread-safe and async-safe
+- [ ] XML comments added/updated
 
-## Checklist de Validação para Modificações
+## Validation Checklist for Modifications
 
-### Código
-- [ ] Compilação condicional correta (`#if NET8_0` / `#if NET48`)
-- [ ] Uso de `AsyncLocal` para contexto assíncrono
-- [ ] Header `X-Correlation-Id` usado consistentemente
-- [ ] GUID gerado sem hífens (`ToString("N")`)
-- [ ] Não modifica correlation-id existente
-- [ ] Thread-safe e async-safe
-- [ ] XML comments adicionados/atualizados
+### Code
+- [ ] Correct conditional compilation (`#if NET8_0` / `#if NET48`)
+- [ ] Use of `AsyncLocal` for asynchronous context
+- [ ] Header `X-Correlation-Id` used consistently
+- [ ] GUID generated without hyphens (`ToString("N")`)
+- [ ] Doesn't modify existing correlation-id
+- [ ] Thread-safe and async-safe
+- [ ] XML comments added/updated
 
-### Testes
-- [ ] Testes unitários adicionados/atualizados
-- [ ] Testes passam para ambos os frameworks
-- [ ] Cobertura de casos edge
+### Tests
+- [ ] Unit tests added/updated
+- [ ] Tests pass for both frameworks
+- [ ] Edge case coverage
 
-### Documentação
-- [ ] README.md atualizado se necessário
-- [ ] AGENTS.md atualizado se necessário
-- [ ] Exemplos de uso atualizados
+### Documentation
+- [ ] README.md updated if necessary
+- [ ] AGENTS.md updated if necessary
+- [ ] Usage examples updated
 
-### Compatibilidade
-- [ ] Funciona em .NET 8.0
-- [ ] Funciona em .NET Framework 4.8
-- [ ] Sem breaking changes (ou documentados)
-
-
+### Compatibility
+- [ ] Works in .NET 8.0
+- [ ] Works in .NET Framework 4.8
+- [ ] No breaking changes (or documented)

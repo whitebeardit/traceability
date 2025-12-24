@@ -1,8 +1,8 @@
-# Exemplos - ASP.NET Core (.NET 8)
+# Examples - ASP.NET Core (.NET 8)
 
-Exemplos práticos de uso do Traceability em aplicações ASP.NET Core.
+Practical examples of using Traceability in ASP.NET Core applications.
 
-## Exemplo Básico
+## Basic Example
 
 **Program.cs:**
 ```csharp
@@ -36,7 +36,7 @@ public class ValuesController : ControllerBase
 }
 ```
 
-## Exemplo com Serilog
+## Example with Serilog
 
 **Program.cs:**
 ```csharp
@@ -59,12 +59,12 @@ app.MapControllers();
 app.Run();
 ```
 
-**Output nos Logs:**
+**Log Output:**
 ```
-[14:23:45 INF] UserService a1b2c3d4e5f6789012345678901234ab Processando requisição
+[14:23:45 INF] UserService a1b2c3d4e5f6789012345678901234ab Processing request
 ```
 
-## Exemplo com HttpClient
+## Example with HttpClient
 
 **Program.cs:**
 ```csharp
@@ -96,8 +96,6 @@ public class MyController : ControllerBase
 }
 ```
 
-## Exemplo Completo
+## Complete Example
 
-Veja o exemplo completo em `samples/Sample.WebApi.Net8/`.
-
-
+See the complete example in `samples/Sample.WebApi.Net8/`.

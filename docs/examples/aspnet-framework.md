@@ -1,6 +1,6 @@
-# Exemplos - ASP.NET Framework 4.8
+# Examples - ASP.NET Framework 4.8
 
-Exemplos práticos de uso do Traceability em aplicações .NET Framework.
+Practical examples of using Traceability in .NET Framework applications.
 
 ## ASP.NET Web API
 
@@ -38,7 +38,7 @@ public class ValuesController : ApiController
 }
 ```
 
-## ASP.NET Tradicional
+## Traditional ASP.NET
 
 **web.config:**
 ```xml
@@ -50,7 +50,7 @@ public class ValuesController : ApiController
 </system.webServer>
 ```
 
-**Global.asax.cs (opcional - para configurar opções):**
+**Global.asax.cs (optional - to configure options):**
 ```csharp
 using Traceability.Middleware;
 using Traceability.Configuration;
@@ -74,35 +74,33 @@ public class MyPage : System.Web.UI.Page
     protected void Page_Load(object sender, EventArgs e)
     {
         var correlationId = CorrelationContext.Current;
-        // Usar correlation-id
+        // Use correlation-id
     }
 }
 ```
 
-## Exemplo com Serilog
+## Example with Serilog
 
 ```csharp
 using Traceability.Extensions;
 using Serilog;
 
-// No Application_Start ou Startup
+// In Application_Start or Startup
 Log.Logger = new LoggerConfiguration()
     .WithTraceability("MyService")
     .WriteTo.Console(
         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}")
     .CreateLogger();
 
-// No Controller
-Log.Information("Processando requisição");
+// In Controller
+Log.Information("Processing request");
 ```
 
-**Output nos Logs:**
+**Log Output:**
 ```
-[14:23:45 INF] MyService a1b2c3d4e5f6789012345678901234ab Processando requisição
+[14:23:45 INF] MyService a1b2c3d4e5f6789012345678901234ab Processing request
 ```
 
-## Exemplo Completo
+## Complete Example
 
-Veja o exemplo completo em `samples/Sample.WebApi.NetFramework/`.
-
-
+See the complete example in `samples/Sample.WebApi.NetFramework/`.

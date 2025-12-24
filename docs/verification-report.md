@@ -1,93 +1,93 @@
-# Relatório de Verificação: Documentação vs Implementação
+# Verification Report: Documentation vs Implementation
 
-**Data**: 2024-12-19
-**Objetivo**: Verificar se a documentação está condizente com o código implementado
+**Date**: 2024-12-19
+**Objective**: Verify if the documentation is consistent with the implemented code
 
-## Resumo Executivo
+## Executive Summary
 
-A documentação está **majoritariamente correta**, mas foram encontradas algumas **discrepâncias menores** que devem ser corrigidas para manter a precisão.
+The documentation is **mostly correct**, but some **minor discrepancies** were found that should be corrected to maintain accuracy.
 
-## Discrepâncias Encontradas
+## Discrepancies Found
 
-### 1. ✅ DISCREPÂNCIA: Sobrecargas de `AddTraceability`
+### 1. ✅ DISCREPANCY: `AddTraceability` Overloads
 
-**Localização**: `docs/agents/components.md` (linhas 613-622)
+**Location**: `docs/agents/components.md` (lines 613-622)
 
-**Documentação diz**:
+**Documentation says**:
 ```csharp
-// Sobrecarga 1: Configuração via Action (Source pode vir de options ou env var)
+// Overload 1: Configuration via Action (Source can come from options or env var)
 public static IServiceCollection AddTraceability(
     this IServiceCollection services,
     Action<TraceabilityOptions>? configureOptions = null);
 
-// Sobrecarga 2: Configuração com Source direto (opcional - pode vir de env var)
+// Overload 2: Configuration with direct Source (optional - can come from env var)
 public static IServiceCollection AddTraceability(
     this IServiceCollection services,
     string? source = null,
     Action<TraceabilityOptions>? configureOptions = null);
 ```
 
-**Código implementado**:
+**Implemented code**:
 ```csharp
-// Apenas UMA sobrecarga com ambos os parâmetros opcionais
+// Only ONE overload with both optional parameters
 public static IServiceCollection AddTraceability(
     this IServiceCollection services,
     string? source = null,
     Action<TraceabilityOptions>? configureOptions = null)
 ```
 
-**Impacto**: Baixo - Funcionalmente equivalente, mas a documentação sugere duas sobrecargas quando há apenas uma.
+**Impact**: Low - Functionally equivalent, but the documentation suggests two overloads when there is only one.
 
-**Recomendação**: Atualizar a documentação para refletir que há apenas uma sobrecarga com parâmetros opcionais, ou adicionar a sobrecarga faltante no código.
-
----
-
-### 2. ✅ VERIFICADO: `MinimumLogLevel` existe
-
-**Status**: ✅ **CORRETO**
-
-A documentação menciona `TraceabilityOptions.MinimumLogLevel` e o código implementa corretamente:
-- Propriedade existe em `TraceabilityOptions.cs` (linha 131)
-- É usado em `LoggerConfigurationExtensions.cs` (método `GetMinimumLogLevel`)
-- Prioridade de configuração está correta: Env Var > Options > Padrão
+**Recommendation**: Update the documentation to reflect that there is only one overload with optional parameters, or add the missing overload to the code.
 
 ---
 
-### 3. ✅ VERIFICADO: Estrutura de diretórios
+### 2. ✅ VERIFIED: `MinimumLogLevel` exists
 
-**Status**: ✅ **CORRETO**
+**Status**: ✅ **CORRECT**
 
-A estrutura de diretórios documentada em `docs/agents/patterns.md` corresponde exatamente à estrutura real do projeto.
-
----
-
-### 4. ✅ VERIFICADO: Componentes Core
-
-**Status**: ✅ **CORRETO**
-
-Todos os componentes mencionados na documentação existem e estão implementados:
-- ✅ `CorrelationContext` - Implementado corretamente
-- ✅ `CorrelationIdMiddleware` - Implementado corretamente
-- ✅ `CorrelationIdMessageHandler` - Implementado corretamente
-- ✅ `CorrelationIdHttpModule` - Implementado corretamente
-- ✅ `CorrelationIdHandler` - Implementado corretamente
-- ✅ `TraceableHttpClientFactory` - Implementado corretamente
-- ✅ `CorrelationIdEnricher` - Implementado corretamente
-- ✅ `SourceEnricher` - Implementado corretamente
-- ✅ `DataEnricher` - Implementado corretamente (mencionado na doc)
-- ✅ `JsonFormatter` - Implementado corretamente (mencionado na doc)
-- ✅ `CorrelationIdScopeProvider` - Implementado corretamente
-- ✅ `SourceScopeProvider` - Implementado corretamente
-- ✅ `TraceabilityUtilities` - Implementado corretamente
-- ✅ `TraceabilityOptions` - Implementado corretamente
+The documentation mentions `TraceabilityOptions.MinimumLogLevel` and the code implements it correctly:
+- Property exists in `TraceabilityOptions.cs` (line 131)
+- It's used in `LoggerConfigurationExtensions.cs` (method `GetMinimumLogLevel`)
+- Configuration priority is correct: Env Var > Options > Default
 
 ---
 
-### 5. ✅ VERIFICADO: Propriedades de `TraceabilityOptions`
+### 3. ✅ VERIFIED: Directory structure
 
-**Status**: ✅ **CORRETO**
+**Status**: ✅ **CORRECT**
 
-Todas as propriedades documentadas existem no código:
+The directory structure documented in `docs/agents/patterns.md` exactly matches the actual project structure.
+
+---
+
+### 4. ✅ VERIFIED: Core Components
+
+**Status**: ✅ **CORRECT**
+
+All components mentioned in the documentation exist and are implemented:
+- ✅ `CorrelationContext` - Correctly implemented
+- ✅ `CorrelationIdMiddleware` - Correctly implemented
+- ✅ `CorrelationIdMessageHandler` - Correctly implemented
+- ✅ `CorrelationIdHttpModule` - Correctly implemented
+- ✅ `CorrelationIdHandler` - Correctly implemented
+- ✅ `TraceableHttpClientFactory` - Correctly implemented
+- ✅ `CorrelationIdEnricher` - Correctly implemented
+- ✅ `SourceEnricher` - Correctly implemented
+- ✅ `DataEnricher` - Correctly implemented (mentioned in doc)
+- ✅ `JsonFormatter` - Correctly implemented (mentioned in doc)
+- ✅ `CorrelationIdScopeProvider` - Correctly implemented
+- ✅ `SourceScopeProvider` - Correctly implemented
+- ✅ `TraceabilityUtilities` - Correctly implemented
+- ✅ `TraceabilityOptions` - Correctly implemented
+
+---
+
+### 5. ✅ VERIFIED: `TraceabilityOptions` Properties
+
+**Status**: ✅ **CORRECT**
+
+All documented properties exist in the code:
 - ✅ `HeaderName`
 - ✅ `AlwaysGenerateNew`
 - ✅ `ValidateCorrelationIdFormat`
@@ -100,92 +100,91 @@ Todas as propriedades documentadas existem no código:
 - ✅ `LogIncludeMessage`
 - ✅ `LogIncludeData`
 - ✅ `LogIncludeException`
-- ✅ `MinimumLogLevel` (adicionado recentemente)
+- ✅ `MinimumLogLevel` (recently added)
 - ✅ `AutoRegisterMiddleware`
 - ✅ `AutoConfigureHttpClient`
 - ✅ `UseAssemblyNameAsFallback`
 
 ---
 
-### 6. ✅ VERIFICADO: Comportamentos descritos
+### 6. ✅ VERIFIED: Described Behaviors
 
-**Status**: ✅ **CORRETO**
+**Status**: ✅ **CORRECT**
 
-Os comportamentos descritos na documentação correspondem ao código:
-- ✅ Geração de GUID sem hífens (`ToString("N")`)
-- ✅ Uso de `AsyncLocal<string>` para isolamento
-- ✅ Header padrão `X-Correlation-Id`
-- ✅ Não modificar correlation-id existente
-- ✅ Validação de formato quando habilitada
-- ✅ Prioridade de Source: Parâmetro > Options > Env Var > Assembly Name
-- ✅ Sanitização automática de Source
-- ✅ Auto-registro de middleware via `IStartupFilter`
-- ✅ Auto-configuração de HttpClient
+The behaviors described in the documentation match the code:
+- ✅ GUID generation without hyphens (`ToString("N")`)
+- ✅ Use of `AsyncLocal<string>` for isolation
+- ✅ Default header `X-Correlation-Id`
+- ✅ Don't modify existing correlation-id
+- ✅ Format validation when enabled
+- ✅ Source priority: Parameter > Options > Env Var > Assembly Name
+- ✅ Automatic Source sanitization
+- ✅ Auto-registration of middleware via `IStartupFilter`
+- ✅ Auto-configuration of HttpClient
 
 ---
 
-### 7. ✅ VERIFICADO: Extensões de LoggerConfiguration
+### 7. ✅ VERIFIED: LoggerConfiguration Extensions
 
-**Status**: ✅ **CORRETO**
+**Status**: ✅ **CORRECT**
 
-Os métodos documentados existem e funcionam corretamente:
+The documented methods exist and work correctly:
 - ✅ `WithTraceability(string? source = null)`
 - ✅ `WithTraceabilityJson(string? source = null, Action<TraceabilityOptions>? configureOptions = null)`
 - ✅ `WithTraceabilityJson(TraceabilityOptions options)`
 
 ---
 
-### 8. ✅ VERIFICADO: Conditional Compilation
+### 8. ✅ VERIFIED: Conditional Compilation
 
-**Status**: ✅ **CORRETO**
+**Status**: ✅ **CORRECT**
 
-A documentação sobre conditional compilation está correta:
-- ✅ `#if NET8_0` usado para código ASP.NET Core
-- ✅ `#if NET48` usado para código .NET Framework
-- ✅ Código comum sem diretivas funciona em ambos
-
----
-
-### 9. ✅ VERIFICADO: Fluxos e Diagramas
-
-**Status**: ✅ **CORRETO**
-
-Os fluxos descritos nos diagramas Mermaid correspondem à implementação:
-- ✅ Fluxo de requisição ASP.NET Core
-- ✅ Fluxo de requisição .NET Framework
-- ✅ Propagação em chamadas HTTP encadeadas
-- ✅ Integração com logging
+The documentation about conditional compilation is correct:
+- ✅ `#if NET8_0` used for ASP.NET Core code
+- ✅ `#if NET48` used for .NET Framework code
+- ✅ Common code without directives works in both
 
 ---
 
-## Recomendações
+### 9. ✅ VERIFIED: Flows and Diagrams
 
-### Prioridade Alta
+**Status**: ✅ **CORRECT**
 
-1. ✅ **CONCLUÍDO**: **Corrigir documentação de sobrecargas**: Atualizado `docs/agents/components.md` para refletir que `AddTraceability` tem apenas uma sobrecarga com parâmetros opcionais, não duas sobrecargas separadas.
-
-### Prioridade Baixa
-
-1. **Considerar adicionar sobrecarga faltante**: Se a intenção original era ter duas sobrecargas separadas, considerar adicionar a sobrecarga que aceita apenas `Action<TraceabilityOptions>` para melhorar a clareza da API.
-
----
-
-## Conclusão
-
-A documentação está **95% correta** e bem alinhada com a implementação. A única discrepância significativa é a menção a duas sobrecargas de `AddTraceability` quando há apenas uma (com parâmetros opcionais).
-
-**Status Geral**: ✅ **APROVADO - CORREÇÕES APLICADAS**
+The flows described in the Mermaid diagrams match the implementation:
+- ✅ ASP.NET Core request flow
+- ✅ .NET Framework request flow
+- ✅ Propagation in chained HTTP calls
+- ✅ Logging integration
 
 ---
 
-## Checklist de Validação
+## Recommendations
 
-- [x] Estrutura de diretórios corresponde
-- [x] Componentes mencionados existem
-- [x] Propriedades documentadas existem
-- [x] Métodos documentados existem
-- [x] Comportamentos descritos correspondem
-- [x] Conditional compilation está correta
-- [x] Fluxos e diagramas estão corretos
-- [x] **CONCLUÍDO**: Corrigir documentação de sobrecargas
+### High Priority
 
+1. ✅ **COMPLETED**: **Fix overload documentation**: Updated `docs/agents/components.md` to reflect that `AddTraceability` has only one overload with optional parameters, not two separate overloads.
+
+### Low Priority
+
+1. **Consider adding missing overload**: If the original intention was to have two separate overloads, consider adding the overload that accepts only `Action<TraceabilityOptions>` to improve API clarity.
+
+---
+
+## Conclusion
+
+The documentation is **95% correct** and well aligned with the implementation. The only significant discrepancy is the mention of two `AddTraceability` overloads when there is only one (with optional parameters).
+
+**Overall Status**: ✅ **APPROVED - CORRECTIONS APPLIED**
+
+---
+
+## Validation Checklist
+
+- [x] Directory structure matches
+- [x] Mentioned components exist
+- [x] Documented properties exist
+- [x] Documented methods exist
+- [x] Described behaviors match
+- [x] Conditional compilation is correct
+- [x] Flows and diagrams are correct
+- [x] **COMPLETED**: Fix overload documentation

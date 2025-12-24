@@ -1,6 +1,6 @@
-# Arquitetura de Alto Nível
+# High-Level Architecture
 
-## Diagrama de Componentes
+## Component Diagram
 
 ```mermaid
 graph TB
@@ -42,39 +42,39 @@ graph TB
     TraceabilityOptions -.-> ASPNETCore
 ```
 
-## Fluxo de Dados Principal
+## Main Data Flow
 
 ```mermaid
 sequenceDiagram
-    participant Client as Cliente HTTP
+    participant Client as HTTP Client
     participant Middleware as Middleware/Handler
     participant Context as CorrelationContext
-    participant App as Aplicação
+    participant App as Application
     participant HttpClient as HttpClient
     participant Logger as Logger
-    participant External as Serviço Externo
+    participant External as External Service
 
-    Client->>Middleware: Requisição HTTP
-    Middleware->>Context: Ler X-Correlation-Id header
-    alt Header existe
-        Context->>Context: Usar valor do header
-    else Header não existe
-        Context->>Context: Gerar novo GUID
+    Client->>Middleware: HTTP Request
+    Middleware->>Context: Read X-Correlation-Id header
+    alt Header exists
+        Context->>Context: Use header value
+    else Header doesn't exist
+        Context->>Context: Generate new GUID
     end
     Context-->>Middleware: CorrelationId
-    Middleware->>App: Processar requisição
-    App->>Logger: Log com CorrelationId
-    App->>HttpClient: Chamada HTTP externa
-    HttpClient->>Context: Obter CorrelationId
-    HttpClient->>External: Requisição com X-Correlation-Id
-    External-->>HttpClient: Resposta
-    HttpClient-->>App: Resposta
-    App-->>Middleware: Resposta
-    Middleware->>Context: Obter CorrelationId
-    Middleware->>Client: Resposta com X-Correlation-Id header
+    Middleware->>App: Process request
+    App->>Logger: Log with CorrelationId
+    App->>HttpClient: External HTTP call
+    HttpClient->>Context: Get CorrelationId
+    HttpClient->>External: Request with X-Correlation-Id
+    External-->>HttpClient: Response
+    HttpClient-->>App: Response
+    App-->>Middleware: Response
+    Middleware->>Context: Get CorrelationId
+    Middleware->>Client: Response with X-Correlation-Id header
 ```
 
-## Fluxo: Requisição ASP.NET Core (.NET 8)
+## Flow: ASP.NET Core Request (.NET 8)
 
 ```mermaid
 sequenceDiagram
@@ -87,31 +87,31 @@ sequenceDiagram
     participant External
 
     Client->>Middleware: HTTP Request
-    Middleware->>Middleware: Ler X-Correlation-Id header
-    alt Header existe
+    Middleware->>Middleware: Read X-Correlation-Id header
+    alt Header exists
         Middleware->>Context: Current = headerValue
-    else Header não existe
+    else Header doesn't exist
         Middleware->>Context: GetOrCreate()
-        Context->>Context: Gerar GUID
+        Context->>Context: Generate GUID
     end
     Context-->>Middleware: correlationId
-    Middleware->>Middleware: Adicionar header resposta
+    Middleware->>Middleware: Add response header
     Middleware->>Controller: Invoke next()
-    Controller->>Context: Current (obter ID)
+    Controller->>Context: Current (get ID)
     Context-->>Controller: correlationId
-    Controller->>Logger: Log com CorrelationId
+    Controller->>Logger: Log with CorrelationId
     Controller->>HttpClient: SendAsync()
     HttpClient->>Context: Current
     Context-->>HttpClient: correlationId
-    HttpClient->>HttpClient: Adicionar X-Correlation-Id header
+    HttpClient->>HttpClient: Add X-Correlation-Id header
     HttpClient->>External: HTTP Request
     External-->>HttpClient: HTTP Response
     HttpClient-->>Controller: Response
     Controller-->>Middleware: Response
-    Middleware->>Client: HTTP Response com X-Correlation-Id
+    Middleware->>Client: HTTP Response with X-Correlation-Id
 ```
 
-## Fluxo: Requisição ASP.NET Framework 4.8
+## Flow: ASP.NET Framework 4.8 Request
 
 ```mermaid
 sequenceDiagram
@@ -122,30 +122,30 @@ sequenceDiagram
     participant Logger
 
     Client->>HttpModule: HTTP Request (BeginRequest)
-    HttpModule->>HttpModule: Ler X-Correlation-Id header
-    alt Header existe
+    HttpModule->>HttpModule: Read X-Correlation-Id header
+    alt Header exists
         HttpModule->>Context: Current = headerValue
-    else Header não existe
+    else Header doesn't exist
         HttpModule->>Context: GetOrCreate()
     end
-    HttpModule->>Page: Processar requisição
+    HttpModule->>Page: Process request
     Page->>Context: Current
     Context-->>Page: correlationId
     Page->>Logger: Log
     Page-->>HttpModule: Response
     HttpModule->>Context: Current
     Context-->>HttpModule: correlationId
-    HttpModule->>HttpModule: Adicionar header resposta (PreSendRequestHeaders)
-    HttpModule->>Client: HTTP Response com X-Correlation-Id
+    HttpModule->>HttpModule: Add response header (PreSendRequestHeaders)
+    HttpModule->>Client: HTTP Response with X-Correlation-Id
 ```
 
-## Propagação em Chamadas HTTP Encadeadas
+## Propagation in Chained HTTP Calls
 
 ```mermaid
 graph LR
-    A[Serviço A] -->|X-Correlation-Id: abc123| B[Serviço B]
-    B -->|X-Correlation-Id: abc123| C[Serviço C]
-    C -->|X-Correlation-Id: abc123| D[Serviço D]
+    A[Service A] -->|X-Correlation-Id: abc123| B[Service B]
+    B -->|X-Correlation-Id: abc123| C[Service C]
+    C -->|X-Correlation-Id: abc123| D[Service D]
     
     style A fill:#e1f5ff
     style B fill:#e1f5ff
@@ -153,16 +153,16 @@ graph LR
     style D fill:#e1f5ff
 ```
 
-**Comportamento**:
-1. Serviço A recebe requisição sem header → gera `abc123`
-2. Serviço A chama Serviço B com header `X-Correlation-Id: abc123`
-3. Serviço B lê header e usa `abc123` (não gera novo)
-4. Serviço B chama Serviço C com mesmo header
-5. Processo continua até o fim da cadeia
+**Behavior**:
+1. Service A receives request without header → generates `abc123`
+2. Service A calls Service B with header `X-Correlation-Id: abc123`
+3. Service B reads header and uses `abc123` (doesn't generate new one)
+4. Service B calls Service C with same header
+5. Process continues until the end of the chain
 
-**Regra**: Nunca gerar novo correlation-id se já existir no header da requisição.
+**Rule**: Never generate a new correlation-id if one already exists in the request header.
 
-## Integração com Logging
+## Logging Integration
 
 ### Serilog
 
@@ -170,11 +170,11 @@ graph LR
 graph TD
     A[Log.Information] --> B[CorrelationIdEnricher]
     B --> C[CorrelationContext.TryGetValue]
-    C --> D{CorrelationId existe?}
-    D -->|Sim| E[Adicionar CorrelationId property]
-    D -->|Não| F[Não adiciona nada]
-    E --> G[Log Event com CorrelationId]
-    F --> H[Log Event sem CorrelationId]
+    C --> D{CorrelationId exists?}
+    D -->|Yes| E[Add CorrelationId property]
+    D -->|No| F[Don't add anything]
+    E --> G[Log Event with CorrelationId]
+    F --> H[Log Event without CorrelationId]
 ```
 
 ### Microsoft.Extensions.Logging
@@ -183,11 +183,9 @@ graph TD
 graph TD
     A[logger.LogInformation] --> B[CorrelationIdScopeProvider]
     B --> C[CorrelationContext.TryGetValue]
-    C --> D{CorrelationId existe?}
-    D -->|Sim| E[Push Scope com CorrelationId]
-    D -->|Não| F[Não adiciona scope]
-    E --> G[Log com CorrelationId no scope]
-    F --> H[Log sem CorrelationId]
+    C --> D{CorrelationId exists?}
+    D -->|Yes| E[Push Scope with CorrelationId]
+    D -->|No| F[Don't add scope]
+    E --> G[Log with CorrelationId in scope]
+    F --> H[Log without CorrelationId]
 ```
-
-

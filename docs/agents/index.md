@@ -1,61 +1,61 @@
-# Traceability - Documentação para LLMs
+# Traceability - Documentation for LLMs
 
-Este diretório contém a documentação técnica completa do projeto Traceability, organizada para facilitar o uso por LLMs e desenvolvedores.
+This directory contains the complete technical documentation of the Traceability project, organized to facilitate use by LLMs and developers.
 
-## Índice
+## Index
 
-### Informações Básicas
-- [Metadata e Contexto Inicial](metadata.md) - Informações do projeto, dependências e estrutura de namespaces
+### Basic Information
+- [Metadata and Initial Context](metadata.md) - Project information, dependencies and namespace structure
 
-### Arquitetura
-- [Arquitetura de Alto Nível](architecture.md) - Diagramas de componentes e fluxos de dados
+### Architecture
+- [High-Level Architecture](architecture.md) - Component diagrams and data flows
 
-### Componentes
-- [Componentes Core](components.md) - Detalhamento técnico de todos os componentes do pacote
+### Components
+- [Core Components](components.md) - Technical details of all package components
 
-### Padrões e Práticas
-- [Padrões de Implementação](patterns.md) - Padrões de código e convenções utilizadas
-- [Regras e Constraints](rules.md) - Regras obrigatórias e constraints de design
-- [Decisões de Design](design-decisions.md) - Racionais por trás das decisões arquiteturais
+### Patterns and Practices
+- [Implementation Patterns](patterns.md) - Code patterns and conventions used
+- [Rules and Constraints](rules.md) - Mandatory rules and design constraints
+- [Design Decisions](design-decisions.md) - Rationales behind architectural decisions
 
-### Guias
-- [Guia de Modificação](modification-guide.md) - Como adicionar novos componentes e manter compatibilidade
-- [Exemplos de Código](code-examples.md) - Exemplos práticos de uso
+### Guides
+- [Modification Guide](modification-guide.md) - How to add new components and maintain compatibility
+- [Code Examples](code-examples.md) - Practical usage examples
 
-### Referência
-- [Glossário](glossary.md) - Definições de termos técnicos
+### Reference
+- [Glossary](glossary.md) - Technical term definitions
 
-## Estrutura do Projeto
+## Project Structure
 
 ```
 src/Traceability/
-├── Configuration/          # Opções de configuração
-├── CorrelationContext.cs    # Core: Gerenciamento de contexto
-├── Extensions/             # Métodos de extensão
-├── HttpClient/             # Integração com HttpClient
-├── Logging/                # Integrações de logging
-├── Middleware/             # Middleware e handlers HTTP
-├── Utilities/              # Utilitários compartilhados
-└── WebApi/                 # Handlers específicos Web API
+├── Configuration/          # Configuration options
+├── CorrelationContext.cs    # Core: Context management
+├── Extensions/             # Extension methods
+├── HttpClient/             # HttpClient integration
+├── Logging/                # Logging integrations
+├── Middleware/             # Middleware and HTTP handlers
+├── Utilities/              # Shared utilities
+└── WebApi/                 # Web API specific handlers
 ```
 
-## Frameworks Suportados
+## Supported Frameworks
 
-- **.NET 8.0**: Suporte completo para ASP.NET Core
-- **.NET Framework 4.8**: Suporte para ASP.NET Web API e ASP.NET Tradicional
+- **.NET 8.0**: Full support for ASP.NET Core
+- **.NET Framework 4.8**: Support for ASP.NET Web API and Traditional ASP.NET
 
-## Princípios Fundamentais
+## Fundamental Principles
 
-1. **AsyncLocal para Isolamento**: Sempre usar `AsyncLocal<string>` para contexto assíncrono
-2. **Conditional Compilation**: Código específico de framework deve usar `#if NET8_0` ou `#if NET48`
-3. **Header Padrão**: Sempre usar `X-Correlation-Id` como header padrão
-4. **GUID sem Hífens**: Gerar correlation-id como GUID de 32 caracteres (sem hífens)
-5. **Não Modificar Existente**: Nunca sobrescrever correlation-id existente no contexto
-6. **Zero Configuração**: Funciona sem configuração, mas permite customização
+1. **AsyncLocal for Isolation**: Always use `AsyncLocal<string>` for asynchronous context
+2. **Conditional Compilation**: Framework-specific code should use `#if NET8_0` or `#if NET48`
+3. **Default Header**: Always use `X-Correlation-Id` as default header
+4. **GUID without Hyphens**: Generate correlation-id as 32-character GUID (without hyphens)
+5. **Don't Modify Existing**: Never overwrite existing correlation-id in context
+6. **Zero Configuration**: Works without configuration, but allows customization
 
-## Referências Rápidas
+## Quick References
 
-### Arquivos Principais
+### Main Files
 - Core: `src/Traceability/CorrelationContext.cs`
 - Middleware (.NET 8): `src/Traceability/Middleware/CorrelationIdMiddleware.cs`
 - HttpModule (.NET Framework): `src/Traceability/Middleware/CorrelationIdHttpModule.cs`
@@ -64,16 +64,14 @@ src/Traceability/
 - Factory: `src/Traceability/HttpClient/TraceableHttpClientFactory.cs`
 - Configuration: `src/Traceability/Configuration/TraceabilityOptions.cs`
 
-### Exemplos
+### Examples
 - ASP.NET Core: `samples/Sample.WebApi.Net8/`
 - Console: `samples/Sample.Console.Net8/`
 - .NET Framework: `samples/Sample.WebApi.NetFramework/`
 
-### Testes
-- Todos os testes: `tests/Traceability.Tests/`
+### Tests
+- All tests: `tests/Traceability.Tests/`
 
 ---
 
-**Última atualização**: Baseado na versão 1.1.0 do projeto Traceability
-
-
+**Last update**: Based on version 1.1.0 of the Traceability project

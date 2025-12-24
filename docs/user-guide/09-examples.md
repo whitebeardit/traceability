@@ -1,8 +1,8 @@
-# Lição 9: Exemplos Práticos
+# Lesson 9: Practical Examples
 
-Nesta lição, você verá exemplos práticos completos com output esperado.
+In this lesson, you'll see complete practical examples with expected output.
 
-## Exemplo 1: ASP.NET Core Completo
+## Example 1: Complete ASP.NET Core
 
 **Program.cs:**
 ```csharp
@@ -12,7 +12,7 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar Serilog com Traceability
+// Configure Serilog with Traceability
 Log.Logger = new LoggerConfiguration()
     .WithTraceabilityJson("UserService")
     .WriteTo.Console(new JsonFormatter())
@@ -54,32 +54,32 @@ public class UsersController : ControllerBase
     {
         var correlationId = CorrelationContext.Current;
         
-        Log.Information("Buscando usuário {UserId}", id);
+        Log.Information("Fetching user {UserId}", id);
 
         var client = _httpClientFactory.CreateClient("ExternalApi");
         var response = await client.GetAsync($"users/{id}");
         
         var content = await response.Content.ReadAsStringAsync();
         
-        Log.Information("Usuário encontrado");
+        Log.Information("User found");
         
         return Ok(new { CorrelationId = correlationId, Data = content });
     }
 }
 ```
 
-**Requisição:**
+**Request:**
 ```bash
 curl -X GET http://localhost:5000/api/users/123
 ```
 
-**Output nos Logs (JSON):**
+**Log Output (JSON):**
 ```json
-{"Timestamp":"2024-01-15T14:23:45.123Z","Level":"Information","Source":"UserService","CorrelationId":"a1b2c3d4e5f6789012345678901234ab","Message":"Buscando usuário 123"}
-{"Timestamp":"2024-01-15T14:23:46.456Z","Level":"Information","Source":"UserService","CorrelationId":"a1b2c3d4e5f6789012345678901234ab","Message":"Usuário encontrado"}
+{"Timestamp":"2024-01-15T14:23:45.123Z","Level":"Information","Source":"UserService","CorrelationId":"a1b2c3d4e5f6789012345678901234ab","Message":"Fetching user 123"}
+{"Timestamp":"2024-01-15T14:23:46.456Z","Level":"Information","Source":"UserService","CorrelationId":"a1b2c3d4e5f6789012345678901234ab","Message":"User found"}
 ```
 
-**Resposta HTTP:**
+**HTTP Response:**
 ```json
 {
   "correlationId": "a1b2c3d4e5f6789012345678901234ab",
@@ -87,12 +87,12 @@ curl -X GET http://localhost:5000/api/users/123
 }
 ```
 
-**Headers da resposta:**
+**Response headers:**
 ```
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 ```
 
-## Exemplo 2: Console Application
+## Example 2: Console Application
 
 **Program.cs:**
 ```csharp
@@ -107,32 +107,32 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 var correlationId = CorrelationContext.GetOrCreate();
-Log.Information("Iniciando processamento");
+Log.Information("Starting processing");
 
-await ProcessarDadosAsync();
+await ProcessDataAsync();
 
-Log.Information("Processamento concluído");
+Log.Information("Processing completed");
 Log.CloseAndFlush();
 
-async Task ProcessarDadosAsync()
+async Task ProcessDataAsync()
 {
-    Log.Information("Processando dados");
+    Log.Information("Processing data");
     await Task.Delay(100);
-    Log.Information("Dados processados");
+    Log.Information("Data processed");
 }
 ```
 
-**Output esperado:**
+**Expected output:**
 ```
-[14:23:45 INF] ConsoleApp a1b2c3d4e5f6789012345678901234ab Iniciando processamento
-[14:23:45 INF] ConsoleApp a1b2c3d4e5f6789012345678901234ab Processando dados
-[14:23:45 INF] ConsoleApp a1b2c3d4e5f6789012345678901234ab Dados processados
-[14:23:45 INF] ConsoleApp a1b2c3d4e5f6789012345678901234ab Processamento concluído
+[14:23:45 INF] ConsoleApp a1b2c3d4e5f6789012345678901234ab Starting processing
+[14:23:45 INF] ConsoleApp a1b2c3d4e5f6789012345678901234ab Processing data
+[14:23:45 INF] ConsoleApp a1b2c3d4e5f6789012345678901234ab Data processed
+[14:23:45 INF] ConsoleApp a1b2c3d4e5f6789012345678901234ab Processing completed
 ```
 
-## Exemplo 3: Propagação em Cadeia
+## Example 3: Propagation in Chain
 
-**Serviço A (API Gateway):**
+**Service A (API Gateway):**
 ```csharp
 public class GatewayController : ControllerBase
 {
@@ -142,18 +142,18 @@ public class GatewayController : ControllerBase
     public async Task<IActionResult> Process()
     {
         var correlationId = CorrelationContext.Current;
-        Log.Information("Recebendo requisição no Gateway");
+        Log.Information("Receiving request at Gateway");
 
         var client = _httpClientFactory.CreateClient("OrderService");
         var response = await client.GetAsync("orders/process");
         
-        Log.Information("Resposta recebida do OrderService");
+        Log.Information("Response received from OrderService");
         return Ok();
     }
 }
 ```
 
-**Serviço B (Order Service):**
+**Service B (Order Service):**
 ```csharp
 public class OrderController : ControllerBase
 {
@@ -163,33 +163,31 @@ public class OrderController : ControllerBase
     public async Task<IActionResult> Process()
     {
         var correlationId = CorrelationContext.Current;
-        Log.Information("Processando pedido no OrderService");
+        Log.Information("Processing order in OrderService");
 
         var client = _httpClientFactory.CreateClient("PaymentService");
         var response = await client.PostAsync("payments/process", null);
         
-        Log.Information("Pagamento processado");
+        Log.Information("Payment processed");
         return Ok();
     }
 }
 ```
 
-**Logs do Serviço A:**
+**Service A Logs:**
 ```
-[14:23:45 INF] Gateway a1b2c3d4e5f6789012345678901234ab Recebendo requisição no Gateway
-[14:23:46 INF] Gateway a1b2c3d4e5f6789012345678901234ab Resposta recebida do OrderService
-```
-
-**Logs do Serviço B:**
-```
-[14:23:45 INF] OrderService a1b2c3d4e5f6789012345678901234ab Processando pedido no OrderService
-[14:23:46 INF] OrderService a1b2c3d4e5f6789012345678901234ab Pagamento processado
+[14:23:45 INF] Gateway a1b2c3d4e5f6789012345678901234ab Receiving request at Gateway
+[14:23:46 INF] Gateway a1b2c3d4e5f6789012345678901234ab Response received from OrderService
 ```
 
-**Benefício:** Você pode buscar por `a1b2c3d4e5f6789012345678901234ab` em ambos os serviços e ver o fluxo completo!
+**Service B Logs:**
+```
+[14:23:45 INF] OrderService a1b2c3d4e5f6789012345678901234ab Processing order in OrderService
+[14:23:46 INF] OrderService a1b2c3d4e5f6789012345678901234ab Payment processed
+```
 
-## Próximos Passos
+**Benefit:** You can search for `a1b2c3d4e5f6789012345678901234ab` in both services and see the complete flow!
 
-Agora que você viu exemplos práticos, vamos ver como resolver problemas comuns na [Lição 10: Troubleshooting](10-troubleshooting.md).
+## Next Steps
 
-
+Now that you've seen practical examples, let's see how to resolve common problems in [Lesson 10: Troubleshooting](10-troubleshooting.md).

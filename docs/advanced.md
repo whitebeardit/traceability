@@ -1,28 +1,28 @@
-# Tópicos Avançados
+# Advanced Topics
 
-Recursos avançados e casos de uso do Traceability.
+Advanced features and use cases for Traceability.
 
-## Prevenção de Socket Exhaustion
+## Socket Exhaustion Prevention
 
-O Traceability foi projetado para prevenir socket exhaustion desde o início. Todos os métodos de criação de HttpClient usam `IHttpClientFactory`, que gerencia o pool de conexões HTTP e reutiliza sockets.
+Traceability was designed to prevent socket exhaustion from the start. All HttpClient creation methods use `IHttpClientFactory`, which manages the HTTP connection pool and reuses sockets.
 
-### Como Funciona
+### How It Works
 
-O `IHttpClientFactory` gerencia o ciclo de vida dos `HttpClient`:
-- Reutiliza conexões HTTP quando possível
-- Gerencia o pool de sockets automaticamente
-- Previne socket exhaustion mesmo em alta carga
+`IHttpClientFactory` manages the lifecycle of `HttpClient` instances:
+- Reuses HTTP connections when possible
+- Automatically manages the socket pool
+- Prevents socket exhaustion even under high load
 
-### Uso Correto
+### Correct Usage
 
 ```csharp
-// Configure no Program.cs
+// Configure in Program.cs
 builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 {
     client.BaseAddress = new Uri("https://api.example.com/");
 });
 
-// Use no serviço ou controller
+// Use in service or controller
 public class MyService
 {
     private readonly IHttpClientFactory _httpClientFactory;
@@ -34,16 +34,16 @@ public class MyService
 
     public async Task CallApiAsync()
     {
-        // IHttpClientFactory reutiliza conexões, prevenindo socket exhaustion
+        // IHttpClientFactory reuses connections, preventing socket exhaustion
         var client = _httpClientFactory.CreateClient("ExternalApi");
         await client.GetAsync("endpoint");
     }
 }
 ```
 
-## HttpClient com Polly
+## HttpClient with Polly
 
-Integre políticas de resiliência com o Traceability:
+Integrate resilience policies with Traceability:
 
 ```csharp
 using Polly;
@@ -61,9 +61,9 @@ builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 .AddPolicyHandler(retryPolicy);
 ```
 
-## Template JSON Customizado
+## Custom JSON Template
 
-Configure o formato JSON dos logs:
+Configure the JSON format of logs:
 
 ```csharp
 var options = new TraceabilityOptions
@@ -80,18 +80,18 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 ```
 
-## Isolamento Assíncrono
+## Asynchronous Isolation
 
-Entenda como o correlation-id é isolado em contextos assíncronos:
+Understand how correlation-id is isolated in asynchronous contexts:
 
 ```csharp
-// Contexto principal
+// Main context
 var mainId = CorrelationContext.GetOrCreate();
 
-// Task isolada terá seu próprio contexto
+// Isolated task will have its own context
 var task = Task.Run(async () =>
 {
-    // Este contexto é isolado
+    // This context is isolated
     var taskId = CorrelationContext.GetOrCreate();
     await Task.Delay(100);
     return taskId;
@@ -99,79 +99,77 @@ var task = Task.Run(async () =>
 
 var taskId = await task;
 
-// mainId e taskId são diferentes
+// mainId and taskId are different
 Console.WriteLine($"Main: {mainId}, Task: {taskId}");
 ```
 
-## Propagação em Cadeia de Chamadas
+## Propagation in Call Chains
 
-O correlation-id é automaticamente propagado em chamadas HTTP encadeadas:
+The correlation-id is automatically propagated in chained HTTP calls:
 
-**Cenário:** Serviço A → Serviço B → Serviço C
+**Scenario:** Service A → Service B → Service C
 
-1. Serviço A recebe requisição sem header → gera `abc123`
-2. Serviço A chama Serviço B com header `X-Correlation-Id: abc123`
-3. Serviço B lê header e usa `abc123` (não gera novo)
-4. Serviço B chama Serviço C com mesmo header
-5. Processo continua até o fim da cadeia
+1. Service A receives request without header → generates `abc123`
+2. Service A calls Service B with header `X-Correlation-Id: abc123`
+3. Service B reads header and uses `abc123` (doesn't generate new one)
+4. Service B calls Service C with same header
+5. Process continues until the end of the chain
 
-**Regra**: Nunca gerar novo correlation-id se já existir no header da requisição.
+**Rule**: Never generate a new correlation-id if one already exists in the request header.
 
-## Uso Manual do CorrelationContext
+## Manual Use of CorrelationContext
 
-Para casos especiais, você pode usar o `CorrelationContext` manualmente:
+For special cases, you can use `CorrelationContext` manually:
 
 ```csharp
 using Traceability;
 
-// Obter correlation-id atual (cria se não existir)
+// Get current correlation-id (creates if it doesn't exist)
 var correlationId = CorrelationContext.Current;
 
-// Verificar se existe
+// Check if it exists
 if (CorrelationContext.HasValue)
 {
     var id = CorrelationContext.Current;
 }
 
-// Obter ou criar explicitamente
+// Get or create explicitly
 var id = CorrelationContext.GetOrCreate();
 
-// Tentar obter sem criar (recomendado para evitar criação indesejada)
+// Try to get without creating (recommended to avoid unwanted creation)
 if (CorrelationContext.TryGetValue(out var correlationId))
 {
-    // Usar correlationId
+    // Use correlationId
 }
 
-// Limpar contexto
+// Clear context
 CorrelationContext.Clear();
 ```
 
-## Integração com Application Insights
+## Application Insights Integration
 
-Para integração com Application Insights, você pode usar o correlation-id junto com o sistema de diagnóstico do .NET:
+For Application Insights integration, you can use the correlation-id along with the .NET diagnostics system:
 
 ```csharp
-// O correlation-id pode ser usado como propriedade customizada
+// The correlation-id can be used as a custom property
 var correlationId = CorrelationContext.Current;
 telemetryClient.Context.Properties["CorrelationId"] = correlationId;
 ```
 
-## Limitações Conhecidas
+## Known Limitations
 
-1. **.NET Framework 4.8**: Não tem DI nativo, então `TraceabilityOptions` deve ser configurado via métodos estáticos `Configure()` em `CorrelationIdHttpModule` e `CorrelationIdMessageHandler`.
+1. **.NET Framework 4.8**: Doesn't have native DI, so `TraceabilityOptions` must be configured via static `Configure()` methods in `CorrelationIdHttpModule` and `CorrelationIdMessageHandler`.
 
-2. **Validação de Formato**: A validação de formato do correlation-id é opcional e deve ser habilitada via `TraceabilityOptions.ValidateCorrelationIdFormat`.
+2. **Format Validation**: Correlation-id format validation is optional and must be enabled via `TraceabilityOptions.ValidateCorrelationIdFormat`.
 
-3. **IHttpClientFactory**: Os métodos de criação de HttpClient requerem `IHttpClientFactory` (disponível apenas em .NET 8 para este pacote). Para .NET Framework, use `CorrelationIdHandler` diretamente com seu próprio gerenciamento de HttpClient.
+3. **IHttpClientFactory**: HttpClient creation methods require `IHttpClientFactory` (only available in .NET 8 for this package). For .NET Framework, use `CorrelationIdHandler` directly with your own HttpClient management.
 
-4. **Mensageria**: Não há suporte para correlation-id em mensageria (RabbitMQ, Kafka, etc.) - apenas HTTP atualmente.
+4. **Messaging**: There is no support for correlation-id in messaging (RabbitMQ, Kafka, etc.) - only HTTP currently.
 
-## Melhores Práticas
+## Best Practices
 
-1. **Sempre use IHttpClientFactory**: Previne socket exhaustion
-2. **Defina Source**: Facilita rastreabilidade em ambientes distribuídos
-3. **Use variáveis de ambiente**: Reduz verbosidade e facilita configuração
-4. **Mantenha logs em JSON**: Garante uniformização entre serviços
-5. **Não modifique correlation-id existente**: Preserva rastreabilidade na cadeia
-
-
+1. **Always use IHttpClientFactory**: Prevents socket exhaustion
+2. **Define Source**: Facilitates traceability in distributed environments
+3. **Use environment variables**: Reduces verbosity and facilitates configuration
+4. **Keep logs in JSON**: Ensures uniformity across services
+5. **Don't modify existing correlation-id**: Preserves traceability in the chain

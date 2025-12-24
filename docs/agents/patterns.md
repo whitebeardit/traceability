@@ -1,104 +1,104 @@
-# Padrões de Implementação
+# Implementation Patterns
 
 ## 1. Conditional Compilation
 
-**Padrão**: Usar diretivas `#if` para código específico de framework.
+**Pattern**: Use `#if` directives for framework-specific code.
 
-**Regras**:
-- `#if NET8_0` para código ASP.NET Core
-- `#if NET48` para código .NET Framework
-- Sempre fechar com `#endif`
-- Código comum (sem diretiva) funciona em ambos
+**Rules**:
+- `#if NET8_0` for ASP.NET Core code
+- `#if NET48` for .NET Framework code
+- Always close with `#endif`
+- Common code (without directive) works in both
 
-**Exemplo**:
+**Example**:
 ```csharp
 #if NET8_0
 using Microsoft.AspNetCore.Http;
-// Código específico .NET 8
+// .NET 8 specific code
 #endif
 
 #if NET48
 using System.Web;
-// Código específico .NET Framework
+// .NET Framework specific code
 #endif
 
-// Código comum
+// Common code
 ```
 
-## 2. AsyncLocal para Isolamento Assíncrono
+## 2. AsyncLocal for Asynchronous Isolation
 
-**Padrão**: Sempre usar `AsyncLocal<string>` para armazenar correlation-id.
+**Pattern**: Always use `AsyncLocal<string>` to store correlation-id.
 
-**Razão**: `AsyncLocal` preserva valores através de continuidades assíncronas, enquanto `ThreadLocal` não.
+**Reason**: `AsyncLocal` preserves values across asynchronous continuations, while `ThreadLocal` does not.
 
-**Implementação**:
+**Implementation**:
 ```csharp
 private static readonly AsyncLocal<string> _correlationId = new AsyncLocal<string>();
 ```
 
-**Comportamento**:
-- Cada contexto assíncrono tem seu próprio valor
-- Valor é preservado através de `await`
-- Isolado entre diferentes `Task.Run()` ou threads
+**Behavior**:
+- Each asynchronous context has its own value
+- Value is preserved across `await`
+- Isolated between different `Task.Run()` or threads
 
-## 3. Padrão Factory para HttpClient
+## 3. Factory Pattern for HttpClient
 
-**Padrão**: Usar factory para criar HttpClient configurado.
+**Pattern**: Use factory to create configured HttpClient.
 
-**Implementação**: `TraceableHttpClientFactory`
+**Implementation**: `TraceableHttpClientFactory`
 
-**Vantagens**:
-- Centraliza configuração
-- Facilita adição de handlers
-- Suporta políticas Polly
+**Advantages**:
+- Centralizes configuration
+- Facilitates adding handlers
+- Supports Polly policies
 
-## 4. Padrão DelegatingHandler
+## 4. DelegatingHandler Pattern
 
-**Padrão**: Usar `DelegatingHandler` para interceptar requisições HTTP.
+**Pattern**: Use `DelegatingHandler` to intercept HTTP requests.
 
-**Implementação**: `CorrelationIdHandler`
+**Implementation**: `CorrelationIdHandler`
 
-**Comportamento**:
-- Intercepta antes de enviar requisição
-- Adiciona header automaticamente
-- Preserva pipeline de handlers
+**Behavior**:
+- Intercepts before sending request
+- Automatically adds header
+- Preserves handler pipeline
 
-## 5. Padrão Enricher (Serilog)
+## 5. Enricher Pattern (Serilog)
 
-**Padrão**: Implementar `ILogEventEnricher` para adicionar propriedades aos logs.
+**Pattern**: Implement `ILogEventEnricher` to add properties to logs.
 
-**Implementação**: `CorrelationIdEnricher`
+**Implementation**: `CorrelationIdEnricher`
 
-**Comportamento**:
-- Chamado para cada evento de log
-- Adiciona propriedade `CorrelationId`
-- Não modifica outros enrichers
+**Behavior**:
+- Called for each log event
+- Adds `CorrelationId` property
+- Doesn't modify other enrichers
 
-## 6. Padrão ScopeProvider (Microsoft.Extensions.Logging)
+## 6. ScopeProvider Pattern (Microsoft.Extensions.Logging)
 
-**Padrão**: Implementar `IExternalScopeProvider` para adicionar scopes.
+**Pattern**: Implement `IExternalScopeProvider` to add scopes.
 
-**Implementação**: `CorrelationIdScopeProvider`
+**Implementation**: `CorrelationIdScopeProvider`
 
-**Comportamento**:
-- Adiciona scope com `CorrelationId`
-- Suporta provider interno (decorator pattern)
-- Preserva scopes existentes
+**Behavior**:
+- Adds scope with `CorrelationId`
+- Supports internal provider (decorator pattern)
+- Preserves existing scopes
 
-## 7. Convenções de Nomenclatura
+## 7. Naming Conventions
 
 - **Classes**: PascalCase
-- **Métodos**: PascalCase
-- **Propriedades**: PascalCase
-- **Campos privados**: `_camelCase` (underscore prefix)
-- **Constantes**: PascalCase
+- **Methods**: PascalCase
+- **Properties**: PascalCase
+- **Private fields**: `_camelCase` (underscore prefix)
+- **Constants**: PascalCase
 - **Namespaces**: `Traceability.[SubNamespace]`
 
-## 8. Geração de Correlation-ID
+## 8. Correlation-ID Generation
 
-**Formato**: GUID sem hífens (32 caracteres)
+**Format**: GUID without hyphens (32 characters)
 
-**Implementação**:
+**Implementation**:
 ```csharp
 private static string GenerateNew()
 {
@@ -106,40 +106,40 @@ private static string GenerateNew()
 }
 ```
 
-**Razão**: 
-- Compacto (32 chars vs 36 com hífens)
-- Compatível com sistemas externos
-- Legível em logs
+**Reason**: 
+- Compact (32 chars vs 36 with hyphens)
+- Compatible with external systems
+- Readable in logs
 
-## Estrutura de Diretórios
+## Directory Structure
 
 ```
 src/Traceability/
 ├── Configuration/
-│   └── TraceabilityOptions.cs          # Opções de configuração
+│   └── TraceabilityOptions.cs          # Configuration options
 │
-├── CorrelationContext.cs                # Core: Gerenciamento de contexto
+├── CorrelationContext.cs                # Core: Context management
 │
 ├── Extensions/
-│   ├── ApplicationBuilderExtensions.cs  # Extensão para IApplicationBuilder (.NET 8)
-│   ├── HttpClientExtensions.cs          # Extensões para HttpClient
-│   ├── LoggerConfigurationExtensions.cs # Extensão para LoggerConfiguration (Serilog)
-│   └── ServiceCollectionExtensions.cs   # Extensão para IServiceCollection (.NET 8)
+│   ├── ApplicationBuilderExtensions.cs  # Extension for IApplicationBuilder (.NET 8)
+│   ├── HttpClientExtensions.cs          # Extensions for HttpClient
+│   ├── LoggerConfigurationExtensions.cs # Extension for LoggerConfiguration (Serilog)
+│   └── ServiceCollectionExtensions.cs   # Extension for IServiceCollection (.NET 8)
 │
 ├── HttpClient/
-│   ├── CorrelationIdHandler.cs          # DelegatingHandler para HttpClient
-│   └── TraceableHttpClientFactory.cs    # Factory para criar HttpClient
+│   ├── CorrelationIdHandler.cs          # DelegatingHandler for HttpClient
+│   └── TraceableHttpClientFactory.cs    # Factory to create HttpClient
 │
 ├── Utilities/
-│   └── TraceabilityUtilities.cs         # Utilitários compartilhados (GetServiceName, SanitizeSource)
+│   └── TraceabilityUtilities.cs         # Shared utilities (GetServiceName, SanitizeSource)
 │
 ├── Logging/
-│   ├── CorrelationIdEnricher.cs        # Enricher para Serilog
-│   ├── CorrelationIdScopeProvider.cs   # ScopeProvider para MEL
-│   ├── DataEnricher.cs                  # Enricher que serializa objetos em "data"
-│   ├── JsonFormatter.cs                 # Formatter JSON customizado
-│   ├── SourceEnricher.cs               # Enricher Source para Serilog
-│   └── SourceScopeProvider.cs          # ScopeProvider Source para MEL
+│   ├── CorrelationIdEnricher.cs        # Enricher for Serilog
+│   ├── CorrelationIdScopeProvider.cs   # ScopeProvider for MEL
+│   ├── DataEnricher.cs                  # Enricher that serializes objects in "data"
+│   ├── JsonFormatter.cs                 # Custom JSON formatter
+│   ├── SourceEnricher.cs               # Source Enricher for Serilog
+│   └── SourceScopeProvider.cs          # Source ScopeProvider for MEL
 │
 ├── Middleware/
 │   ├── CorrelationIdHttpModule.cs      # HttpModule (.NET Framework)
@@ -148,39 +148,37 @@ src/Traceability/
 ├── WebApi/
 │   └── CorrelationIdMessageHandler.cs  # MessageHandler (.NET Framework Web API)
 │
-└── Traceability.csproj                  # Arquivo de projeto
+└── Traceability.csproj                  # Project file
 ```
 
-### Descrição por Diretório
+### Description by Directory
 
 #### Configuration/
-- **Propósito**: Classes de configuração
-- **Quando usar**: Para adicionar novas opções de configuração
-- **Arquivos**: `TraceabilityOptions.cs`
+- **Purpose**: Configuration classes
+- **When to use**: To add new configuration options
+- **Files**: `TraceabilityOptions.cs`
 
 #### Extensions/
-- **Propósito**: Métodos de extensão para facilitar uso
-- **Quando usar**: Para adicionar métodos de conveniência
-- **Arquivos**: Extensões para DI, middleware, HttpClient
+- **Purpose**: Extension methods to facilitate usage
+- **When to use**: To add convenience methods
+- **Files**: Extensions for DI, middleware, HttpClient
 
 #### HttpClient/
-- **Propósito**: Integração com HttpClient
-- **Quando usar**: Para modificar comportamento de HTTP ou adicionar novos handlers
-- **Arquivos**: Handlers, factory, interfaces
+- **Purpose**: HttpClient integration
+- **When to use**: To modify HTTP behavior or add new handlers
+- **Files**: Handlers, factory, interfaces
 
 #### Logging/
-- **Propósito**: Integrações com sistemas de logging
-- **Quando usar**: Para adicionar suporte a novos loggers
-- **Arquivos**: Enrichers, scope providers
+- **Purpose**: Logging system integrations
+- **When to use**: To add support for new loggers
+- **Files**: Enrichers, scope providers
 
 #### Middleware/
-- **Propósito**: Middleware e handlers HTTP
-- **Quando usar**: Para adicionar novos pontos de interceptação HTTP
-- **Arquivos**: Middleware (.NET 8), HttpModule (.NET Framework)
+- **Purpose**: Middleware and HTTP handlers
+- **When to use**: To add new HTTP interception points
+- **Files**: Middleware (.NET 8), HttpModule (.NET Framework)
 
 #### WebApi/
-- **Propósito**: Handlers específicos para ASP.NET Web API
-- **Quando usar**: Para funcionalidades específicas do Web API
-- **Arquivos**: MessageHandlers
-
-
+- **Purpose**: Handlers specific to ASP.NET Web API
+- **When to use**: For Web API specific functionality
+- **Files**: MessageHandlers
