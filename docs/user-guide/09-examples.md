@@ -92,6 +92,8 @@ curl -X GET http://localhost:5000/api/users/123
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 ```
 
+**Note**: An OpenTelemetry Activity (span) is automatically created for each request. When making HTTP calls, W3C Trace Context headers (`traceparent`, `tracestate`) are automatically propagated along with `X-Correlation-Id` for backward compatibility.
+
 ## Example 2: Console Application
 
 **Program.cs:**
@@ -186,7 +188,19 @@ public class OrderController : ControllerBase
 [14:23:46 INF] OrderService a1b2c3d4e5f6789012345678901234ab Payment processed
 ```
 
-**Benefit:** You can search for `a1b2c3d4e5f6789012345678901234ab` in both services and see the complete flow!
+**HTTP Request from Service A to Service B:**
+```http
+GET /orders/process HTTP/1.1
+Host: order-service.example.com
+X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
+traceparent: 00-a1b2c3d4e5f6789012345678901234ab-0123456789abcdef-01
+```
+
+**Benefits:**
+- ✅ Search for `a1b2c3d4e5f6789012345678901234ab` in both services and see the complete flow
+- ✅ OpenTelemetry Activities (spans) maintain hierarchical relationships
+- ✅ W3C Trace Context enables distributed tracing across services
+- ✅ Compatible with observability tools (Jaeger, Zipkin, Application Insights)
 
 ## Next Steps
 

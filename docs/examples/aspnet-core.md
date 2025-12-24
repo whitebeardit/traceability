@@ -30,11 +30,15 @@ public class ValuesController : ControllerBase
     [HttpGet]
     public IActionResult Get()
     {
+        // Correlation-id/trace-id is automatically available
+        // Uses Activity.TraceId if OpenTelemetry is configured, otherwise uses AsyncLocal
         var correlationId = CorrelationContext.Current;
         return Ok(new { CorrelationId = correlationId });
     }
 }
 ```
+
+**Note**: An OpenTelemetry Activity (span) is automatically created for each request, providing distributed tracing capabilities.
 
 ## Example with Serilog
 
@@ -89,11 +93,24 @@ public class MyController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Get()
     {
+        // HttpClient automatically:
+        // 1. Creates a child Activity (span) for the HTTP call
+        // 2. Adds X-Correlation-Id header (backward compatibility)
+        // 3. Adds traceparent header (W3C Trace Context)
+        // 4. Adds tracestate header if Activity has baggage
         var client = _httpClientFactory.CreateClient("ExternalApi");
         var response = await client.GetAsync("endpoint");
         return Ok(await response.Content.ReadAsStringAsync());
     }
 }
+```
+
+**HTTP Request Headers Sent:**
+```http
+GET /endpoint HTTP/1.1
+Host: api.example.com
+X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
+traceparent: 00-a1b2c3d4e5f6789012345678901234ab-0123456789abcdef-01
 ```
 
 ## Complete Example

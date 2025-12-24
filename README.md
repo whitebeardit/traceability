@@ -21,7 +21,9 @@ Use **Traceability** when you need:
 
 ## Features
 
-- ✅ Automatic correlation-id management using `AsyncLocal`
+- ✅ Automatic correlation-id management using OpenTelemetry `Activity.TraceId` (with `AsyncLocal` fallback)
+- ✅ OpenTelemetry integration with automatic Activity (span) creation
+- ✅ W3C Trace Context propagation (`traceparent`, `tracestate` headers)
 - ✅ Support for .NET 8.0 and .NET Framework 4.8
 - ✅ Middleware for ASP.NET Core (.NET 8)
 - ✅ HttpModule and MessageHandler for ASP.NET (.NET Framework 4.8)
@@ -29,6 +31,7 @@ Use **Traceability** when you need:
 - ✅ Support for Serilog and Microsoft.Extensions.Logging
 - ✅ Integration with Polly for resilience policies
 - ✅ Automatic propagation in chained HTTP calls
+- ✅ Hierarchical span relationships for distributed tracing
 
 ## Installation
 
@@ -90,10 +93,12 @@ public class ValuesController : ControllerBase
 ```
 
 **Result:**
-- ✅ Correlation-id automatically generated on each request
-- ✅ Automatically propagated in HTTP calls
+- ✅ Correlation-id/trace-id automatically generated on each request
+- ✅ OpenTelemetry Activity (span) automatically created
+- ✅ Automatically propagated in HTTP calls (with W3C Trace Context)
 - ✅ Automatically included in logs
 - ✅ Returned in the `X-Correlation-Id` response header
+- ✅ Compatible with all OpenTelemetry-compatible observability tools
 
 ## Environment Variables
 

@@ -12,7 +12,8 @@ graph TB
     end
 
     subgraph "Core Layer"
-        CorrelationContext[CorrelationContext<br/>AsyncLocal Storage]
+        CorrelationContext[CorrelationContext<br/>Activity.TraceId / AsyncLocal]
+        ActivitySource[TraceabilityActivitySource<br/>OpenTelemetry Activities]
     end
 
     subgraph "HTTP Integration"
@@ -34,9 +35,13 @@ graph TB
     ASPNETTraditional --> CorrelationContext
     ConsoleApp --> CorrelationContext
 
+    ASPNETCore --> ActivitySource
+    HttpClientHandler --> ActivitySource
+
     CorrelationContext --> HttpClientHandler
     CorrelationContext --> SerilogEnricher
     CorrelationContext --> MELScopeProvider
+    ActivitySource --> CorrelationContext
 
     HttpClientFactory --> HttpClientHandler
     TraceabilityOptions -.-> ASPNETCore
@@ -48,6 +53,7 @@ graph TB
 sequenceDiagram
     participant Client as HTTP Client
     participant Middleware as Middleware/Handler
+    participant ActivitySource as TraceabilityActivitySource
     participant Context as CorrelationContext
     participant App as Application
     participant HttpClient as HttpClient
@@ -55,22 +61,28 @@ sequenceDiagram
     participant External as External Service
 
     Client->>Middleware: HTTP Request
+    Middleware->>ActivitySource: Create Activity (if not exists)
+    ActivitySource-->>Middleware: Activity with TraceId
     Middleware->>Context: Read X-Correlation-Id header
     alt Header exists
         Context->>Context: Use header value
     else Header doesn't exist
-        Context->>Context: Generate new GUID
+        Context->>Context: GetOrCreate (Activity.TraceId or new GUID)
     end
-    Context-->>Middleware: CorrelationId
+    Context-->>Middleware: CorrelationId/TraceId
     Middleware->>App: Process request
     App->>Logger: Log with CorrelationId
     App->>HttpClient: External HTTP call
-    HttpClient->>Context: Get CorrelationId
-    HttpClient->>External: Request with X-Correlation-Id
+    HttpClient->>ActivitySource: Create child Activity
+    ActivitySource-->>HttpClient: Child Activity
+    HttpClient->>Context: Get CorrelationId/TraceId
+    HttpClient->>External: Request with X-Correlation-Id + traceparent
     External-->>HttpClient: Response
+    HttpClient->>ActivitySource: Stop Activity
     HttpClient-->>App: Response
     App-->>Middleware: Response
     Middleware->>Context: Get CorrelationId
+    Middleware->>ActivitySource: Stop Activity
     Middleware->>Client: Response with X-Correlation-Id header
 ```
 
@@ -80,6 +92,7 @@ sequenceDiagram
 sequenceDiagram
     participant Client
     participant Middleware as CorrelationIdMiddleware
+    participant ActivitySource as TraceabilityActivitySource
     participant Context as CorrelationContext
     participant Controller
     participant Logger
@@ -87,27 +100,35 @@ sequenceDiagram
     participant External
 
     Client->>Middleware: HTTP Request
+    Middleware->>ActivitySource: Create Activity (if Activity.Current == null)
+    ActivitySource-->>Middleware: Activity with TraceId
     Middleware->>Middleware: Read X-Correlation-Id header
     alt Header exists
         Middleware->>Context: Current = headerValue
     else Header doesn't exist
         Middleware->>Context: GetOrCreate()
-        Context->>Context: Generate GUID
+        Context->>Context: Use Activity.TraceId or Generate GUID
     end
-    Context-->>Middleware: correlationId
+    Context-->>Middleware: correlationId/traceId
     Middleware->>Middleware: Add response header
+    Middleware->>Middleware: Add HTTP tags to Activity
     Middleware->>Controller: Invoke next()
     Controller->>Context: Current (get ID)
-    Context-->>Controller: correlationId
+    Context-->>Controller: correlationId/traceId
     Controller->>Logger: Log with CorrelationId
     Controller->>HttpClient: SendAsync()
-    HttpClient->>Context: Current
-    Context-->>HttpClient: correlationId
-    HttpClient->>HttpClient: Add X-Correlation-Id header
-    HttpClient->>External: HTTP Request
+    HttpClient->>ActivitySource: Create child Activity
+    ActivitySource-->>HttpClient: Child Activity
+    HttpClient->>Context: Current (Activity.TraceId)
+    Context-->>HttpClient: traceId
+    HttpClient->>HttpClient: Add X-Correlation-Id + traceparent headers
+    HttpClient->>HttpClient: Add HTTP tags to Activity
+    HttpClient->>External: HTTP Request (with trace context)
     External-->>HttpClient: HTTP Response
+    HttpClient->>ActivitySource: Stop child Activity
     HttpClient-->>Controller: Response
     Controller-->>Middleware: Response
+    Middleware->>ActivitySource: Stop Activity
     Middleware->>Client: HTTP Response with X-Correlation-Id
 ```
 
@@ -143,9 +164,9 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-    A[Service A] -->|X-Correlation-Id: abc123| B[Service B]
-    B -->|X-Correlation-Id: abc123| C[Service C]
-    C -->|X-Correlation-Id: abc123| D[Service D]
+    A[Service A] -->|"X-Correlation-Id: abc123<br/>traceparent: 00-..."| B[Service B]
+    B -->|"X-Correlation-Id: abc123<br/>traceparent: 00-..."| C[Service C]
+    C -->|"X-Correlation-Id: abc123<br/>traceparent: 00-..."| D[Service D]
     
     style A fill:#e1f5ff
     style B fill:#e1f5ff
@@ -154,13 +175,37 @@ graph LR
 ```
 
 **Behavior**:
-1. Service A receives request without header → generates `abc123`
-2. Service A calls Service B with header `X-Correlation-Id: abc123`
-3. Service B reads header and uses `abc123` (doesn't generate new one)
-4. Service B calls Service C with same header
-5. Process continues until the end of the chain
+1. Service A receives request without header → creates Activity with TraceId `abc123`
+2. Service A calls Service B with headers:
+   - `X-Correlation-Id: abc123` (backward compatibility)
+   - `traceparent: 00-abc123...` (W3C Trace Context)
+3. Service B reads headers and uses `abc123` (doesn't generate new one)
+4. Service B creates child Activity (span) maintaining trace hierarchy
+5. Service B calls Service C with same headers
+6. Process continues until the end of the chain
 
-**Rule**: Never generate a new correlation-id if one already exists in the request header.
+**Rule**: Never generate a new correlation-id if one already exists in the request header. Always propagate W3C Trace Context for distributed tracing compatibility.
+
+## Activity Hierarchy (Spans)
+
+```mermaid
+graph TD
+    Root[Root Activity<br/>HTTP Request<br/>Service A] --> Child1[Child Activity<br/>HTTP Client Call<br/>Service A → B]
+    Child1 --> Child2[Child Activity<br/>HTTP Client Call<br/>Service B → C]
+    Child2 --> Child3[Child Activity<br/>HTTP Client Call<br/>Service C → D]
+    
+    style Root fill:#e1f5ff
+    style Child1 fill:#fff4e1
+    style Child2 fill:#fff4e1
+    style Child3 fill:#fff4e1
+```
+
+**Behavior**:
+- Each HTTP request creates a root Activity (span)
+- Each outgoing HTTP call creates a child Activity (span)
+- Activities maintain parent-child relationships for hierarchical tracing
+- All Activities share the same TraceId for correlation
+- W3C Trace Context headers (`traceparent`, `tracestate`) propagate across services
 
 ## Logging Integration
 

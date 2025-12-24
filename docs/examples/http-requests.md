@@ -90,23 +90,29 @@ HTTP/1.1 200 OK
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 ```
 
-**2. Service A calls Service B (correlation-id automatically propagated):**
+**2. Service A calls Service B (correlation-id and trace context automatically propagated):**
 
-Service A's HttpClient automatically adds the correlation-id:
+Service A's HttpClient automatically adds headers:
 ```http
 GET /api/service-b/data HTTP/1.1
 Host: service-b.example.com
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
+traceparent: 00-a1b2c3d4e5f6789012345678901234ab-0123456789abcdef-01
 ```
 
-**3. Service B calls Service C (correlation-id automatically propagated):**
+**3. Service B calls Service C (correlation-id and trace context automatically propagated):**
 ```http
 GET /api/service-c/process HTTP/1.1
 Host: service-c.example.com
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
+traceparent: 00-a1b2c3d4e5f6789012345678901234ab-0123456789abcdef-01
 ```
 
-**Result:** All services in the chain use the same correlation-id (`a1b2c3d4e5f6789012345678901234ab`), allowing you to track the entire request through logs from all services.
+**Result:** 
+- All services in the chain use the same correlation-id/trace-id (`a1b2c3d4e5f6789012345678901234ab`)
+- W3C Trace Context headers (`traceparent`) enable distributed tracing
+- Hierarchical spans are maintained across services
+- Compatible with OpenTelemetry-compatible observability tools (Jaeger, Zipkin, Application Insights)
 
 ## Example with Postman
 
