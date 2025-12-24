@@ -3,7 +3,7 @@
 ## Project Information
 
 - **Name**: Traceability
-- **Version**: 1.1.0
+- **Version**: ![NuGet Version](https://img.shields.io/nuget/v/WhiteBeard.Traceability.svg?style=flat-square&label=version)
 - **Type**: NuGet Package
 - **License**: MIT
 - **Author**: WhiteBeard IT

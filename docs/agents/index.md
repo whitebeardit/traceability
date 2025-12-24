@@ -74,4 +74,4 @@ src/Traceability/
 
 ---
 
-**Last update**: Based on version 1.1.0 of the Traceability project
+**Last update**: Based on version ![NuGet Version](https://img.shields.io/nuget/v/WhiteBeard.Traceability.svg?style=flat-square&label=version) of the Traceability project
