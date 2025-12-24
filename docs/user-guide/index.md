@@ -4,7 +4,7 @@ Welcome to the Traceability user manual! This guide was created for beginners an
 
 ## How to Use This Manual
 
-This manual is organized into 10 progressive lessons:
+This manual is organized into 11 progressive lessons:
 
 1. **[What is Traceability?](01-what-is-traceability.md)** - Understand what it is and when to use it
 2. **[Quick Start](02-quick-start.md)** - Get started in minutes with zero configuration
@@ -16,6 +16,7 @@ This manual is organized into 10 progressive lessons:
 8. **[Configuration](08-configuration.md)** - Configuration options explained
 9. **[Practical Examples](09-examples.md)** - Complete examples with expected output
 10. **[Troubleshooting](10-troubleshooting.md)** - Common problem solutions
+11. **[Centralized Logging](11-centralized-logging.md)** - Configure centralized logging with common log aggregators
 
 ## Prerequisites
 
