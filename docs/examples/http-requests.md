@@ -1,23 +1,23 @@
-# Exemplos - Requisições HTTP
+# Examples - HTTP Requests
 
-Exemplos de como o correlation-id é gerenciado em requisições HTTP.
+Examples of how correlation-id is managed in HTTP requests.
 
-## Requisição sem Correlation-ID (Gera Novo)
+## Request without Correlation-ID (Generates New)
 
-Quando uma requisição é feita sem o header `X-Correlation-Id`, o middleware/handler gera automaticamente um novo correlation-id.
+When a request is made without the `X-Correlation-Id` header, the middleware/handler automatically generates a new correlation-id.
 
-**Requisição:**
+**Request:**
 ```bash
 curl -X GET http://localhost:5000/api/values/test
 ```
 
-Ou via HTTP:
+Or via HTTP:
 ```http
 GET /api/values/test HTTP/1.1
 Host: localhost:5000
 ```
 
-**Resposta (.NET 8 - ASP.NET Core):**
+**Response (.NET 8 - ASP.NET Core):**
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json
@@ -25,11 +25,11 @@ X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 
 {
   "correlationId": "a1b2c3d4e5f6789012345678901234ab",
-  "message": "Requisição processada com sucesso"
+  "message": "Request processed successfully"
 }
 ```
 
-**Resposta (.NET Framework 4.8 - Web API):**
+**Response (.NET Framework 4.8 - Web API):**
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json
@@ -37,28 +37,28 @@ X-Correlation-Id: f1e2d3c4b5a6978012345678901234cd
 
 {
   "correlationId": "f1e2d3c4b5a6978012345678901234cd",
-  "message": "Requisição processada com sucesso"
+  "message": "Request processed successfully"
 }
 ```
 
-## Requisição com Correlation-ID (Reutiliza Existente)
+## Request with Correlation-ID (Reuses Existing)
 
-Quando uma requisição é feita com o header `X-Correlation-Id`, o middleware/handler reutiliza o valor fornecido.
+When a request is made with the `X-Correlation-Id` header, the middleware/handler reuses the provided value.
 
-**Requisição:**
+**Request:**
 ```bash
 curl -X GET http://localhost:5000/api/values/test \
   -H "X-Correlation-Id: 12345678901234567890123456789012"
 ```
 
-Ou via HTTP:
+Or via HTTP:
 ```http
 GET /api/values/test HTTP/1.1
 Host: localhost:5000
 X-Correlation-Id: 12345678901234567890123456789012
 ```
 
-**Resposta:**
+**Response:**
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json
@@ -66,75 +66,73 @@ X-Correlation-Id: 12345678901234567890123456789012
 
 {
   "correlationId": "12345678901234567890123456789012",
-  "message": "Requisição processada com sucesso"
+  "message": "Request processed successfully"
 }
 ```
 
-**Observação:** O mesmo correlation-id é retornado na resposta, garantindo rastreabilidade em toda a cadeia de chamadas.
+**Note:** The same correlation-id is returned in the response, ensuring traceability throughout the call chain.
 
-## Propagação em Cadeia de Chamadas
+## Propagation in Call Chains
 
-O correlation-id é automaticamente propagado em chamadas HTTP encadeadas.
+The correlation-id is automatically propagated in chained HTTP calls.
 
-**Cenário:** Serviço A → Serviço B → Serviço C
+**Scenario:** Service A → Service B → Service C
 
-**1. Cliente chama Serviço A (sem correlation-id):**
+**1. Client calls Service A (without correlation-id):**
 ```http
 GET /api/service-a/process HTTP/1.1
 Host: service-a.example.com
 ```
 
-**Resposta do Serviço A:**
+**Service A Response:**
 ```http
 HTTP/1.1 200 OK
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 ```
 
-**2. Serviço A chama Serviço B (correlation-id propagado automaticamente):**
+**2. Service A calls Service B (correlation-id automatically propagated):**
 
-O HttpClient do Serviço A automaticamente adiciona o correlation-id:
+Service A's HttpClient automatically adds the correlation-id:
 ```http
 GET /api/service-b/data HTTP/1.1
 Host: service-b.example.com
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 ```
 
-**3. Serviço B chama Serviço C (correlation-id propagado automaticamente):**
+**3. Service B calls Service C (correlation-id automatically propagated):**
 ```http
 GET /api/service-c/process HTTP/1.1
 Host: service-c.example.com
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 ```
 
-**Resultado:** Todos os serviços na cadeia usam o mesmo correlation-id (`a1b2c3d4e5f6789012345678901234ab`), permitindo rastrear toda a requisição através dos logs de todos os serviços.
+**Result:** All services in the chain use the same correlation-id (`a1b2c3d4e5f6789012345678901234ab`), allowing you to track the entire request through logs from all services.
 
-## Exemplo com Postman
+## Example with Postman
 
-**Configuração no Postman:**
+**Postman Configuration:**
 
-1. Crie uma nova requisição
-2. Na aba "Headers", adicione:
+1. Create a new request
+2. In the "Headers" tab, add:
    - Key: `X-Correlation-Id`
-   - Value: `12345678901234567890123456789012` (opcional - se não fornecer, será gerado)
+   - Value: `12345678901234567890123456789012` (optional - if not provided, will be generated)
 
-**Requisição:**
+**Request:**
 ```
 GET http://localhost:5000/api/values/test
 Headers:
   X-Correlation-Id: 12345678901234567890123456789012
 ```
 
-**Resposta:**
+**Response:**
 ```json
 {
   "correlationId": "12345678901234567890123456789012",
-  "message": "Requisição processada com sucesso"
+  "message": "Request processed successfully"
 }
 ```
 
-E no header da resposta:
+And in the response header:
 ```
 X-Correlation-Id: 12345678901234567890123456789012
 ```
-
-

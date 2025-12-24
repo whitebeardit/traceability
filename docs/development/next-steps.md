@@ -1,34 +1,34 @@
-# Próximos Passos - Implementação do CI/CD
+# Next Steps - CI/CD Implementation
 
-Este guia descreve os passos necessários para finalizar a implementação do CI/CD com semantic-release.
+This guide describes the steps needed to finalize the CI/CD implementation with semantic-release.
 
-## Checklist de Implementação
+## Implementation Checklist
 
-### ✅ Concluído
+### ✅ Completed
 
-- [x] Node.js e npm instalados localmente
-- [x] Dependências do semantic-release instaladas (`npm install`)
-- [x] Configuração do semantic-release (`.releaserc.json`)
-- [x] Workflow do GitHub Actions atualizado (`.github/workflows/ci.yml`)
-- [x] Scripts de suporte criados (`scripts/`)
-- [x] Documentação criada (`docs/development/ci-cd.md`)
-- [x] Branch `feat/add-ci-cd-nugrt-publish` criada
-- [x] Branch `staging` criada
+- [x] Node.js and npm installed locally
+- [x] semantic-release dependencies installed (`npm install`)
+- [x] semantic-release configuration (`.releaserc.json`)
+- [x] GitHub Actions workflow updated (`.github/workflows/ci.yml`)
+- [x] Support scripts created (`scripts/`)
+- [x] Documentation created (`docs/development/ci-cd.md`)
+- [x] Branch `feat/add-ci-cd-nugrt-publish` created
+- [x] Branch `staging` created
 
-### 🔲 Pendente
+### 🔲 Pending
 
-- [ ] Fazer commit das mudanças relacionadas ao CI/CD
-- [ ] Fazer push da branch `feat/add-ci-cd-nugrt-publish`
-- [ ] Configurar `NUGET_API_KEY` no GitHub Secrets
-- [ ] Criar Pull Request para `main`
-- [ ] Testar o pipeline (após merge)
+- [ ] Commit CI/CD related changes
+- [ ] Push branch `feat/add-ci-cd-nugrt-publish`
+- [ ] Configure `NUGET_API_KEY` in GitHub Secrets
+- [ ] Create Pull Request to `main`
+- [ ] Test the pipeline (after merge)
 
-## Passo 1: Fazer Commit das Mudanças
+## Step 1: Commit Changes
 
-Adicione apenas os arquivos relacionados ao CI/CD:
+Add only CI/CD related files:
 
 ```powershell
-# Adicionar arquivos novos do CI/CD
+# Add new CI/CD files
 git add .releaserc.json
 git add package.json
 git add package-lock.json
@@ -37,127 +37,126 @@ git add docs/development/
 git add docs/setup-nodejs.md
 git add scripts/
 
-# Fazer commit seguindo Conventional Commits
-git commit -m "feat(ci): adiciona semantic-release para versionamento e publicação automática
+# Commit following Conventional Commits
+git commit -m "feat(ci): add semantic-release for automatic versioning and publishing
 
-- Configura semantic-release com plugins para changelog, git e github
-- Adiciona workflow do GitHub Actions para CI/CD
-- Suporta prerelease na branch staging e release na branch main
-- Adiciona documentação do processo de CI/CD
-- Adiciona scripts de suporte e verificação"
+- Configure semantic-release with plugins for changelog, git and github
+- Add GitHub Actions workflow for CI/CD
+- Support prerelease on staging branch and release on main branch
+- Add CI/CD process documentation
+- Add support and verification scripts"
 ```
 
-**Nota**: Se houver outros arquivos modificados que não são relacionados ao CI/CD, você pode fazer commits separados ou descartá-los com `git restore <arquivo>`.
+**Note**: If there are other modified files that are not related to CI/CD, you can make separate commits or discard them with `git restore <file>`.
 
-## Passo 2: Fazer Push da Branch
+## Step 2: Push Branch
 
 ```powershell
-# Fazer push da branch de feature
+# Push feature branch
 git push origin feat/add-ci-cd-nugrt-publish
 
-# Fazer push da branch staging (se ainda não foi feito)
+# Push staging branch (if not done yet)
 git push origin staging
 ```
 
-## Passo 3: Configurar GitHub Secrets
+## Step 3: Configure GitHub Secrets
 
-Antes de fazer merge, configure o secret necessário:
+Before merging, configure the required secret:
 
-1. Acesse o repositório no GitHub
-2. Vá em **Settings** → **Secrets and variables** → **Actions**
-3. Clique em **New repository secret**
+1. Go to the repository on GitHub
+2. Go to **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
 4. Configure:
    - **Name**: `NUGET_API_KEY`
-   - **Value**: Sua API key do NuGet.org
-     - Obtenha em: https://www.nuget.org/account/apikeys
-     - Crie uma nova key se necessário
-     - Escolha "Automatically use from GitHub Actions" se disponível
+   - **Value**: Your NuGet.org API key
+     - Get it at: https://www.nuget.org/account/apikeys
+     - Create a new key if necessary
+     - Choose "Automatically use from GitHub Actions" if available
 
-## Passo 4: Criar Pull Request
+## Step 4: Create Pull Request
 
-1. No GitHub, crie uma Pull Request de `feat/add-ci-cd-nugrt-publish` para `main`
-2. Adicione uma descrição explicando as mudanças
-3. Aguarde revisão e aprovação
+1. On GitHub, create a Pull Request from `feat/add-ci-cd-nugrt-publish` to `main`
+2. Add a description explaining the changes
+3. Wait for review and approval
 
-## Passo 5: Testar o Pipeline
+## Step 5: Test the Pipeline
 
-Após o merge na `main`, teste o pipeline:
+After merging to `main`, test the pipeline:
 
-### Teste 1: Prerelease na branch staging
+### Test 1: Prerelease on staging branch
 
 ```powershell
 git checkout staging
 git pull origin staging
 
-# Fazer uma mudança pequena (ex: atualizar README)
-# Fazer commit seguindo Conventional Commits
-git commit -m "docs: atualiza documentação do CI/CD"
+# Make a small change (e.g., update README)
+# Commit following Conventional Commits
+git commit -m "docs: update CI/CD documentation"
 git push origin staging
 ```
 
-**Resultado esperado**:
-- Pipeline executa builds e testes
-- Se passar, cria versão prerelease (ex: `1.0.1-alpha.1`)
-- Publica no NuGet.org como prerelease
-- Cria release no GitHub
+**Expected result**:
+- Pipeline runs builds and tests
+- If it passes, creates prerelease version (e.g., `1.0.1-alpha.1`)
+- Publishes to NuGet.org as prerelease
+- Creates GitHub release
 
-### Teste 2: Release estável na branch main
+### Test 2: Stable release on main branch
 
 ```powershell
 git checkout main
 git pull origin main
 
-# Fazer uma mudança pequena
-git commit -m "docs: melhora documentação"
+# Make a small change
+git commit -m "docs: improve documentation"
 git push origin main
 ```
 
-**Resultado esperado**:
-- Pipeline executa builds e testes
-- Se passar, cria versão estável (ex: `1.0.1`)
-- Publica no NuGet.org como release estável
-- Cria tag Git e release no GitHub
-- Commita `CHANGELOG.md` e `.csproj` atualizado
+**Expected result**:
+- Pipeline runs builds and tests
+- If it passes, creates stable version (e.g., `1.0.1`)
+- Publishes to NuGet.org as stable release
+- Creates Git tag and GitHub release
+- Commits updated `CHANGELOG.md` and `.csproj`
 
-## Verificações Importantes
+## Important Checks
 
-### Antes de fazer merge:
+### Before merging:
 
-- [ ] `NUGET_API_KEY` configurado no GitHub Secrets
-- [ ] Branch `staging` existe no remoto
-- [ ] Todos os arquivos do CI/CD foram commitados
-- [ ] Commits seguem o padrão Conventional Commits
+- [ ] `NUGET_API_KEY` configured in GitHub Secrets
+- [ ] `staging` branch exists on remote
+- [ ] All CI/CD files have been committed
+- [ ] Commits follow Conventional Commits pattern
 
-### Após o merge:
+### After merge:
 
-- [ ] Verificar que o workflow aparece em Actions
-- [ ] Verificar que builds e testes passam
-- [ ] Testar publicação fazendo push para `staging` ou `main`
+- [ ] Verify workflow appears in Actions
+- [ ] Verify builds and tests pass
+- [ ] Test publishing by pushing to `staging` or `main`
 
 ## Troubleshooting
 
-### Pipeline não executa
+### Pipeline does not run
 
-- Verifique se o workflow está no caminho correto: `.github/workflows/ci.yml`
-- Verifique se está fazendo push para `main` ou `staging`
-- Verifique os logs em **Actions** no GitHub
+- Check if workflow is in correct path: `.github/workflows/ci.yml`
+- Check if you're pushing to `main` or `staging`
+- Check logs in **Actions** on GitHub
 
-### Erro ao publicar no NuGet
+### Error publishing to NuGet
 
-- Verifique se `NUGET_API_KEY` está configurado corretamente
-- Verifique se a API key tem permissão para publicar
-- Verifique os logs do job `release` no GitHub Actions
+- Check if `NUGET_API_KEY` is configured correctly
+- Check if API key has permission to publish
+- Check logs from `release` job in GitHub Actions
 
-### Versão não é incrementada
+### Version is not incremented
 
-- Verifique se os commits seguem Conventional Commits
-- Commits do tipo `chore`, `docs` (sem `BREAKING CHANGE`) não incrementam versão
-- Verifique a mensagem do commit no formato: `tipo(escopo): descrição`
+- Check if commits follow Conventional Commits
+- Commits of type `chore`, `docs` (without `BREAKING CHANGE`) don't increment version
+- Check commit message in format: `type(scope): description`
 
-## Recursos
+## Resources
 
-- [Documentação do CI/CD](ci-cd.md)
-- [Setup do Node.js](../setup-nodejs.md)
+- [CI/CD Documentation](ci-cd.md)
+- [Node.js Setup](../setup-nodejs.md)
 - [Conventional Commits](https://www.conventionalcommits.org/)
 - [semantic-release Documentation](https://semantic-release.gitbook.io/)
-

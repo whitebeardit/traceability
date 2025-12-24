@@ -1,47 +1,47 @@
-# Exemplos - Console Application
+# Examples - Console Application
 
-Exemplos práticos de uso do Traceability em aplicações console.
+Practical examples of using Traceability in console applications.
 
-## Exemplo Básico
+## Basic Example
 
 ```csharp
 using Traceability;
 
-// O correlation-id é gerado automaticamente quando necessário
+// Correlation-id is automatically generated when needed
 var correlationId = CorrelationContext.Current;
 
-// Usar em logs, chamadas HTTP, etc.
+// Use in logs, HTTP calls, etc.
 Console.WriteLine($"Correlation ID: {correlationId}");
 ```
 
-## Exemplo com Serilog
+## Example with Serilog
 
 ```csharp
 using Traceability.Extensions;
 using Serilog;
 
-// Configurar Serilog
+// Configure Serilog
 Log.Logger = new LoggerConfiguration()
     .WithTraceability("ConsoleApp")
     .WriteTo.Console(
         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}")
     .CreateLogger();
 
-// Gerar correlation-id
+// Generate correlation-id
 var correlationId = CorrelationContext.GetOrCreate();
 
-// Logs incluem correlation-id automaticamente
-Log.Information("Processando tarefa");
-Log.Information("Tarefa concluída");
+// Logs automatically include correlation-id
+Log.Information("Processing task");
+Log.Information("Task completed");
 ```
 
 **Output:**
 ```
-[14:23:45 INF] ConsoleApp a1b2c3d4e5f6789012345678901234ab Processando tarefa
-[14:23:46 INF] ConsoleApp a1b2c3d4e5f6789012345678901234ab Tarefa concluída
+[14:23:45 INF] ConsoleApp a1b2c3d4e5f6789012345678901234ab Processing task
+[14:23:46 INF] ConsoleApp a1b2c3d4e5f6789012345678901234ab Task completed
 ```
 
-## Exemplo Completo (.NET 8)
+## Complete Example (.NET 8)
 
 ```csharp
 using Traceability;
@@ -49,7 +49,7 @@ using Traceability.Extensions;
 using Microsoft.Extensions.Logging;
 using Serilog;
 
-// Configurar Serilog com Traceability (Source + CorrelationId)
+// Configure Serilog with Traceability (Source + CorrelationId)
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .WithTraceability("ConsoleApp")
@@ -64,34 +64,34 @@ var loggerFactory = LoggerFactory.Create(builder =>
 
 var logger = loggerFactory.CreateLogger<Program>();
 
-// Exemplo 1: Uso básico
-Console.WriteLine("=== Exemplo 1: Uso básico do CorrelationContext ===");
+// Example 1: Basic usage
+Console.WriteLine("=== Example 1: Basic CorrelationContext usage ===");
 var correlationId = CorrelationContext.GetOrCreate();
-Console.WriteLine($"Correlation ID gerado: {correlationId}");
-Console.WriteLine($"Correlation ID atual: {CorrelationContext.Current}");
+Console.WriteLine($"Generated Correlation ID: {correlationId}");
+Console.WriteLine($"Current Correlation ID: {CorrelationContext.Current}");
 Console.WriteLine();
 
-// Exemplo 2: Logging com correlation-id
-Console.WriteLine("=== Exemplo 2: Logging com correlation-id ===");
-logger.LogInformation("Mensagem de log com correlation-id automático");
+// Example 2: Logging with correlation-id
+Console.WriteLine("=== Example 2: Logging with correlation-id ===");
+logger.LogInformation("Log message with automatic correlation-id");
 Console.WriteLine();
 
-// Exemplo 3: Correlation-id preservado em operações assíncronas
-Console.WriteLine("=== Exemplo 3: Correlation-id preservado em operações assíncronas ===");
+// Example 3: Correlation-id preserved in asynchronous operations
+Console.WriteLine("=== Example 3: Correlation-id preserved in asynchronous operations ===");
 var correlationIdBefore = CorrelationContext.Current;
-logger.LogInformation("Correlation ID antes da operação assíncrona: {CorrelationId}", correlationIdBefore);
+logger.LogInformation("Correlation ID before async operation: {CorrelationId}", correlationIdBefore);
 
 await Task.Delay(100);
 
 var correlationIdAfter = CorrelationContext.Current;
-logger.LogInformation("Correlation ID após operação assíncrona: {CorrelationId}", correlationIdAfter);
-Console.WriteLine($"Correlation ID preservado: {correlationIdBefore == correlationIdAfter}");
+logger.LogInformation("Correlation ID after async operation: {CorrelationId}", correlationIdAfter);
+Console.WriteLine($"Correlation ID preserved: {correlationIdBefore == correlationIdAfter}");
 Console.WriteLine();
 
 Log.CloseAndFlush();
 ```
 
-## Exemplo Completo (.NET Framework 4.8)
+## Complete Example (.NET Framework 4.8)
 
 ```csharp
 using System;
@@ -104,34 +104,32 @@ namespace Sample.Console.NetFramework
     {
         static async Task Main(string[] args)
         {
-            // Exemplo 1: Uso básico
-            Console.WriteLine("=== Exemplo 1: Uso básico do CorrelationContext ===");
+            // Example 1: Basic usage
+            Console.WriteLine("=== Example 1: Basic CorrelationContext usage ===");
             var correlationId = CorrelationContext.GetOrCreate();
-            Console.WriteLine($"Correlation ID gerado: {correlationId}");
-            Console.WriteLine($"Correlation ID atual: {CorrelationContext.Current}");
+            Console.WriteLine($"Generated Correlation ID: {correlationId}");
+            Console.WriteLine($"Current Correlation ID: {CorrelationContext.Current}");
             Console.WriteLine();
 
-            // Exemplo 2: Correlation-id preservado em operações assíncronas
-            Console.WriteLine("=== Exemplo 2: Correlation-id preservado em operações assíncronas ===");
+            // Example 2: Correlation-id preserved in asynchronous operations
+            Console.WriteLine("=== Example 2: Correlation-id preserved in asynchronous operations ===");
             var correlationIdBefore = CorrelationContext.Current;
-            Console.WriteLine($"Correlation ID antes da operação assíncrona: {correlationIdBefore}");
+            Console.WriteLine($"Correlation ID before async operation: {correlationIdBefore}");
 
             await Task.Delay(100);
 
             var correlationIdAfter = CorrelationContext.Current;
-            Console.WriteLine($"Correlation ID após operação assíncrona: {correlationIdAfter}");
-            Console.WriteLine($"Correlation ID preservado: {correlationIdBefore == correlationIdAfter}");
+            Console.WriteLine($"Correlation ID after async operation: {correlationIdAfter}");
+            Console.WriteLine($"Correlation ID preserved: {correlationIdBefore == correlationIdAfter}");
             Console.WriteLine();
 
-            Console.WriteLine("Exemplos concluídos!");
+            Console.WriteLine("Examples completed!");
             Console.ReadKey();
         }
     }
 }
 ```
 
-## Exemplo Completo
+## Complete Example
 
-Veja o exemplo completo em `samples/Sample.Console.Net8/` e `samples/Sample.Console.NetFramework/`.
-
-
+See the complete example in `samples/Sample.Console.Net8/` and `samples/Sample.Console.NetFramework/`.

@@ -1,69 +1,69 @@
-# Componentes Core - Detalhamento Técnico
+# Core Components - Technical Details
 
 ## 1. CorrelationContext
 
-**Localização**: `src/Traceability/CorrelationContext.cs`
+**Location**: `src/Traceability/CorrelationContext.cs`
 
-**Responsabilidade**: Gerenciar o correlation-id no contexto assíncrono da thread atual usando `AsyncLocal<string>`.
+**Responsibility**: Manage correlation-id in the current thread's asynchronous context using `AsyncLocal<string>`.
 
-**API Pública**:
+**Public API**:
 ```csharp
 public static class CorrelationContext
 {
-    // Propriedades
+    // Properties
     public static string Current { get; set; }
     public static bool HasValue { get; }
     
-    // Métodos
+    // Methods
     public static bool TryGetValue(out string? value);
     public static string GetOrCreate();
     public static void Clear();
 }
 ```
 
-**Dependências**: Nenhuma (classe estática pura)
+**Dependencies**: None (pure static class)
 
-**Comportamento**:
-- Usa `AsyncLocal<string>` para isolamento entre contextos assíncronos
-- Gera GUID formatado sem hífens (32 caracteres) quando necessário
-- Thread-safe e async-safe
-- Isolamento automático entre diferentes contextos assíncronos
+**Behavior**:
+- Uses `AsyncLocal<string>` for isolation between asynchronous contexts
+- Generates GUID formatted without hyphens (32 characters) when needed
+- Thread-safe and async-safe
+- Automatic isolation between different asynchronous contexts
 
-**Exemplo de Uso**:
+**Usage Example**:
 ```csharp
-// Obter ou criar correlation-id
+// Get or create correlation-id
 var correlationId = CorrelationContext.Current;
 
-// Verificar se existe
+// Check if exists
 if (CorrelationContext.HasValue)
 {
     var id = CorrelationContext.Current;
 }
 
-// Tentar obter sem criar (recomendado para evitar criação indesejada)
+// Try to get without creating (recommended to avoid unwanted creation)
 if (CorrelationContext.TryGetValue(out var correlationId))
 {
-    // Usar correlationId
+    // Use correlationId
 }
 
-// Limpar contexto
+// Clear context
 CorrelationContext.Clear();
 ```
 
-**Decisões de Design**:
-- `AsyncLocal` ao invés de `ThreadLocal` para suportar async/await corretamente
-- GUID sem hífens para compatibilidade e legibilidade em logs
-- Propriedade `Current` cria automaticamente se não existir (lazy initialization)
+**Design Decisions**:
+- `AsyncLocal` instead of `ThreadLocal` to correctly support async/await
+- GUID without hyphens for compatibility and readability in logs
+- `Current` property automatically creates if it doesn't exist (lazy initialization)
 
 ## 2. CorrelationIdMiddleware (ASP.NET Core)
 
-**Localização**: `src/Traceability/Middleware/CorrelationIdMiddleware.cs`
+**Location**: `src/Traceability/Middleware/CorrelationIdMiddleware.cs`
 
-**Condição de Compilação**: `#if NET8_0`
+**Compilation Condition**: `#if NET8_0`
 
-**Responsabilidade**: Middleware para ASP.NET Core que gerencia correlation-id automaticamente em requisições HTTP.
+**Responsibility**: Middleware for ASP.NET Core that automatically manages correlation-id in HTTP requests.
 
-**API Pública**:
+**Public API**:
 ```csharp
 public class CorrelationIdMiddleware
 {
@@ -72,21 +72,21 @@ public class CorrelationIdMiddleware
 }
 ```
 
-**Dependências**:
+**Dependencies**:
 - `Microsoft.AspNetCore.Http`
 - `Traceability.CorrelationContext`
 
-**Comportamento**:
-1. Lê header `X-Correlation-Id` da requisição (ou header customizado via `HeaderName`)
-2. Se existir, valida formato (se `ValidateCorrelationIdFormat = true`) e usa o valor
-3. Se não existir ou for inválido, gera novo via `CorrelationContext.GetOrCreate()`
-4. Adiciona correlation-id no header da resposta
-- **Validação de HeaderName**: Se `HeaderName` for null ou vazio, usa "X-Correlation-Id" como padrão
-- **Validação de CorrelationId**: Se habilitada, valida tamanho máximo (128 caracteres)
+**Behavior**:
+1. Reads `X-Correlation-Id` header from request (or custom header via `HeaderName`)
+2. If it exists, validates format (if `ValidateCorrelationIdFormat = true`) and uses the value
+3. If it doesn't exist or is invalid, generates new one via `CorrelationContext.GetOrCreate()`
+4. Adds correlation-id to response header
+- **HeaderName Validation**: If `HeaderName` is null or empty, uses "X-Correlation-Id" as default
+- **CorrelationId Validation**: If enabled, validates maximum size (128 characters)
 
-**Header Padrão**: `X-Correlation-Id`
+**Default Header**: `X-Correlation-Id`
 
-**Exemplo de Uso**:
+**Usage Example**:
 ```csharp
 // Program.cs
 app.UseCorrelationId();
@@ -94,13 +94,13 @@ app.UseCorrelationId();
 
 ## 3. CorrelationIdMessageHandler (ASP.NET Web API)
 
-**Localização**: `src/Traceability/WebApi/CorrelationIdMessageHandler.cs`
+**Location**: `src/Traceability/WebApi/CorrelationIdMessageHandler.cs`
 
-**Condição de Compilação**: `#if NET48`
+**Compilation Condition**: `#if NET48`
 
-**Responsabilidade**: MessageHandler para ASP.NET Web API que gerencia correlation-id.
+**Responsibility**: MessageHandler for ASP.NET Web API that manages correlation-id.
 
-**API Pública**:
+**Public API**:
 ```csharp
 public class CorrelationIdMessageHandler : DelegatingHandler
 {
@@ -111,17 +111,17 @@ public class CorrelationIdMessageHandler : DelegatingHandler
 }
 ```
 
-**Dependências**:
+**Dependencies**:
 - `System.Net.Http`
 - `System.Web.Http`
 - `Traceability.CorrelationContext`
 - `Traceability.Configuration`
 
-**Comportamento**: Similar ao Middleware, mas adaptado para o pipeline do Web API. Como .NET Framework não tem DI nativo, usa configuração estática via `Configure()`.
+**Behavior**: Similar to Middleware, but adapted for Web API pipeline. Since .NET Framework doesn't have native DI, uses static configuration via `Configure()`.
 
-**Exemplo de Uso**:
+**Usage Example**:
 ```csharp
-// Global.asax.cs - Configurar opções (opcional)
+// Global.asax.cs - Configure options (optional)
 CorrelationIdMessageHandler.Configure(new TraceabilityOptions
 {
     HeaderName = "X-Correlation-Id",
@@ -134,15 +134,15 @@ GlobalConfiguration.Configure(config =>
 });
 ```
 
-## 4. CorrelationIdHttpModule (ASP.NET Tradicional)
+## 4. CorrelationIdHttpModule (Traditional ASP.NET)
 
-**Localização**: `src/Traceability/Middleware/CorrelationIdHttpModule.cs`
+**Location**: `src/Traceability/Middleware/CorrelationIdHttpModule.cs`
 
-**Condição de Compilação**: `#if NET48`
+**Compilation Condition**: `#if NET48`
 
-**Responsabilidade**: HttpModule para ASP.NET tradicional que gerencia correlation-id.
+**Responsibility**: HttpModule for traditional ASP.NET that manages correlation-id.
 
-**API Pública**:
+**Public API**:
 ```csharp
 public class CorrelationIdHttpModule : IHttpModule
 {
@@ -152,16 +152,16 @@ public class CorrelationIdHttpModule : IHttpModule
 }
 ```
 
-**Dependências**:
+**Dependencies**:
 - `System.Web`
 - `Traceability.CorrelationContext`
 - `Traceability.Configuration`
 
-**Comportamento**: Intercepta eventos `BeginRequest` e `PreSendRequestHeaders` do pipeline do IIS. Como .NET Framework não tem DI nativo, usa configuração estática via `Configure()`.
+**Behavior**: Intercepts `BeginRequest` and `PreSendRequestHeaders` events from IIS pipeline. Since .NET Framework doesn't have native DI, uses static configuration via `Configure()`.
 
-**Exemplo de Uso**:
+**Usage Example**:
 ```csharp
-// Global.asax.cs - Configurar opções (opcional, antes do módulo ser usado)
+// Global.asax.cs - Configure options (optional, before module is used)
 CorrelationIdHttpModule.Configure(new TraceabilityOptions
 {
     HeaderName = "X-Correlation-Id",
@@ -181,105 +181,105 @@ CorrelationIdHttpModule.Configure(new TraceabilityOptions
 
 ## 5. CorrelationIdHandler (HttpClient)
 
-**Localização**: `src/Traceability/HttpClient/CorrelationIdHandler.cs`
+**Location**: `src/Traceability/HttpClient/CorrelationIdHandler.cs`
 
-**Responsabilidade**: DelegatingHandler que adiciona automaticamente correlation-id nos headers das requisições HTTP.
+**Responsibility**: DelegatingHandler that automatically adds correlation-id to HTTP request headers.
 
-**API Pública**:
+**Public API**:
 ```csharp
 public class CorrelationIdHandler : DelegatingHandler
 {
-    // .NET 8.0 apenas
+    // .NET 8.0 only
     public CorrelationIdHandler(IOptions<TraceabilityOptions>? options = null);
     
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken);
     
-    // .NET 8.0 apenas
+    // .NET 8.0 only
     protected override HttpResponseMessage Send(
         HttpRequestMessage request,
         CancellationToken cancellationToken);
 }
 ```
 
-**Dependências**:
+**Dependencies**:
 - `System.Net.Http`
 - `Traceability.CorrelationContext`
 - `.NET 8`: `Microsoft.Extensions.Options`, `Traceability.Configuration`
 
-**Comportamento**:
-- Usa `CorrelationContext.TryGetValue()` para obter correlation-id sem criar um novo se não existir
-- Remove header existente (se houver)
-- Adiciona `X-Correlation-Id` ao header da requisição apenas se correlation-id existir no contexto
-- **Validação de HeaderName**: Se `HeaderName` for null ou vazio, usa "X-Correlation-Id" como padrão
+**Behavior**:
+- Uses `CorrelationContext.TryGetValue()` to get correlation-id without creating a new one if it doesn't exist
+- Removes existing header (if any)
+- Adds `X-Correlation-Id` to request header only if correlation-id exists in context
+- **HeaderName Validation**: If `HeaderName` is null or empty, uses "X-Correlation-Id" as default
 
-**Exemplo de Uso**:
+**Usage Example**:
 ```csharp
-// Com IHttpClientFactory
+// With IHttpClientFactory
 services.AddHttpClient("MyClient")
     .AddHttpMessageHandler<CorrelationIdHandler>();
 
-// Ou diretamente
+// Or directly
 var handler = new CorrelationIdHandler();
 var client = new HttpClient(handler);
 ```
 
 ## 6. TraceableHttpClientFactory
 
-**Localização**: `src/Traceability/HttpClient/TraceableHttpClientFactory.cs`
+**Location**: `src/Traceability/HttpClient/TraceableHttpClientFactory.cs`
 
-**Responsabilidade**: Factory para criar HttpClient configurado com correlation-id usando IHttpClientFactory. Previne socket exhaustion ao reutilizar conexões HTTP.
+**Responsibility**: Factory for creating HttpClient configured with correlation-id using IHttpClientFactory. Prevents socket exhaustion by reusing HTTP connections.
 
-**API Pública**:
+**Public API**:
 ```csharp
 public class TraceableHttpClientFactory
 {
-    // ✅ RECOMENDADO - Previne socket exhaustion (.NET 8)
+    // ✅ RECOMMENDED - Prevents socket exhaustion (.NET 8)
     public static HttpClient CreateFromFactory(
         IHttpClientFactory factory,
         string? clientName = null,
         string? baseAddress = null);
 }
 
-// Método de extensão para IServiceCollection (.NET 8)
+// Extension method for IServiceCollection (.NET 8)
 public static IHttpClientBuilder AddTraceableHttpClient(
     this IServiceCollection services,
     string clientName,
     Action<HttpClient>? configureClient = null);
 ```
 
-**Dependências**:
+**Dependencies**:
 - `Traceability.HttpClient.CorrelationIdHandler`
 - `.NET 8`: `Microsoft.Extensions.Http`, `Microsoft.Extensions.DependencyInjection`
 
-**Comportamento**:
-- Usa `IHttpClientFactory` que gerencia pool de conexões HTTP
-- Reutiliza sockets, prevenindo socket exhaustion
-- Suporta políticas Polly via `.AddPolicyHandler()` do IHttpClientBuilder
+**Behavior**:
+- Uses `IHttpClientFactory` which manages HTTP connection pool
+- Reuses sockets, preventing socket exhaustion
+- Supports Polly policies via `.AddPolicyHandler()` of IHttpClientBuilder
 
-**Exemplo de Uso**:
+**Usage Example**:
 ```csharp
-// ✅ RECOMENDADO - Previne socket exhaustion
+// ✅ RECOMMENDED - Prevents socket exhaustion
 // Program.cs
 builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 {
     client.BaseAddress = new Uri("https://api.example.com/");
     client.Timeout = TimeSpan.FromSeconds(30);
 })
-.AddPolicyHandler(retryPolicy); // Com Polly
+.AddPolicyHandler(retryPolicy); // With Polly
 
-// No serviço ou controller
+// In service or controller
 var client = _httpClientFactory.CreateClient("ExternalApi");
 ```
 
 ## 7. CorrelationIdEnricher (Serilog)
 
-**Localização**: `src/Traceability/Logging/CorrelationIdEnricher.cs`
+**Location**: `src/Traceability/Logging/CorrelationIdEnricher.cs`
 
-**Responsabilidade**: Enricher do Serilog que adiciona correlation-id aos logs.
+**Responsibility**: Serilog enricher that adds correlation-id to logs.
 
-**API Pública**:
+**Public API**:
 ```csharp
 public class CorrelationIdEnricher : ILogEventEnricher
 {
@@ -287,16 +287,16 @@ public class CorrelationIdEnricher : ILogEventEnricher
 }
 ```
 
-**Dependências**:
+**Dependencies**:
 - `Serilog`
 - `Traceability.CorrelationContext`
 
-**Comportamento**:
-- Adiciona propriedade `CorrelationId` a todos os eventos de log se existir no contexto
-- Usa `CorrelationContext.TryGetValue()` para evitar criar correlation-id indesejadamente
-- Se não houver correlation-id no contexto, não adiciona nada ao log (não cria um novo)
+**Behavior**:
+- Adds `CorrelationId` property to all log events if it exists in context
+- Uses `CorrelationContext.TryGetValue()` to avoid creating correlation-id unintentionally
+- If there's no correlation-id in context, doesn't add anything to log (doesn't create a new one)
 
-**Exemplo de Uso**:
+**Usage Example**:
 ```csharp
 Log.Logger = new LoggerConfiguration()
     .Enrich.With<CorrelationIdEnricher>()
@@ -307,11 +307,11 @@ Log.Logger = new LoggerConfiguration()
 
 ## 8. CorrelationIdScopeProvider (Microsoft.Extensions.Logging)
 
-**Localização**: `src/Traceability/Logging/CorrelationIdScopeProvider.cs`
+**Location**: `src/Traceability/Logging/CorrelationIdScopeProvider.cs`
 
-**Responsabilidade**: Provider de scope para Microsoft.Extensions.Logging que adiciona correlation-id.
+**Responsibility**: Scope provider for Microsoft.Extensions.Logging that adds correlation-id.
 
-**API Pública**:
+**Public API**:
 ```csharp
 public class CorrelationIdScopeProvider : IExternalScopeProvider
 {
@@ -321,31 +321,31 @@ public class CorrelationIdScopeProvider : IExternalScopeProvider
 }
 ```
 
-**Dependências**:
+**Dependencies**:
 - `Microsoft.Extensions.Logging`
 - `Traceability.CorrelationContext`
 
-**Comportamento**:
-- Adiciona `CorrelationId` ao scope de logging se existir no contexto
-- Usa `CorrelationContext.TryGetValue()` para evitar criar correlation-id indesejadamente
-- Se não houver correlation-id no contexto, não adiciona ao scope (não cria um novo)
-- Suporta provider interno para encadeamento
+**Behavior**:
+- Adds `CorrelationId` to logging scope if it exists in context
+- Uses `CorrelationContext.TryGetValue()` to avoid creating correlation-id unintentionally
+- If there's no correlation-id in context, doesn't add to scope (doesn't create a new one)
+- Supports internal provider for chaining
 
-**Exemplo de Uso**:
+**Usage Example**:
 ```csharp
-// RECOMENDADO (.NET 8): AddTraceability decora o IExternalScopeProvider do logging
-// para incluir CorrelationId nos scopes.
+// RECOMMENDED (.NET 8): AddTraceability decorates the logging IExternalScopeProvider
+// to include CorrelationId in scopes.
 builder.Services.AddTraceability("UserService");
 builder.Logging.AddConsole(options => options.IncludeScopes = true);
 ```
 
 ## 9. SourceEnricher (Serilog)
 
-**Localização**: `src/Traceability/Logging/SourceEnricher.cs`
+**Location**: `src/Traceability/Logging/SourceEnricher.cs`
 
-**Responsabilidade**: Enricher do Serilog que adiciona o campo `Source` aos logs. O campo `Source` identifica a origem/serviço que está gerando os logs, essencial para unificar logs em ambientes distribuídos.
+**Responsibility**: Serilog enricher that adds the `Source` field to logs. The `Source` field identifies the origin/service that is generating the logs, essential for unifying logs in distributed environments.
 
-**API Pública**:
+**Public API**:
 ```csharp
 public class SourceEnricher : ILogEventEnricher
 {
@@ -354,17 +354,17 @@ public class SourceEnricher : ILogEventEnricher
 }
 ```
 
-**Dependências**:
+**Dependencies**:
 - `Serilog`
-- Nenhuma dependência de `CorrelationContext` (Source sempre é adicionado)
+- No dependency on `CorrelationContext` (Source is always added)
 
-**Comportamento**:
-- Sempre adiciona propriedade `Source` a todos os eventos de log
-- Usa cache para reduzir alocações (similar ao `CorrelationIdEnricher`)
-- Source é obrigatório no construtor (não pode ser null ou vazio)
-- **Sanitização automática**: Source é automaticamente sanitizado para remover caracteres inválidos e limitar tamanho (100 caracteres)
+**Behavior**:
+- Always adds `Source` property to all log events
+- Uses cache to reduce allocations (similar to `CorrelationIdEnricher`)
+- Source is required in constructor (cannot be null or empty)
+- **Automatic sanitization**: Source is automatically sanitized to remove invalid characters and limit size (100 characters)
 
-**Exemplo de Uso**:
+**Usage Example**:
 ```csharp
 Log.Logger = new LoggerConfiguration()
     .WithTraceability("UserService")
@@ -373,15 +373,15 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 ```
 
-**Nota**: O campo `Source` sempre será adicionado aos logs, independentemente da presença de correlation-id.
+**Note**: The `Source` field will always be added to logs, regardless of correlation-id presence.
 
 ## 10. SourceScopeProvider (Microsoft.Extensions.Logging)
 
-**Localização**: `src/Traceability/Logging/SourceScopeProvider.cs`
+**Location**: `src/Traceability/Logging/SourceScopeProvider.cs`
 
-**Responsabilidade**: Provider de scope para Microsoft.Extensions.Logging que adiciona o campo `Source`. O campo `Source` identifica a origem/serviço que está gerando os logs.
+**Responsibility**: Scope provider for Microsoft.Extensions.Logging that adds the `Source` field. The `Source` field identifies the origin/service that is generating the logs.
 
-**API Pública**:
+**Public API**:
 ```csharp
 public class SourceScopeProvider : IExternalScopeProvider
 {
@@ -391,32 +391,32 @@ public class SourceScopeProvider : IExternalScopeProvider
 }
 ```
 
-**Dependências**:
+**Dependencies**:
 - `Microsoft.Extensions.Logging`
-- Nenhuma dependência de `CorrelationContext` (Source sempre é adicionado)
+- No dependency on `CorrelationContext` (Source is always added)
 
-**Comportamento**:
-- Sempre adiciona `Source` ao scope de logging
-- Suporta provider interno para encadeamento (decorator pattern)
-- Source é obrigatório no construtor (não pode ser null ou vazio)
-- **Sanitização automática**: Source é automaticamente sanitizado para remover caracteres inválidos e limitar tamanho (100 caracteres)
+**Behavior**:
+- Always adds `Source` to logging scope
+- Supports internal provider for chaining (decorator pattern)
+- Source is required in constructor (cannot be null or empty)
+- **Automatic sanitization**: Source is automatically sanitized to remove invalid characters and limit size (100 characters)
 
-**Exemplo de Uso**:
+**Usage Example**:
 ```csharp
-// RECOMENDADO (.NET 8): Source + CorrelationId via AddTraceability
+// RECOMMENDED (.NET 8): Source + CorrelationId via AddTraceability
 builder.Services.AddTraceability("UserService");
 builder.Logging.AddConsole(options => options.IncludeScopes = true);
 ```
 
-**Nota**: O campo `Source` sempre será adicionado ao scope, independentemente da presença de correlation-id.
+**Note**: The `Source` field will always be added to scope, regardless of correlation-id presence.
 
 ## 11. DataEnricher (Serilog)
 
-**Localização**: `src/Traceability/Logging/DataEnricher.cs`
+**Location**: `src/Traceability/Logging/DataEnricher.cs`
 
-**Responsabilidade**: Enricher do Serilog que detecta objetos complexos nas propriedades do log e os serializa em um campo `data`. Identifica objetos não primitivos e os agrupa em um único campo `data` no JSON de saída.
+**Responsibility**: Serilog enricher that detects complex objects in log properties and serializes them in a `data` field. Identifies non-primitive objects and groups them in a single `data` field in JSON output.
 
-**API Pública**:
+**Public API**:
 ```csharp
 public class DataEnricher : ILogEventEnricher
 {
@@ -424,23 +424,23 @@ public class DataEnricher : ILogEventEnricher
 }
 ```
 
-**Dependências**:
+**Dependencies**:
 - `Serilog`
-- Nenhuma dependência de `CorrelationContext`
+- No dependency on `CorrelationContext`
 
-**Comportamento**:
-- Analisa todas as propriedades do LogEvent
-- Identifica objetos complexos (StructureValue, DictionaryValue, SequenceValue)
-- Ignora propriedades primitivas (strings, números, DateTime, etc.)
-- Ignora propriedades conhecidas (Source, CorrelationId, Message, etc.)
-- Serializa objetos complexos em um campo `data`
-- Se múltiplos objetos, combina em um único objeto `data`
-- **Proteções implementadas**:
-  - Limite de profundidade: 10 níveis (previne stack overflow)
-  - Limite de tamanho: 1000 elementos por coleção (previne OutOfMemoryException)
-  - Detecção de ciclos: identifica referências circulares e as marca como "[Circular reference detected]"
+**Behavior**:
+- Analyzes all LogEvent properties
+- Identifies complex objects (StructureValue, DictionaryValue, SequenceValue)
+- Ignores primitive properties (strings, numbers, DateTime, etc.)
+- Ignores known properties (Source, CorrelationId, Message, etc.)
+- Serializes complex objects in a `data` field
+- If multiple objects, combines into a single `data` object
+- **Implemented protections**:
+  - Depth limit: 10 levels (prevents stack overflow)
+  - Size limit: 1000 elements per collection (prevents OutOfMemoryException)
+  - Cycle detection: identifies circular references and marks them as "[Circular reference detected]"
 
-**Exemplo de Uso**:
+**Usage Example**:
 ```csharp
 Log.Logger = new LoggerConfiguration()
     .Enrich.With<DataEnricher>()
@@ -448,19 +448,19 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 var user = new { UserId = 123, UserName = "john.doe" };
-Log.Information("Processando requisição {@User}", user);
-// Output: JSON com campo "data" contendo o objeto serializado
+Log.Information("Processing request {@User}", user);
+// Output: JSON with "data" field containing serialized object
 ```
 
-**Nota**: O `DataEnricher` é adicionado automaticamente quando você usa `WithTraceabilityJson()` com `LogIncludeData = true`.
+**Note**: `DataEnricher` is automatically added when you use `WithTraceabilityJson()` with `LogIncludeData = true`.
 
 ## 12. JsonFormatter (Serilog)
 
-**Localização**: `src/Traceability/Logging/JsonFormatter.cs`
+**Location**: `src/Traceability/Logging/JsonFormatter.cs`
 
-**Responsabilidade**: Formatter JSON customizado para Serilog que formata logs em JSON estruturado. Suporta configuração via TraceabilityOptions para incluir/excluir campos específicos.
+**Responsibility**: Custom JSON formatter for Serilog that formats logs in structured JSON. Supports configuration via TraceabilityOptions to include/exclude specific fields.
 
-**API Pública**:
+**Public API**:
 ```csharp
 public class JsonFormatter : ITextFormatter
 {
@@ -469,21 +469,21 @@ public class JsonFormatter : ITextFormatter
 }
 ```
 
-**Dependências**:
+**Dependencies**:
 - `Serilog`
 - `Traceability.Configuration`
 
-**Comportamento**:
-- Formata logs em JSON estruturado
-- Respeita as opções de `TraceabilityOptions` para incluir/excluir campos
-- Suporta JSON compacto ou indentado
-- Inclui automaticamente: Timestamp, Level, Source, CorrelationId, Message, Data, Exception (conforme configuração)
-- **Proteções implementadas**:
-  - Limite de profundidade em exceções: 10 níveis de InnerException (previne stack overflow)
-  - Escape JSON robusto: suporta caracteres Unicode, incluindo surrogate pairs
-  - Validação de estrutura JSON: verifica balanceamento de chaves/colchetes antes de incluir no output
+**Behavior**:
+- Formats logs in structured JSON
+- Respects `TraceabilityOptions` options to include/exclude fields
+- Supports compact or indented JSON
+- Automatically includes: Timestamp, Level, Source, CorrelationId, Message, Data, Exception (according to configuration)
+- **Implemented protections**:
+  - Exception depth limit: 10 levels of InnerException (prevents stack overflow)
+  - Robust JSON escaping: supports Unicode characters, including surrogate pairs
+  - JSON structure validation: checks key/bracket balancing before including in output
 
-**Exemplo de Uso**:
+**Usage Example**:
 ```csharp
 var options = new TraceabilityOptions
 {
@@ -498,14 +498,14 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 ```
 
-**Output Esperado (JSON Indentado)**:
+**Expected Output (Indented JSON)**:
 ```json
 {
   "Timestamp": "2024-01-15T14:23:45.123Z",
   "Level": "Information",
   "Source": "UserService",
   "CorrelationId": "a1b2c3d4e5f6789012345678901234ab",
-  "Message": "Processando requisição",
+  "Message": "Processing request",
   "Data": {
     "UserId": 123,
     "UserName": "john.doe"
@@ -515,11 +515,11 @@ Log.Logger = new LoggerConfiguration()
 
 ## 13. TraceabilityUtilities
 
-**Localização**: `src/Traceability/Utilities/TraceabilityUtilities.cs`
+**Location**: `src/Traceability/Utilities/TraceabilityUtilities.cs`
 
-**Responsabilidade**: Utilitários compartilhados para o pacote Traceability, incluindo lógica centralizada para obtenção e sanitização de Source.
+**Responsibility**: Shared utilities for the Traceability package, including centralized logic for Source retrieval and sanitization.
 
-**API Pública**:
+**Public API**:
 ```csharp
 internal static class TraceabilityUtilities
 {
@@ -528,33 +528,33 @@ internal static class TraceabilityUtilities
 }
 ```
 
-**Dependências**:
-- `System.Reflection` (para Assembly.GetEntryAssembly)
+**Dependencies**:
+- `System.Reflection` (for Assembly.GetEntryAssembly)
 - `Traceability.Configuration`
 
-**Comportamento**:
-- `GetServiceName()`: Centraliza a lógica de obtenção de Source seguindo ordem de prioridade (parâmetro > options > env var > assembly name)
-- `SanitizeSource()`: Remove caracteres inválidos, substitui espaços por underscore, limita tamanho máximo (100 caracteres)
-- Source é automaticamente sanitizado quando obtido via `GetServiceName()`
+**Behavior**:
+- `GetServiceName()`: Centralizes Source retrieval logic following priority order (parameter > options > env var > assembly name)
+- `SanitizeSource()`: Removes invalid characters, replaces spaces with underscore, limits maximum size (100 characters)
+- Source is automatically sanitized when retrieved via `GetServiceName()`
 
-**Exemplo de Uso**:
+**Usage Example**:
 ```csharp
-// Usado internamente por ServiceCollectionExtensions e LoggerConfigurationExtensions
-// Não é necessário uso direto - a sanitização é automática
+// Used internally by ServiceCollectionExtensions and LoggerConfigurationExtensions
+// Direct use not necessary - sanitization is automatic
 ```
 
-**Decisões de Design**:
-- Classe `internal` pois é utilitário interno do pacote
-- Sanitização automática garante segurança em logs e headers HTTP
-- Lógica centralizada previne duplicação e divergência
+**Design Decisions**:
+- `internal` class as it's an internal package utility
+- Automatic sanitization ensures security in logs and HTTP headers
+- Centralized logic prevents duplication and divergence
 
 ## 14. TraceabilityOptions
 
-**Localização**: `src/Traceability/Configuration/TraceabilityOptions.cs`
+**Location**: `src/Traceability/Configuration/TraceabilityOptions.cs`
 
-**Responsabilidade**: Opções de configuração para o pacote.
+**Responsibility**: Configuration options for the package.
 
-**API Pública**:
+**Public API**:
 ```csharp
 public enum LogOutputFormat
 {
@@ -583,34 +583,34 @@ public class TraceabilityOptions
 }
 ```
 
-**Propriedades**:
-- `HeaderName`: Nome do header HTTP para correlation-id (padrão: "X-Correlation-Id")
-- `AlwaysGenerateNew`: Se true, gera um novo correlation-id mesmo se já existir um no contexto (padrão: false)
-- `ValidateCorrelationIdFormat`: Se true, valida o formato do correlation-id recebido no header (padrão: false)
-- `Source`: Nome da origem/serviço que está gerando os logs (opcional, mas recomendado para unificar logs distribuídos)
-- `LogOutputFormat`: Formato de saída para logs (padrão: JsonCompact)
-- `LogIncludeTimestamp`: Se deve incluir timestamp nos logs (padrão: true)
-- `LogIncludeLevel`: Se deve incluir level nos logs (padrão: true)
-- `LogIncludeSource`: Se deve incluir Source nos logs (padrão: true)
-- `LogIncludeCorrelationId`: Se deve incluir CorrelationId nos logs (padrão: true)
-- `LogIncludeMessage`: Se deve incluir Message nos logs (padrão: true)
-- `LogIncludeData`: Se deve incluir campo Data para objetos serializados nos logs (padrão: true)
-- `LogIncludeException`: Se deve incluir Exception nos logs (padrão: true)
-- `AutoRegisterMiddleware`: Se false, desabilita o registro automático do middleware via IStartupFilter (padrão: true)
-- `AutoConfigureHttpClient`: Se false, desabilita a configuração automática de todos os HttpClients com CorrelationIdHandler (padrão: true)
-- `UseAssemblyNameAsFallback`: Se false, desabilita o uso do assembly name como fallback para Source (padrão: true)
+**Properties**:
+- `HeaderName`: HTTP header name for correlation-id (default: "X-Correlation-Id")
+- `AlwaysGenerateNew`: If true, generates a new correlation-id even if one already exists in context (default: false)
+- `ValidateCorrelationIdFormat`: If true, validates the format of correlation-id received in header (default: false)
+- `Source`: Name of the origin/service that is generating the logs (optional, but recommended for unifying distributed logs)
+- `LogOutputFormat`: Output format for logs (default: JsonCompact)
+- `LogIncludeTimestamp`: Whether to include timestamp in logs (default: true)
+- `LogIncludeLevel`: Whether to include level in logs (default: true)
+- `LogIncludeSource`: Whether to include Source in logs (default: true)
+- `LogIncludeCorrelationId`: Whether to include CorrelationId in logs (default: true)
+- `LogIncludeMessage`: Whether to include Message in logs (default: true)
+- `LogIncludeData`: Whether to include Data field for serialized objects in logs (default: true)
+- `LogIncludeException`: Whether to include Exception in logs (default: true)
+- `AutoRegisterMiddleware`: If false, disables automatic middleware registration via IStartupFilter (default: true)
+- `AutoConfigureHttpClient`: If false, disables automatic configuration of all HttpClients with CorrelationIdHandler (default: true)
+- `UseAssemblyNameAsFallback`: If false, disables using assembly name as fallback for Source (default: true)
 
 ## 15. Extensions
 
 ### ServiceCollectionExtensions
 
-**Localização**: `src/Traceability/Extensions/ServiceCollectionExtensions.cs`
+**Location**: `src/Traceability/Extensions/ServiceCollectionExtensions.cs`
 
-**Condição de Compilação**: `#if NET8_0`
+**Compilation Condition**: `#if NET8_0`
 
-**Métodos**:
+**Methods**:
 ```csharp
-// Método único com parâmetros opcionais (Source pode vir de parâmetro, options ou env var)
+// Single method with optional parameters (Source can come from parameter, options or env var)
 public static IServiceCollection AddTraceability(
     this IServiceCollection services,
     string? source = null,
@@ -632,33 +632,33 @@ public static IHttpClientBuilder AddTraceableHttpClient(
     Action<HttpClient>? configureClient = null);
 ```
 
-**Comportamento**:
-- `AddTraceability()` e `AddTraceabilityLogging()` agora aceitam `source` como opcional
-- Se `source` não for fornecido, será lido de `TraceabilityOptions.Source`, variável de ambiente `TRACEABILITY_SERVICENAME`, ou assembly name (se `UseAssemblyNameAsFallback = true`)
-- Se nenhum source estiver disponível, uma exceção `InvalidOperationException` será lançada
-- Prioridade: Parâmetro > Options.Source > Env Var > Assembly Name > Erro
-- **Sanitização automática**: Source é automaticamente sanitizado via `TraceabilityUtilities.SanitizeSource()` para garantir segurança
-- **Auto-configuração**: Por padrão, `AddTraceability()` automaticamente:
-  - Registra o middleware `CorrelationIdMiddleware` via `IStartupFilter` (se `AutoRegisterMiddleware = true`)
-  - Configura todos os HttpClients criados via `IHttpClientFactory` com `CorrelationIdHandler` (se `AutoConfigureHttpClient = true`)
-- **Opt-out**: Defina `AutoRegisterMiddleware = false` ou `AutoConfigureHttpClient = false` nas opções para desabilitar auto-configuração
+**Behavior**:
+- `AddTraceability()` and `AddTraceabilityLogging()` now accept `source` as optional
+- If `source` is not provided, it will be read from `TraceabilityOptions.Source`, `TRACEABILITY_SERVICENAME` environment variable, or assembly name (if `UseAssemblyNameAsFallback = true`)
+- If no source is available, an `InvalidOperationException` will be thrown
+- Priority: Parameter > Options.Source > Env Var > Assembly Name > Error
+- **Automatic sanitization**: Source is automatically sanitized via `TraceabilityUtilities.SanitizeSource()` to ensure security
+- **Auto-configuration**: By default, `AddTraceability()` automatically:
+  - Registers `CorrelationIdMiddleware` via `IStartupFilter` (if `AutoRegisterMiddleware = true`)
+  - Configures all HttpClients created via `IHttpClientFactory` with `CorrelationIdHandler` (if `AutoConfigureHttpClient = true`)
+- **Opt-out**: Set `AutoRegisterMiddleware = false` or `AutoConfigureHttpClient = false` in options to disable auto-configuration
 
 ### ApplicationBuilderExtensions
 
-**Localização**: `src/Traceability/Extensions/ApplicationBuilderExtensions.cs`
+**Location**: `src/Traceability/Extensions/ApplicationBuilderExtensions.cs`
 
-**Condição de Compilação**: `#if NET8_0`
+**Compilation Condition**: `#if NET8_0`
 
-**Métodos**:
+**Methods**:
 ```csharp
 public static IApplicationBuilder UseCorrelationId(this IApplicationBuilder app);
 ```
 
 ### HttpClientExtensions
 
-**Localização**: `src/Traceability/Extensions/HttpClientExtensions.cs`
+**Location**: `src/Traceability/Extensions/HttpClientExtensions.cs`
 
-**Métodos**:
+**Methods**:
 ```csharp
 public static HttpClient AddCorrelationIdHeader(
     this HttpClient client,
@@ -667,54 +667,54 @@ public static HttpClient AddCorrelationIdHeader(
 
 ### LoggerConfigurationExtensions
 
-**Localização**: `src/Traceability/Extensions/LoggerConfigurationExtensions.cs`
+**Location**: `src/Traceability/Extensions/LoggerConfigurationExtensions.cs`
 
-**Responsabilidade**: Extensões para LoggerConfiguration do Serilog que facilitam a configuração de traceability.
+**Responsibility**: Extensions for Serilog's LoggerConfiguration that facilitate traceability configuration.
 
-**Métodos**:
+**Methods**:
 ```csharp
-// Método original - adiciona Source e CorrelationId (source opcional)
+// Original method - adds Source and CorrelationId (source optional)
 public static LoggerConfiguration WithTraceability(
     this LoggerConfiguration config,
     string? source = null);
 
-// Novo método - adiciona Source, CorrelationId e DataEnricher para template JSON (source opcional)
+// New method - adds Source, CorrelationId and DataEnricher for JSON template (source optional)
 public static LoggerConfiguration WithTraceabilityJson(
     this LoggerConfiguration config,
     string? source = null,
     Action<TraceabilityOptions>? configureOptions = null);
 
-// Sobrecarga com TraceabilityOptions
+// Overload with TraceabilityOptions
 public static LoggerConfiguration WithTraceabilityJson(
     this LoggerConfiguration config,
     TraceabilityOptions options);
 ```
 
-**Comportamento**:
-- `WithTraceability()`: Adiciona automaticamente `SourceEnricher` e `CorrelationIdEnricher` ao Serilog
-- `WithTraceabilityJson()`: Adiciona `SourceEnricher`, `CorrelationIdEnricher` e `DataEnricher` (se `LogIncludeData = true`)
-- Source é opcional e pode vir de variável de ambiente `TRACEABILITY_SERVICENAME` ou `TraceabilityOptions.Source`
-- Se nenhum source estiver disponível (nem parâmetro, nem options, nem env var), uma exceção `InvalidOperationException` será lançada
-- Prioridade: Parâmetro > Options.Source > Env Var > Erro
-- Output sempre em formato JSON para garantir uniformização
-- Facilita configuração de traceability em uma única chamada
-- `WithTraceabilityJson()` é otimizado para uso com template JSON padrão
+**Behavior**:
+- `WithTraceability()`: Automatically adds `SourceEnricher` and `CorrelationIdEnricher` to Serilog
+- `WithTraceabilityJson()`: Adds `SourceEnricher`, `CorrelationIdEnricher` and `DataEnricher` (if `LogIncludeData = true`)
+- Source is optional and can come from `TRACEABILITY_SERVICENAME` environment variable or `TraceabilityOptions.Source`
+- If no source is available (neither parameter, nor options, nor env var), an `InvalidOperationException` will be thrown
+- Priority: Parameter > Options.Source > Env Var > Error
+- Output always in JSON format to ensure uniformization
+- Facilitates traceability configuration in a single call
+- `WithTraceabilityJson()` is optimized for use with default JSON template
 
-**Exemplo de Uso**:
+**Usage Example**:
 ```csharp
-// Configuração básica
+// Basic configuration
 Log.Logger = new LoggerConfiguration()
     .WithTraceability("UserService")
     .WriteTo.Console()
     .CreateLogger();
 
-// Configuração com template JSON padrão
+// Configuration with default JSON template
 Log.Logger = new LoggerConfiguration()
     .WithTraceabilityJson("UserService")
     .WriteTo.Console(new JsonFormatter())
     .CreateLogger();
 
-// Configuração customizada
+// Custom configuration
 Log.Logger = new LoggerConfiguration()
     .WithTraceabilityJson("UserService", options =>
     {
@@ -725,88 +725,86 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 ```
 
-## Variáveis de Ambiente e Prioridade de Configuração
+## Environment Variables and Configuration Priority
 
-**Localização**: Implementado em `src/Traceability/Extensions/LoggerConfigurationExtensions.cs` e `src/Traceability/Extensions/ServiceCollectionExtensions.cs`
+**Location**: Implemented in `src/Traceability/Extensions/LoggerConfigurationExtensions.cs` and `src/Traceability/Extensions/ServiceCollectionExtensions.cs`
 
-**Responsabilidade**: Suportar variáveis de ambiente para reduzir verbosidade na configuração e garantir uniformização de logs em todas as aplicações e serviços.
+**Responsibility**: Support environment variables to reduce verbosity in configuration and ensure log uniformization across all applications and services.
 
-**Variáveis de Ambiente Suportadas**:
+**Supported Environment Variables**:
 
-1. **`TRACEABILITY_SERVICENAME`**: Define o nome do serviço/origem que está gerando os logs. Este valor será adicionado ao campo `Source` em todos os logs.
+1. **`TRACEABILITY_SERVICENAME`**: Defines the name of the service/origin that is generating the logs. This value will be added to the `Source` field in all logs.
 
-2. **`LOG_LEVEL`**: Define o nível mínimo de log (Verbose, Debug, Information, Warning, Error, Fatal).
+2. **`LOG_LEVEL`**: Defines the minimum log level (Verbose, Debug, Information, Warning, Error, Fatal).
 
-**Fluxo de Decisão para Source (ServiceName)**:
+**Decision Flow for Source (ServiceName)**:
 
 ```mermaid
 graph TD
-    A[Invocar método com source?] -->|source fornecido| B[Usar source do parâmetro]
-    A -->|source null/vazio| C[Source em Options?]
-    C -->|Sim| D[Usar Options.Source]
-    C -->|Não| E[Ler TRACEABILITY_SERVICENAME]
-    E -->|Existe| F[Usar env var]
-    E -->|Não existe| G{UseAssemblyNameAsFallback?}
-    G -->|true| H[Usar Assembly Name]
-    G -->|false| I[Lançar InvalidOperationException]
-    B --> J[Configurar Logger]
+    A[Invoke method with source?] -->|source provided| B[Use source from parameter]
+    A -->|source null/empty| C[Source in Options?]
+    C -->|Yes| D[Use Options.Source]
+    C -->|No| E[Read TRACEABILITY_SERVICENAME]
+    E -->|Exists| F[Use env var]
+    E -->|Doesn't exist| G{UseAssemblyNameAsFallback?}
+    G -->|true| H[Use Assembly Name]
+    G -->|false| I[Throw InvalidOperationException]
+    B --> J[Configure Logger]
     D --> J
     F --> J
     H --> J
 ```
 
-**Prioridade de Configuração**:
+**Configuration Priority**:
 
 1. **Source (ServiceName)**:
-   - Prioridade 1: Parâmetro `source` fornecido explicitamente (prioridade máxima)
-   - Prioridade 2: `TraceabilityOptions.Source` definido nas opções
-   - Prioridade 3: Variável de ambiente `TRACEABILITY_SERVICENAME`
-   - Prioridade 4: Assembly name (se `UseAssemblyNameAsFallback = true`, padrão: true)
-   - Se nenhum estiver disponível, uma exceção `InvalidOperationException` será lançada para forçar o padrão único
+   - Priority 1: `source` parameter provided explicitly (highest priority)
+   - Priority 2: `TraceabilityOptions.Source` defined in options
+   - Priority 3: `TRACEABILITY_SERVICENAME` environment variable
+   - Priority 4: Assembly name (if `UseAssemblyNameAsFallback = true`, default: true)
+   - If none is available, an `InvalidOperationException` will be thrown to enforce unique standard
 
 2. **LogLevel**:
-   - Prioridade 1: Variável de ambiente `LOG_LEVEL` (prioridade máxima)
-   - Prioridade 2: `TraceabilityOptions.MinimumLogLevel` definido nas opções
-   - Prioridade 3: Information (padrão)
+   - Priority 1: `LOG_LEVEL` environment variable (highest priority)
+   - Priority 2: `TraceabilityOptions.MinimumLogLevel` defined in options
+   - Priority 3: Information (default)
 
-3. **Output Format**: Sempre JSON (JsonCompact ou JsonIndented, nunca Text)
+3. **Output Format**: Always JSON (JsonCompact or JsonIndented, never Text)
 
-**Output JSON Obrigatório**:
+**Mandatory JSON Output**:
 
-Todos os logs gerados pelo Traceability são sempre em formato JSON para garantir uniformização entre diferentes aplicações e serviços, independente do framework (.NET 8 ou .NET Framework 4.8). O formato JSON padrão inclui:
-- `Timestamp`: Data e hora do log
-- `Level`: Nível do log (Information, Warning, Error, etc.)
-- `Source`: Nome do serviço (obtido de `TRACEABILITY_SERVICENAME` ou parâmetro)
-- `CorrelationId`: ID de correlação (quando disponível)
-- `Message`: Mensagem do log
-- `Data`: Objetos serializados (quando presente)
-- `Exception`: Informações de exceção (quando presente)
+All logs generated by Traceability are always in JSON format to ensure uniformization across different applications and services, regardless of framework (.NET 8 or .NET Framework 4.8). The default JSON format includes:
+- `Timestamp`: Log date and time
+- `Level`: Log level (Information, Warning, Error, etc.)
+- `Source`: Service name (obtained from `TRACEABILITY_SERVICENAME` or parameter)
+- `CorrelationId`: Correlation ID (when available)
+- `Message`: Log message
+- `Data`: Serialized objects (when present)
+- `Exception`: Exception information (when present)
 
-**Exemplo de Uso**:
+**Usage Example**:
 
 ```csharp
-// Com variável de ambiente TRACEABILITY_SERVICENAME="UserService" definida
+// With TRACEABILITY_SERVICENAME="UserService" environment variable set
 Log.Logger = new LoggerConfiguration()
-    .WithTraceability() // source opcional - lê de TRACEABILITY_SERVICENAME
+    .WithTraceability() // source optional - reads from TRACEABILITY_SERVICENAME
     .WriteTo.Console(new JsonFormatter())
     .CreateLogger();
 
-// Com parâmetro explícito (sobrescreve env var)
+// With explicit parameter (overrides env var)
 Log.Logger = new LoggerConfiguration()
-    .WithTraceability("CustomService") // parâmetro tem prioridade
+    .WithTraceability("CustomService") // parameter has priority
     .WriteTo.Console(new JsonFormatter())
     .CreateLogger();
 
-// Com AddTraceability
-builder.Services.AddTraceability(); // source opcional - lê de TRACEABILITY_SERVICENAME
-// ou
-builder.Services.AddTraceability("CustomService"); // sobrescreve env var
+// With AddTraceability
+builder.Services.AddTraceability(); // source optional - reads from TRACEABILITY_SERVICENAME
+// or
+builder.Services.AddTraceability("CustomService"); // overrides env var
 ```
 
-**Racional**:
+**Rationale**:
 
-- **Reduzir Verbosidade**: Permite configurar ServiceName e LogLevel via variáveis de ambiente, reduzindo a necessidade de código repetitivo
-- **Forçar Padrão Único**: Se Source não estiver disponível (nem parâmetro, nem options, nem env var), uma exceção é lançada para garantir que todos os serviços sigam o mesmo padrão
-- **Uniformização de Logs**: Output sempre em JSON garante que todos os logs de diferentes aplicações e serviços tenham o mesmo formato, facilitando análise e correlação
-
-
+- **Reduce Verbosity**: Allows configuring ServiceName and LogLevel via environment variables, reducing the need for repetitive code
+- **Enforce Unique Standard**: If Source is not available (neither parameter, nor options, nor env var), an exception is thrown to ensure all services follow the same standard
+- **Log Uniformization**: Output always in JSON ensures all logs from different applications and services have the same format, facilitating analysis and correlation

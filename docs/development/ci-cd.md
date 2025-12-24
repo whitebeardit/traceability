@@ -1,31 +1,33 @@
-# CI/CD e Processo de Release
+# CI/CD and Release Process
 
-Este documento descreve o pipeline de CI/CD do projeto Traceability, incluindo o processo de versionamento semântico, geração de changelog e publicação automática no NuGet.org.
+This document describes the CI/CD pipeline of the Traceability project, including the semantic versioning process, changelog generation, and automatic publication to NuGet.org.
 
-## Visão Geral
+## Overview
 
-O projeto utiliza `semantic-release` para automatizar completamente o processo de versionamento e publicação. O sistema analisa commits seguindo o padrão [Conventional Commits](https://www.conventionalcommits.org/) para determinar automaticamente a próxima versão, gerar changelog e publicar no NuGet.org.
+The project uses `semantic-release` to completely automate the versioning and publishing process. The system analyzes commits following the [Conventional Commits](https://www.conventionalcommits.org/) pattern to automatically determine the next version, generate changelog, and publish to NuGet.org.
 
-## Fluxo de Trabalho
+## Workflow
+
+### Flow for Staging Branch
 
 ### Fluxo para Branch Staging
 
 ```mermaid
 flowchart TD
-    A[Push/Merge em staging] --> B[Trigger CI]
+    A[Push/Merge to staging] --> B[Trigger CI]
     B --> C[Build .NET 8.0]
     B --> D[Build .NET 4.8]
     C --> E[Test .NET 8.0]
     D --> F[Test .NET 4.8]
-    E --> G{Todos passaram?}
+    E --> G{All passed?}
     F --> G
-    G -->|Não| H[Falha - Não cria PR]
-    G -->|Sim| I[Criar/Atualizar PR staging → main]
-    I --> J[PR aguardando review]
-    J --> K[Review obrigatório aprovado]
-    K --> L[Merge automático para main]
-    L --> M[Trigger CI em main]
-    M --> N[Release para NuGet]
+    G -->|No| H[Failure - No PR created]
+    G -->|Yes| I[Create/Update PR staging → main]
+    I --> J[PR awaiting review]
+    J --> K[Required review approved]
+    K --> L[Auto merge to main]
+    L --> M[Trigger CI on main]
+    M --> N[Release to NuGet]
     
     style A fill:#e1f5ff
     style J fill:#fff4e1
@@ -34,225 +36,241 @@ flowchart TD
     style N fill:#c8e6c9
 ```
 
-### Fluxo para Branch Main
+### Flow for Main Branch
 
 ```mermaid
 flowchart TD
-    A[Push em main] --> B[Trigger CI/CD]
+    A[Push to main] --> B[Trigger CI/CD]
     B --> C[Build .NET 8.0]
     B --> D[Build .NET 4.8]
     C --> E[Test .NET 8.0]
     D --> F[Test .NET 4.8]
-    E --> G{Todos os testes passaram?}
+    E --> G{All tests passed?}
     F --> G
-    G -->|Não| H[Falha do Pipeline]
-    G -->|Sim| I[Calcular Versão com semantic-release]
-    I --> J[Analisar Commits Conventional]
+    G -->|No| H[Pipeline Failure]
+    G -->|Yes| I[Calculate Version with semantic-release]
+    I --> J[Analyze Conventional Commits]
     J --> K[Release Version<br/>ex: 1.0.1]
-    K --> L[Gerar CHANGELOG.md]
-    L --> M[Atualizar versão no .csproj]
-    M --> N[Build e Pack NuGet]
-    N --> O[Publicar no NuGet.org]
-    O --> P[Criar Tag Git<br/>Criar Release GitHub<br/>Commit CHANGELOG]
-    P --> Q[Concluído]
+    K --> L[Generate CHANGELOG.md]
+    L --> M[Update version in .csproj]
+    M --> N[Build and Pack NuGet]
+    N --> O[Publish to NuGet.org]
+    O --> P[Create Git Tag<br/>Create GitHub Release<br/>Commit CHANGELOG]
+    P --> Q[Completed]
 ```
 
-## Branches e Estratégias
+## Branches and Strategies
 
-### Branch `main`
+### `main` Branch
 
-- **Tipo de Release**: Versões estáveis (ex: `1.0.0`, `1.1.0`, `2.0.0`)
-- **Quando publica**: A cada push que contém commits com Conventional Commits (após merge de PR de staging)
-- **Ações realizadas**:
-  - Calcula versão baseada nos commits
-  - Gera/atualiza `CHANGELOG.md`
-  - Atualiza versão no `.csproj`
-  - Cria pacote NuGet
-  - Publica no NuGet.org como release estável
-  - Cria tag Git (ex: `v1.0.1`)
-  - Cria release no GitHub
-  - Commita `CHANGELOG.md` e `.csproj` atualizado
+- **Release Type**: Stable versions (e.g., `1.0.0`, `1.1.0`, `2.0.0`)
+- **When it publishes**: On each push containing Conventional Commits (after merging PR from staging)
+- **Actions performed**:
+  - Calculates version based on commits
+  - Generates/updates `CHANGELOG.md`
+  - Updates version in `.csproj`
+  - Creates NuGet package
+  - Publishes to NuGet.org as stable release
+  - Creates Git tag (e.g., `v1.0.1`)
+  - Creates GitHub release
+  - Commits updated `CHANGELOG.md` and `.csproj`
 
-### Branch `staging`
+### `staging` Branch
 
-- **Tipo de Release**: Não publica releases automáticos
-- **Quando executa CI**: A cada push/merge em staging
-- **Ações realizadas**:
-  - Executa build e testes (.NET 8.0 e .NET 4.8)
-  - Se CI passar, cria/atualiza PR `staging → main` automaticamente
-  - PR aguarda aprovação obrigatória
-  - Após aprovação, merge automático para `main`
-  - Release acontece apenas quando código chega em `main`
+- **Release Type**: Does not publish automatic releases
+- **When CI runs**: On each push/merge to staging
+- **Actions performed**:
+  - Executes build and tests (.NET 8.0 and .NET 4.8)
+  - If CI passes, creates/updates PR `staging → main` automatically
+  - PR awaits required approval
+  - After approval, automatic merge to `main`
+  - Release only happens when code reaches `main`
 
-## Fluxo Staging → Main
+## Staging → Main Flow
 
-O projeto utiliza um fluxo automatizado para garantir que a branch `main` sempre tenha o mesmo código que `staging`, mas apenas após aprovação obrigatória:
+The project uses an automated flow to ensure the `main` branch always has the same code as `staging`, but only after required approval:
 
-1. **Desenvolvedor faz push/merge em `staging`**
-   - CI executa automaticamente (build + testes)
+1. **Developer pushes/merges to `staging`**
+   - CI runs automatically (build + tests)
 
-2. **Se CI passar, cria/atualiza PR `staging → main`**
-   - PR é criada automaticamente com label `staging-sync`
-   - PR anterior é fechada se existir
+2. **If CI passes, creates/updates PR `staging → main`**
+   - PR is created automatically with label `staging-sync`
+   - Previous PR is closed if it exists
 
-3. **Revisor aprova a PR**
-   - Review obrigatório é exigido (via Branch Protection Rules)
-   - Validações de segurança:
-     - Autor não pode aprovar sua própria PR
-     - Não pode haver "request changes" pendentes
-     - PR deve estar atualizada com base branch
-     - Todos os checks obrigatórios devem passar
+3. **Reviewer approves the PR**
+   - Required review is enforced (via Branch Protection Rules)
+   - Security validations:
+     - Author cannot approve their own PR
+     - Cannot have pending "request changes"
+     - PR must be up to date with base branch
+     - All required checks must pass
 
-4. **Merge automático acontece quando PR é aprovada**
-   - Workflow `auto-merge-staging-pr.yml` detecta aprovação
-   - Verifica todas as condições de segurança
-   - Faz merge automático para `main`
+4. **Automatic merge happens when PR is approved**
+   - `auto-merge-staging-pr.yml` workflow detects approval
+   - Verifies all security conditions
+   - Performs automatic merge to `main`
 
-5. **CI em `main` executa release para NuGet**
-   - Após merge, CI em `main` dispara release
-   - Versão estável é publicada no NuGet.org
+5. **CI on `main` executes release to NuGet**
+   - After merge, CI on `main` triggers release
+   - Stable version is published to NuGet.org
 
 ## Conventional Commits
 
-O `semantic-release` analisa mensagens de commit para determinar o tipo de versão:
+`semantic-release` analyzes commit messages to determine the version type:
 
-### Tipos de Commit
+### Commit Types
 
-- **`feat:`** - Nova funcionalidade → Incrementa versão **minor** (1.0.0 → 1.1.0)
-- **`fix:`** - Correção de bug → Incrementa versão **patch** (1.0.0 → 1.0.1)
-- **`BREAKING CHANGE:`** ou `!` no escopo → Incrementa versão **major** (1.0.0 → 2.0.0)
-- **`perf:`**, **`refactor:`**, **`docs:`**, **`test:`**, **`build:`**, **`ci:`**, **`chore:`** → Não incrementa versão (a menos que contenham `BREAKING CHANGE`)
+- **`feat:`** - New feature → Increments **minor** version (1.0.0 → 1.1.0)
+- **`fix:`** - Bug fix → Increments **patch** version (1.0.0 → 1.0.1)
+- **`BREAKING CHANGE:`** or `!` in scope → Increments **major** version (1.0.0 → 2.0.0)
+- **`perf:`**, **`refactor:`**, **`docs:`**, **`test:`**, **`build:`**, **`ci:`**, **`chore:`** → Does not increment version (unless they contain `BREAKING CHANGE`)
 
-### Exemplos
+### Examples
 
 ```bash
-# Incrementa minor (1.0.0 → 1.1.0)
-git commit -m "feat: adiciona suporte para customização de header"
+# Increments minor (1.0.0 → 1.1.0)
+git commit -m "feat: add support for header customization"
 
-# Incrementa patch (1.0.0 → 1.0.1)
-git commit -m "fix: corrige propagação de correlation-id em async/await"
+# Increments patch (1.0.0 → 1.0.1)
+git commit -m "fix: fix correlation-id propagation in async/await"
 
-# Incrementa major (1.0.0 → 2.0.0)
-git commit -m "feat!: remove suporte para .NET Framework 4.7"
+# Increments major (1.0.0 → 2.0.0)
+git commit -m "feat!: remove support for .NET Framework 4.7"
 
-# Ou usando BREAKING CHANGE no corpo
-git commit -m "feat: refatora API de configuração
+# Or using BREAKING CHANGE in body
+git commit -m "feat: refactor configuration API
 
-BREAKING CHANGE: Remove método AddTraceability(string) em favor de AddTraceability(options)"
+BREAKING CHANGE: Remove AddTraceability(string) method in favor of AddTraceability(options)"
 ```
 
-## Configuração
+## Configuration
 
-### Arquivos de Configuração
+### Configuration Files
 
-- **`.releaserc.json`** - Configuração do semantic-release
-- **`package.json`** - Dependências do semantic-release e scripts
-- **`.github/workflows/ci.yml`** - Pipeline do GitHub Actions
+- **`.releaserc.json`** - semantic-release configuration
+- **`package.json`** - semantic-release dependencies and scripts
+- **`.github/workflows/ci.yml`** - GitHub Actions pipeline
 
-### Secrets do GitHub
+### GitHub Secrets
 
-O pipeline requer os seguintes secrets configurados no GitHub:
+The pipeline requires the following secrets configured in GitHub:
 
-- **`NUGET_API_KEY`** - API key do NuGet.org para publicação
-  - Obtenha em: https://www.nuget.org/account/apikeys
-  - Configure em: Settings → Secrets and variables → Actions
+- **`NUGET_API_KEY`** - NuGet.org API key for publishing
+  - Get it at: https://www.nuget.org/account/apikeys
+  - Configure at: Settings → Secrets and variables → Actions
 
-- **`GITHUB_TOKEN`** - Token automático fornecido pelo GitHub Actions (não precisa configurar)
+- **`GITHUB_TOKEN`** - Automatic token provided by GitHub Actions (no need to configure)
 
-## Processo de Release Manual
+## Manual Release Process
 
-### Para Publicar uma Versão Estável
+### To Publish a Stable Version
 
-1. Certifique-se de estar na branch `main`
-2. Faça commits seguindo Conventional Commits:
+1. Make sure you're on the `main` branch
+2. Make commits following Conventional Commits:
    ```bash
    git checkout main
    git pull origin main
-   # Faça suas alterações
-   git commit -m "feat: adiciona nova funcionalidade"
+   # Make your changes
+   git commit -m "feat: add new feature"
    git push origin main
    ```
-3. O pipeline executará automaticamente:
-   - Build e testes
-   - Cálculo de versão
-   - Geração de changelog
-   - Publicação no NuGet.org
-   - Criação de release no GitHub
+3. The pipeline will automatically execute:
+   - Build and tests
+   - Version calculation
+   - Changelog generation
+   - Publication to NuGet.org
+   - GitHub release creation
 
-### Para Publicar uma Versão Estável via Staging
+### To Publish a Stable Version via Staging
 
-1. Certifique-se de estar na branch `staging`
-2. Faça commits seguindo Conventional Commits:
+1. Make sure you're on the `staging` branch
+2. Make commits following Conventional Commits:
    ```bash
    git checkout staging
    git pull origin staging
-   # Faça suas alterações
-   git commit -m "feat: adiciona nova funcionalidade"
+   # Make your changes
+   git commit -m "feat: add new feature"
    git push origin staging
    ```
-3. O pipeline executará automaticamente:
-   - Build e testes
-   - Se passar, cria/atualiza PR `staging → main`
-4. Aprove a PR (review obrigatório)
-5. O merge automático acontecerá após aprovação
-6. CI em `main` executará release para NuGet
+3. The pipeline will automatically execute:
+   - Build and tests
+   - If it passes, creates/updates PR `staging → main`
+4. Approve the PR (required review)
+5. Automatic merge will happen after approval
+6. CI on `main` will execute release to NuGet
 
-## Estrutura do Pipeline
+## Pipeline Structure
 
-### Jobs do GitHub Actions
+### GitHub Actions Jobs
 
 1. **`build-and-test-net8`**
-   - Executa em: `ubuntu-latest`
-   - Ações: Restore, Build e Test para .NET 8.0
+   - Runs on: `ubuntu-latest`
+   - Actions: Restore, Build and Test for .NET 8.0
 
 2. **`build-and-test-net48`**
-   - Executa em: `windows-latest`
-   - Ações: Restore, Build e Test para .NET Framework 4.8
+   - Runs on: `windows-latest`
+   - Actions: Restore, Build and Test for .NET Framework 4.8
 
-3. **`create-pr-staging-to-main`** (novo)
-   - Executa em: `ubuntu-latest`
-   - Depende de: `build-and-test-net8` e `build-and-test-net48`
-   - Condição: Apenas em push para `staging`
-   - Ações:
-     - Cria ou atualiza PR `staging → main` automaticamente
-     - Fecha PR anterior se existir
-     - Adiciona labels `automated` e `staging-sync`
+3. **`create-pr-staging-to-main`** (new)
+   - Runs on: `ubuntu-latest`
+   - Depends on: `build-and-test-net8` and `build-and-test-net48`
+   - Condition: Only on push to `staging`
+   - Actions:
+     - Creates or updates PR `staging → main` automatically
+     - Closes previous PR if it exists
+     - Adds labels `automated` and `staging-sync`
 
 4. **`release`**
-   - Executa em: `ubuntu-latest`
-   - Depende de: `build-and-test-net8` e `build-and-test-net48`
-   - Condição: Apenas em push para `main`
-   - Ações:
-     - Setup Node.js e .NET
-     - Instala dependências npm
-     - Executa `semantic-release`
+   - Runs on: `ubuntu-latest`
+   - Depends on: `build-and-test-net8` and `build-and-test-net48`
+   - Condition: Only on push to `main`
+   - Actions:
+     - Setup Node.js and .NET
+     - Installs npm dependencies
+     - Runs `semantic-release`
 
-### Workflow de Auto-Merge
+### Auto-Merge Workflow
 
 **`.github/workflows/auto-merge-staging-pr.yml`**
 
-- **Trigger**: Quando uma PR `staging → main` recebe aprovação
-- **Validações**:
-  - Verifica se PR tem label `staging-sync`
-  - Verifica se revisor não é o autor (self-approval)
-  - Verifica se não há "request changes" pendentes
-  - Verifica se PR está atualizada com base branch
-  - Aguarda todos os checks obrigatórios passarem (com timeout de 5 minutos)
-- **Ações**:
-  - Faz merge automático da PR
-  - Deleta branch após merge
-  - Notifica sucesso/erro na PR
+- **Trigger**: When a PR `staging → main` receives approval
+- **Validations**:
+  - Checks if PR has label `staging-sync`
+  - Checks if reviewer is not the author (self-approval)
+  - Checks if there are no pending "request changes"
+  - Checks if PR is up to date with base branch
+  - Waits for all required checks to pass (with 5 minute timeout)
+- **Actions**:
+  - Performs automatic merge of PR
+  - Deletes branch after merge
+  - Notifies success/error in PR
 
-### Plugins do semantic-release
+### semantic-release Plugins
 
-1. **`@semantic-release/commit-analyzer`** - Analisa commits para determinar versão
-2. **`@semantic-release/release-notes-generator`** - Gera notas de release
-3. **`@semantic-release/changelog`** - Gera/atualiza `CHANGELOG.md`
-4. **`@semantic-release/exec`** - Executa comandos customizados:
-   - `prepareCmd`: Atualiza versão no `.csproj`, build e pack
-   - `publishCmd`: Publica no NuGet.org
-5. **`@semantic-release/git`** - Commita `CHANGELOG.md` e `.csproj` atualizado
-6. **`@semantic-release/github`** - Cria release no GitHub
+1. **`@semantic-release/commit-analyzer`** - Analyzes commits to determine version
+2. **`@semantic-release/release-notes-generator`** - Generates release notes
+3. **`@semantic-release/changelog`** - Generates/updates `CHANGELOG.md`
+4. **`@semantic-release/exec`** - Executes custom commands:
+   - `prepareCmd`: Updates version in `.csproj`, build and pack
+   - `publishCmd`: Publishes to NuGet.org
+5. **`@semantic-release/git`** - Commits updated `CHANGELOG.md` and `.csproj`
+6. **`@semantic-release/github`** - Creates GitHub release
+
+## Branch Protection Rules
+
+To ensure security and quality, configure the following protection rules for the `main` branch on GitHub:
+
+1. **Require pull request reviews before merging**: ✅
+   - Required number of approvals: 1
+   - Dismiss stale reviews: ✅
+
+2. **Require status checks to pass before merging**: ✅
+   - Require branches to be up to date: ✅
+   - Status checks: `build-and-test-net8`, `build-and-test-net48`
+
+3. **Require conversation resolution before merging**: ✅
+
+4. **Do not allow bypassing the above settings**: ✅ (including admins)
 
 ## Branch Protection Rules
 
@@ -272,43 +290,41 @@ Para garantir segurança e qualidade, configure as seguintes regras de proteçã
 
 ## Troubleshooting
 
-### Pipeline não está publicando
+### Pipeline is not publishing
 
-1. Verifique se os commits seguem Conventional Commits
-2. Verifique se `NUGET_API_KEY` está configurado corretamente
-3. Verifique os logs do GitHub Actions para erros específicos
-4. Certifique-se de que está fazendo push para `main` (após merge da PR de staging)
+1. Check if commits follow Conventional Commits
+2. Check if `NUGET_API_KEY` is configured correctly
+3. Check GitHub Actions logs for specific errors
+4. Make sure you're pushing to `main` (after merging PR from staging)
 
-### PR staging → main não está sendo criada
+### PR staging → main is not being created
 
-1. Verifique se o CI passou em staging
-2. Verifique os logs do job `create-pr-staging-to-main`
-3. Certifique-se de que está fazendo push para `staging` (não `main`)
+1. Check if CI passed on staging
+2. Check logs from `create-pr-staging-to-main` job
+3. Make sure you're pushing to `staging` (not `main`)
 
-### Merge automático não está funcionando
+### Automatic merge is not working
 
-1. Verifique se a PR tem o label `staging-sync`
-2. Verifique se a PR foi aprovada por alguém diferente do autor
-3. Verifique se todos os checks obrigatórios passaram
-4. Verifique se a PR está atualizada com `main`
-5. Verifique os logs do workflow `auto-merge-staging-pr`
+1. Check if PR has the `staging-sync` label
+2. Check if PR was approved by someone other than the author
+3. Check if all required checks passed
+4. Check if PR is up to date with `main`
+5. Check logs from `auto-merge-staging-pr` workflow
 
-### Versão não está sendo incrementada
+### Version is not being incremented
 
-- Commits que não seguem Conventional Commits não incrementam versão
-- Commits de tipo `chore`, `docs`, `test` (sem `BREAKING CHANGE`) não incrementam versão
-- Verifique a mensagem do commit no formato: `tipo(escopo): descrição`
+- Commits that don't follow Conventional Commits don't increment version
+- Commits of type `chore`, `docs`, `test` (without `BREAKING CHANGE`) don't increment version
+- Check commit message in format: `type(scope): description`
 
-### Erro ao publicar no NuGet
+### Error publishing to NuGet
 
-- Verifique se a API key está válida
-- Verifique se a versão já existe no NuGet (use `--skip-duplicate` se necessário)
-- Verifique se o pacote foi buildado corretamente
+- Check if API key is valid
+- Check if version already exists on NuGet (use `--skip-duplicate` if necessary)
+- Check if package was built correctly
 
-## Recursos Adicionais
+## Additional Resources
 
 - [Conventional Commits](https://www.conventionalcommits.org/)
 - [semantic-release Documentation](https://semantic-release.gitbook.io/)
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
-
-

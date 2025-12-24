@@ -1,11 +1,11 @@
-# Instalação
+# Installation
 
-## Requisitos
+## Requirements
 
-- .NET 8.0 ou superior (para ASP.NET Core)
-- .NET Framework 4.8 (para ASP.NET Web API e ASP.NET Tradicional)
+- .NET 8.0 or higher (for ASP.NET Core)
+- .NET Framework 4.8 (for ASP.NET Web API and Traditional ASP.NET)
 
-## Instalação via NuGet
+## Installation via NuGet
 
 ### .NET CLI
 
@@ -19,7 +19,7 @@ dotnet add package WhiteBeard.Traceability
 Install-Package WhiteBeard.Traceability
 ```
 
-### PackageReference (arquivo .csproj)
+### PackageReference (.csproj file)
 
 ```xml
 <ItemGroup>
@@ -27,18 +27,18 @@ Install-Package WhiteBeard.Traceability
 </ItemGroup>
 ```
 
-## Verificação da Instalação
+## Installation Verification
 
-Após a instalação, você deve conseguir importar o namespace:
+After installation, you should be able to import the namespace:
 
 ```csharp
 using Traceability;
 using Traceability.Extensions;
 ```
 
-## Dependências
+## Dependencies
 
-O pacote Traceability inclui as seguintes dependências:
+The Traceability package includes the following dependencies:
 
 ### .NET 8.0
 - `Microsoft.AspNetCore.Http.Abstractions` (2.2.0)
@@ -52,15 +52,15 @@ O pacote Traceability inclui as seguintes dependências:
 - `Microsoft.Extensions.Logging.Abstractions` (2.1.1)
 - `Microsoft.Extensions.DependencyInjection.Abstractions` (2.1.1)
 
-### Comum
+### Common
 - `Serilog` (3.1.1) - PrivateAssets: all
 
-Todas as dependências são instaladas automaticamente quando você instala o pacote Traceability.
+All dependencies are automatically installed when you install the Traceability package.
 
-## Próximos Passos
+## Next Steps
 
-Após a instalação, consulte:
-- [Quick Start](getting-started.md) para começar rapidamente
-- [Manual do Usuário](user-guide/index.md) para um guia completo
+After installation, see:
+- [Quick Start](getting-started.md) to get started quickly
+- [User Manual](user-guide/index.md) for a complete guide
 
 

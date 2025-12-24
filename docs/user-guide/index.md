@@ -1,48 +1,46 @@
-# Manual do Usuário - Traceability
+# User Manual - Traceability
 
-Bem-vindo ao manual do usuário do Traceability! Este guia foi criado para iniciantes e apresenta os conceitos de forma progressiva, começando do básico e aumentando a complexidade gradualmente.
+Welcome to the Traceability user manual! This guide was created for beginners and presents concepts progressively, starting from the basics and gradually increasing complexity.
 
-## Como Usar Este Manual
+## How to Use This Manual
 
-Este manual está organizado em 10 lições progressivas:
+This manual is organized into 10 progressive lessons:
 
-1. **[O que é Traceability?](01-what-is-traceability.md)** - Entenda o que é e quando usar
-2. **[Quick Start](02-quick-start.md)** - Comece a usar em minutos com zero configuração
-3. **[Uso Básico](03-basic-usage.md)** - Aprenda a usar o CorrelationContext
-4. **[ASP.NET Core](04-aspnet-core.md)** - Integração completa com ASP.NET Core
-5. **[ASP.NET Framework](05-aspnet-framework.md)** - Integração com .NET Framework 4.8
-6. **[Logging](06-logging.md)** - Integração com Serilog e Microsoft.Extensions.Logging
-7. **[HttpClient](07-httpclient.md)** - Uso com HttpClient e propagação automática
-8. **[Configuração](08-configuration.md)** - Opções de configuração explicadas
-9. **[Exemplos Práticos](09-examples.md)** - Exemplos completos com output esperado
-10. **[Troubleshooting](10-troubleshooting.md)** - Solução de problemas comuns
+1. **[What is Traceability?](01-what-is-traceability.md)** - Understand what it is and when to use it
+2. **[Quick Start](02-quick-start.md)** - Get started in minutes with zero configuration
+3. **[Basic Usage](03-basic-usage.md)** - Learn to use CorrelationContext
+4. **[ASP.NET Core](04-aspnet-core.md)** - Complete integration with ASP.NET Core
+5. **[ASP.NET Framework](05-aspnet-framework.md)** - Integration with .NET Framework 4.8
+6. **[Logging](06-logging.md)** - Integration with Serilog and Microsoft.Extensions.Logging
+7. **[HttpClient](07-httpclient.md)** - Usage with HttpClient and automatic propagation
+8. **[Configuration](08-configuration.md)** - Configuration options explained
+9. **[Practical Examples](09-examples.md)** - Complete examples with expected output
+10. **[Troubleshooting](10-troubleshooting.md)** - Common problem solutions
 
-## Pré-requisitos
+## Prerequisites
 
-- Conhecimento básico de C# e .NET
-- Familiaridade com ASP.NET Core ou ASP.NET Framework (dependendo do seu caso)
-- Editor de código (Visual Studio, VS Code, Rider, etc.)
+- Basic knowledge of C# and .NET
+- Familiarity with ASP.NET Core or ASP.NET Framework (depending on your case)
+- Code editor (Visual Studio, VS Code, Rider, etc.)
 
-## O Que Você Vai Aprender
+## What You Will Learn
 
-Ao final deste manual, você será capaz de:
+By the end of this manual, you will be able to:
 
-- ✅ Entender o que é correlation-id e por que é importante
-- ✅ Configurar o Traceability em suas aplicações
-- ✅ Usar correlation-id em logs e chamadas HTTP
-- ✅ Configurar opções avançadas do pacote
-- ✅ Resolver problemas comuns
+- ✅ Understand what correlation-id is and why it's important
+- ✅ Configure Traceability in your applications
+- ✅ Use correlation-id in logs and HTTP calls
+- ✅ Configure advanced package options
+- ✅ Resolve common problems
 
-## Começando
+## Getting Started
 
-Se você é iniciante, comece pela [Lição 1: O que é Traceability?](01-what-is-traceability.md).
+If you're a beginner, start with [Lesson 1: What is Traceability?](01-what-is-traceability.md).
 
-Se você já sabe o que é correlation-id e quer começar rapidamente, vá direto para [Lição 2: Quick Start](02-quick-start.md).
+If you already know what correlation-id is and want to get started quickly, go directly to [Lesson 2: Quick Start](02-quick-start.md).
 
-## Recursos Adicionais
+## Additional Resources
 
-- [Documentação Completa](../index.md) - Documentação de referência
-- [Exemplos](../examples/aspnet-core.md) - Mais exemplos práticos
-- [API Reference](../api-reference.md) - Referência completa da API
-
-
+- [Complete Documentation](../index.md) - Reference documentation
+- [Examples](../examples/aspnet-core.md) - More practical examples
+- [API Reference](../api-reference.md) - Complete API reference
