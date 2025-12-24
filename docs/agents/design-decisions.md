@@ -31,19 +31,39 @@ await SomeAsyncMethod(); // Value preserved
 
 **Trade-off**: More complex code with conditional compilation, but greater compatibility.
 
-## Why not use .NET's `Activity`?
+## Why use .NET's `Activity` (OpenTelemetry)?
 
 **Reason**:
-- `Activity` is part of .NET's diagnostics system
-- Heavier and more complex
-- Requires additional configuration
-- `AsyncLocal` is simpler and more direct for this use case
-- Doesn't require additional dependencies
+- `Activity` is the industry standard for distributed tracing (OpenTelemetry)
+- Provides `TraceId` that is automatically propagated across services
+- Enables hierarchical spans (parent/child relationships)
+- Compatible with all OpenTelemetry-compatible observability tools (Jaeger, Zipkin, Application Insights, etc.)
+- W3C Trace Context standard support (`traceparent`, `tracestate` headers)
+- Automatic integration with existing OpenTelemetry instrumentation
 
-**When to consider `Activity`**:
-- If you need Application Insights integration
-- If you need complete distributed tracing
-- If you need hierarchical spans and traces
+**Implementation Strategy**:
+- **Priority 1**: Use `Activity.TraceId` when available (OpenTelemetry standard)
+- **Priority 2**: Fallback to `AsyncLocal<string>` when Activity is not available
+- **Automatic Creation**: Creates Activities automatically when OpenTelemetry is not configured
+- **Backward Compatibility**: Maintains `X-Correlation-Id` header for services not using OpenTelemetry
+
+**Benefits**:
+- ✅ Industry-standard distributed tracing
+- ✅ Automatic trace context propagation
+- ✅ Hierarchical span relationships
+- ✅ Compatible with all major observability platforms
+- ✅ Works with or without OpenTelemetry SDK configured
+- ✅ Maintains backward compatibility with existing correlation-id systems
+
+**When OpenTelemetry is configured**:
+- Uses existing Activities created by OpenTelemetry SDK
+- Automatically integrates with OpenTelemetry instrumentation
+- No additional configuration needed
+
+**When OpenTelemetry is not configured**:
+- Automatically creates Activities via `TraceabilityActivitySource`
+- Provides same functionality without requiring OpenTelemetry SDK
+- Can be upgraded to full OpenTelemetry later without code changes
 
 ## Why JSON Log Uniformization and Environment Variables?
 

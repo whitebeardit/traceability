@@ -4,7 +4,7 @@
 
 **Location**: `src/Traceability/CorrelationContext.cs`
 
-**Responsibility**: Manage correlation-id in the current thread's asynchronous context using `AsyncLocal<string>`.
+**Responsibility**: Manage correlation-id/trace-id in the current thread's asynchronous context. Uses OpenTelemetry `Activity.TraceId` when available (priority 1), with `AsyncLocal<string>` as fallback (priority 2).
 
 **Public API**:
 ```csharp
@@ -21,13 +21,17 @@ public static class CorrelationContext
 }
 ```
 
-**Dependencies**: None (pure static class)
+**Dependencies**: 
+- `System.Diagnostics` (for Activity)
+- `System.Threading` (for AsyncLocal)
 
 **Behavior**:
-- Uses `AsyncLocal<string>` for isolation between asynchronous contexts
-- Generates GUID formatted without hyphens (32 characters) when needed
+- **Priority 1**: Uses `Activity.TraceId` (OpenTelemetry) when available - industry standard for distributed tracing
+- **Priority 2**: Falls back to `AsyncLocal<string>` when Activity is not available
+- Generates GUID formatted without hyphens (32 characters) when needed (fallback mode)
 - Thread-safe and async-safe
 - Automatic isolation between different asynchronous contexts
+- Synchronizes Activity.TraceId with AsyncLocal fallback for compatibility
 
 **Usage Example**:
 ```csharp
@@ -51,9 +55,12 @@ CorrelationContext.Clear();
 ```
 
 **Design Decisions**:
+- **OpenTelemetry Integration**: Uses `Activity.TraceId` as primary source for industry-standard distributed tracing compatibility
+- **Fallback Strategy**: `AsyncLocal<string>` as fallback ensures compatibility when OpenTelemetry is not configured
 - `AsyncLocal` instead of `ThreadLocal` to correctly support async/await
 - GUID without hyphens for compatibility and readability in logs
 - `Current` property automatically creates if it doesn't exist (lazy initialization)
+- Synchronization between Activity and AsyncLocal ensures consistent behavior across different scenarios
 
 ## 2. CorrelationIdMiddleware (ASP.NET Core)
 
@@ -61,7 +68,7 @@ CorrelationContext.Clear();
 
 **Compilation Condition**: `#if NET8_0`
 
-**Responsibility**: Middleware for ASP.NET Core that automatically manages correlation-id in HTTP requests.
+**Responsibility**: Middleware for ASP.NET Core that automatically manages correlation-id in HTTP requests and creates OpenTelemetry Activities (spans) when OpenTelemetry is not configured.
 
 **Public API**:
 ```csharp
@@ -75,14 +82,19 @@ public class CorrelationIdMiddleware
 **Dependencies**:
 - `Microsoft.AspNetCore.Http`
 - `Traceability.CorrelationContext`
+- `Traceability.OpenTelemetry.TraceabilityActivitySource`
 
 **Behavior**:
-1. Reads `X-Correlation-Id` header from request (or custom header via `HeaderName`)
-2. If it exists, validates format (if `ValidateCorrelationIdFormat = true`) and uses the value
-3. If it doesn't exist or is invalid, generates new one via `CorrelationContext.GetOrCreate()`
-4. Adds correlation-id to response header
+1. **Creates Activity automatically**: If `Activity.Current` is null (OpenTelemetry not configured), creates a new Activity (span) using `TraceabilityActivitySource`
+2. **Adds HTTP tags**: Automatically adds standard HTTP tags to Activity (method, url, scheme, host, status_code, etc.)
+3. Reads `X-Correlation-Id` header from request (or custom header via `HeaderName`)
+4. If it exists, validates format (if `ValidateCorrelationIdFormat = true`) and uses the value
+5. If it doesn't exist or is invalid, generates new one via `CorrelationContext.GetOrCreate()`
+6. Adds correlation-id to response header
+7. **Error tracking**: Marks Activity with error tags if exception occurs
 - **HeaderName Validation**: If `HeaderName` is null or empty, uses "X-Correlation-Id" as default
 - **CorrelationId Validation**: If enabled, validates maximum size (128 characters)
+- **Activity Lifecycle**: Activity is automatically stopped when request completes
 
 **Default Header**: `X-Correlation-Id`
 
@@ -183,7 +195,7 @@ CorrelationIdHttpModule.Configure(new TraceabilityOptions
 
 **Location**: `src/Traceability/HttpClient/CorrelationIdHandler.cs`
 
-**Responsibility**: DelegatingHandler that automatically adds correlation-id to HTTP request headers.
+**Responsibility**: DelegatingHandler that automatically adds correlation-id to HTTP request headers and creates OpenTelemetry child Activities (spans) for distributed tracing. Propagates W3C Trace Context headers.
 
 **Public API**:
 ```csharp
@@ -206,13 +218,19 @@ public class CorrelationIdHandler : DelegatingHandler
 **Dependencies**:
 - `System.Net.Http`
 - `Traceability.CorrelationContext`
+- `Traceability.OpenTelemetry.TraceabilityActivitySource`
 - `.NET 8`: `Microsoft.Extensions.Options`, `Traceability.Configuration`
 
 **Behavior**:
+- **Creates child Activity**: Creates a child Activity (span) for each HTTP request, maintaining hierarchical trace structure
+- **Adds HTTP tags**: Automatically adds standard HTTP tags to Activity (method, url, scheme, host, status_code)
+- **W3C Trace Context propagation**: Automatically propagates `traceparent` header (W3C Trace Context standard)
+- **Baggage propagation**: Propagates `tracestate` header when Activity has baggage
 - Uses `CorrelationContext.TryGetValue()` to get correlation-id without creating a new one if it doesn't exist
 - Removes existing header (if any)
-- Adds `X-Correlation-Id` to request header only if correlation-id exists in context
+- Adds `X-Correlation-Id` to request header only if correlation-id exists in context (for backward compatibility)
 - **HeaderName Validation**: If `HeaderName` is null or empty, uses "X-Correlation-Id" as default
+- **Error tracking**: Marks Activity with error tags if exception occurs
 
 **Usage Example**:
 ```csharp
@@ -225,7 +243,53 @@ var handler = new CorrelationIdHandler();
 var client = new HttpClient(handler);
 ```
 
-## 6. TraceableHttpClientFactory
+## 6. TraceabilityActivitySource
+
+**Location**: `src/Traceability/OpenTelemetry/TraceabilityActivitySource.cs`
+
+**Compilation Condition**: `#if NET48 || NET8_0`
+
+**Responsibility**: Centralized ActivitySource for creating OpenTelemetry Activities (spans). Provides functionality that OpenTelemetry does automatically in .NET 8, but needs to be implemented manually in .NET Framework 4.8.
+
+**Public API**:
+```csharp
+public static class TraceabilityActivitySource
+{
+    public static ActivitySource Source { get; }
+    public static Activity? StartActivity(string name, ActivityKind kind = ActivityKind.Server);
+    public static Activity? StartActivity(string name, ActivityKind kind, Activity? parent);
+}
+```
+
+**Dependencies**:
+- `System.Diagnostics` (for Activity and ActivitySource)
+
+**Behavior**:
+- Creates Activities (spans) for distributed tracing
+- Supports hierarchical spans (parent/child relationships)
+- Used automatically by `CorrelationIdMiddleware` when OpenTelemetry is not configured
+- Used automatically by `CorrelationIdHandler` to create child spans for HTTP calls
+- **ActivityKind**: 
+  - `ActivityKind.Server` for incoming HTTP requests (middleware)
+  - `ActivityKind.Client` for outgoing HTTP requests (handler)
+
+**Usage Example**:
+```csharp
+// Create a root Activity (span)
+using var activity = TraceabilityActivitySource.StartActivity("HTTP Request", ActivityKind.Server);
+
+// Create a child Activity (span)
+var parentActivity = Activity.Current;
+using var childActivity = TraceabilityActivitySource.StartActivity("HTTP Client", ActivityKind.Client, parentActivity);
+```
+
+**Design Decisions**:
+- Centralized ActivitySource ensures consistent naming and behavior
+- Supports both .NET 8 and .NET Framework 4.8
+- Automatically creates Activities when OpenTelemetry is not configured
+- Maintains compatibility with OpenTelemetry when it is configured
+
+## 7. TraceableHttpClientFactory
 
 **Location**: `src/Traceability/HttpClient/TraceableHttpClientFactory.cs`
 
@@ -273,7 +337,7 @@ builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 var client = _httpClientFactory.CreateClient("ExternalApi");
 ```
 
-## 7. CorrelationIdEnricher (Serilog)
+## 8. CorrelationIdEnricher (Serilog)
 
 **Location**: `src/Traceability/Logging/CorrelationIdEnricher.cs`
 
@@ -305,7 +369,7 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 ```
 
-## 8. CorrelationIdScopeProvider (Microsoft.Extensions.Logging)
+## 9. CorrelationIdScopeProvider (Microsoft.Extensions.Logging)
 
 **Location**: `src/Traceability/Logging/CorrelationIdScopeProvider.cs`
 
@@ -339,7 +403,7 @@ builder.Services.AddTraceability("UserService");
 builder.Logging.AddConsole(options => options.IncludeScopes = true);
 ```
 
-## 9. SourceEnricher (Serilog)
+## 10. SourceEnricher (Serilog)
 
 **Location**: `src/Traceability/Logging/SourceEnricher.cs`
 
@@ -375,7 +439,7 @@ Log.Logger = new LoggerConfiguration()
 
 **Note**: The `Source` field will always be added to logs, regardless of correlation-id presence.
 
-## 10. SourceScopeProvider (Microsoft.Extensions.Logging)
+## 11. SourceScopeProvider (Microsoft.Extensions.Logging)
 
 **Location**: `src/Traceability/Logging/SourceScopeProvider.cs`
 
@@ -410,7 +474,7 @@ builder.Logging.AddConsole(options => options.IncludeScopes = true);
 
 **Note**: The `Source` field will always be added to scope, regardless of correlation-id presence.
 
-## 11. DataEnricher (Serilog)
+## 12. DataEnricher (Serilog)
 
 **Location**: `src/Traceability/Logging/DataEnricher.cs`
 
@@ -454,7 +518,7 @@ Log.Information("Processing request {@User}", user);
 
 **Note**: `DataEnricher` is automatically added when you use `WithTraceabilityJson()` with `LogIncludeData = true`.
 
-## 12. JsonFormatter (Serilog)
+## 13. JsonFormatter (Serilog)
 
 **Location**: `src/Traceability/Logging/JsonFormatter.cs`
 
@@ -513,7 +577,7 @@ Log.Logger = new LoggerConfiguration()
 }
 ```
 
-## 13. TraceabilityUtilities
+## 14. TraceabilityUtilities
 
 **Location**: `src/Traceability/Utilities/TraceabilityUtilities.cs`
 
@@ -548,7 +612,7 @@ internal static class TraceabilityUtilities
 - Automatic sanitization ensures security in logs and HTTP headers
 - Centralized logic prevents duplication and divergence
 
-## 14. TraceabilityOptions
+## 15. TraceabilityOptions
 
 **Location**: `src/Traceability/Configuration/TraceabilityOptions.cs`
 
@@ -600,7 +664,7 @@ public class TraceabilityOptions
 - `AutoConfigureHttpClient`: If false, disables automatic configuration of all HttpClients with CorrelationIdHandler (default: true)
 - `UseAssemblyNameAsFallback`: If false, disables using assembly name as fallback for Source (default: true)
 
-## 15. Extensions
+## 16. Extensions
 
 ### ServiceCollectionExtensions
 
