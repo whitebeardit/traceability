@@ -1,73 +1,168 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 
 namespace Traceability
 {
     /// <summary>
-    /// Gerencia o correlation-id no contexto assíncrono da thread atual.
-    /// Usa AsyncLocal para garantir isolamento entre diferentes contextos assíncronos.
+    /// Gerencia trace-id/correlation-id no contexto assíncrono da thread atual.
+    /// Usa Activity.TraceId (OpenTelemetry) quando disponível, fallback para AsyncLocal quando necessário.
     /// </summary>
     public static class CorrelationContext
     {
-        private static readonly AsyncLocal<string?> _correlationId = new AsyncLocal<string?>();
+        private static readonly AsyncLocal<string?> _fallbackId = new AsyncLocal<string?>();
 
         /// <summary>
-        /// Obtém ou define o correlation-id atual no contexto assíncrono.
-        /// Se não existir, cria automaticamente um novo GUID.
-        /// Thread-safe: AsyncLocal já é thread-safe por design.
+        /// Tenta obter o trace-id de um Activity, suportando tanto W3C quanto Hierarchical format.
+        /// </summary>
+        /// <param name="activity">O Activity do qual extrair o trace-id.</param>
+        /// <param name="traceId">O trace-id extraído, ou null se não disponível.</param>
+        /// <returns>true se o trace-id foi extraído com sucesso, false caso contrário.</returns>
+        private static bool TryGetTraceIdFromActivity(Activity activity, out string? traceId)
+        {
+            traceId = null;
+            if (activity == null) return false;
+            
+            try
+            {
+                // Prioridade 1: W3C format (preferencial)
+                if (activity.IdFormat == ActivityIdFormat.W3C)
+                {
+                    var w3cTraceId = activity.TraceId.ToString();
+                    if (!string.IsNullOrEmpty(w3cTraceId))
+                    {
+                        traceId = w3cTraceId; // Já está em formato correto (32 hex chars sem hífens)
+                        return true;
+                    }
+                }
+                
+                // Prioridade 2: Hierarchical format (fallback para .NET 4.8)
+                var activityId = activity.Id;
+                if (!string.IsNullOrEmpty(activityId))
+                {
+                    // Formato: |{trace-id}.{span-id}.{parent-id}|
+                    var id = activityId!.Trim('|');
+                    var firstDot = id.IndexOf('.');
+                    if (firstDot > 0)
+                    {
+                        var hierarchicalTraceId = id.Substring(0, firstDot);
+                        // Remove hífens se existirem e garante formato consistente
+                        traceId = hierarchicalTraceId.Replace("-", "");
+                        // Verificar se tem tamanho válido (GUID sem hífens tem 32 chars)
+                        if (traceId != null && traceId.Length == 32)
+                        {
+                            return true;
+                        }
+                        // Se não tem 32 chars, ainda pode ser válido (aceitar qualquer tamanho razoável)
+                        if (traceId != null && traceId.Length > 0 && traceId.Length <= 128)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Silenciosamente falha e retorna false
+            }
+            
+            return false;
+        }
+
+        /// <summary>
+        /// Obtém o trace-id atual (Activity.TraceId se disponível, senão correlation-id customizado).
+        /// Se não existir, cria automaticamente um novo.
+        /// Thread-safe: Activity e AsyncLocal são thread-safe por design.
         /// </summary>
         public static string Current
         {
             get
             {
-                var value = _correlationId.Value;
+                // Prioridade 1: OpenTelemetry Activity.TraceId (padrão da indústria)
+                // Cachear Activity.Current para evitar múltiplas chamadas
+                var activity = Activity.Current;
+                if (activity != null && TryGetTraceIdFromActivity(activity, out var traceId) && traceId != null)
+                {
+                    // Sincronizar com fallback para compatibilidade
+                    _fallbackId.Value = traceId;
+                    return traceId;
+                }
+                
+                // Prioridade 2: Fallback (apenas se Activity não disponível)
+                var value = _fallbackId.Value;
                 if (value == null)
                 {
                     value = GenerateNew();
-                    _correlationId.Value = value;
+                    _fallbackId.Value = value;
                 }
                 return value;
             }
-            set => _correlationId.Value = value;
+            set
+            {
+                // Sempre atualizar fallback para compatibilidade
+                _fallbackId.Value = value;
+                
+                // Se Activity existir, não podemos modificar TraceId diretamente
+                // Mas podemos garantir sincronização via fallback
+            }
         }
 
         /// <summary>
-        /// Verifica se existe um correlation-id no contexto atual.
+        /// Verifica se existe trace-id/correlation-id no contexto atual.
         /// </summary>
-        public static bool HasValue => _correlationId.Value != null;
+        public static bool HasValue
+        {
+            get
+            {
+                // Cachear Activity.Current para evitar múltiplas chamadas
+                var activity = Activity.Current;
+                if (activity != null && TryGetTraceIdFromActivity(activity, out _))
+                {
+                    return true;
+                }
+                return _fallbackId.Value != null;
+            }
+        }
 
         /// <summary>
-        /// Tenta obter o correlation-id existente sem criar um novo se não existir.
+        /// Tenta obter o trace-id/correlation-id existente sem criar um novo.
         /// </summary>
-        /// <param name="value">O correlation-id se existir, caso contrário null.</param>
-        /// <returns>true se um correlation-id existe, false caso contrário.</returns>
+        /// <param name="value">O trace-id/correlation-id se existir, caso contrário null.</param>
+        /// <returns>true se um trace-id/correlation-id existe, false caso contrário.</returns>
         public static bool TryGetValue(out string? value)
         {
-            value = _correlationId.Value;
+            // Cachear Activity.Current para evitar múltiplas chamadas
+            var activity = Activity.Current;
+            if (activity != null && TryGetTraceIdFromActivity(activity, out value))
+            {
+                return true;
+            }
+            
+            value = _fallbackId.Value;
             return value != null;
         }
 
         /// <summary>
-        /// Obtém o correlation-id existente ou cria um novo se não existir.
+        /// Obtém o trace-id/correlation-id existente ou cria um novo se não existir.
         /// Thread-safe: usa Current property que já é thread-safe.
         /// </summary>
-        /// <returns>O correlation-id atual ou um novo se não existir.</returns>
+        /// <returns>O trace-id/correlation-id atual ou um novo se não existir.</returns>
         public static string GetOrCreate()
         {
-            // Usa Current property que já garante criação thread-safe
             return Current;
         }
 
         /// <summary>
-        /// Limpa o correlation-id do contexto atual.
+        /// Limpa o correlation-id do contexto (apenas fallback, Activity não pode ser limpo).
         /// </summary>
         public static void Clear()
         {
-            _correlationId.Value = null;
+            _fallbackId.Value = null;
         }
 
         /// <summary>
         /// Gera um novo correlation-id usando GUID formatado sem hífens.
+        /// Usado como fallback quando OpenTelemetry não está disponível.
         /// </summary>
         /// <returns>Um novo correlation-id.</returns>
         private static string GenerateNew()
