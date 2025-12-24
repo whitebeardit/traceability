@@ -20,8 +20,10 @@ app.Run();
 
 **What happens automatically:**
 - ✅ Middleware is automatically registered via `IStartupFilter`
+- ✅ OpenTelemetry Activity (span) is automatically created for each request
 - ✅ HttpClient is automatically configured with `CorrelationIdHandler`
-- ✅ Correlation-id is automatically generated for each request
+- ✅ Correlation-id/trace-id is automatically generated for each request
+- ✅ W3C Trace Context headers are automatically propagated in HTTP calls
 
 ## Using in a Controller
 
@@ -154,10 +156,13 @@ public class ValuesController : ControllerBase
 }
 ```
 
-The external HTTP request automatically includes the header:
+The external HTTP request automatically includes the headers:
 ```
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
+traceparent: 00-a1b2c3d4e5f6789012345678901234ab-...
 ```
+
+**Note**: The `traceparent` header is the W3C Trace Context standard for distributed tracing. It's automatically added along with `X-Correlation-Id` for backward compatibility.
 
 ## Disable Auto-Registration (Advanced)
 
@@ -175,6 +180,19 @@ app.UseCorrelationId(); // Manual registration
 app.MapControllers();
 app.Run();
 ```
+
+## OpenTelemetry Integration
+
+Traceability automatically creates OpenTelemetry Activities (spans) for distributed tracing:
+
+- **Automatic Activity Creation**: If OpenTelemetry SDK is not configured, Traceability creates Activities automatically
+- **Hierarchical Spans**: Each HTTP call creates a child span, maintaining trace hierarchy
+- **W3C Trace Context**: Automatically propagates `traceparent` and `tracestate` headers
+- **Observability Tools**: Compatible with Jaeger, Zipkin, Application Insights, and other OpenTelemetry-compatible tools
+
+**When OpenTelemetry SDK is configured**: Traceability uses existing Activities created by the SDK.
+
+**When OpenTelemetry SDK is not configured**: Traceability creates Activities automatically, ready for future OpenTelemetry integration.
 
 ## Next Steps
 

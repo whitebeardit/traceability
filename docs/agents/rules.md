@@ -2,10 +2,12 @@
 
 ## Mandatory Rules
 
-1. **Always use `AsyncLocal` for asynchronous context**
+1. **Always use `Activity.TraceId` (OpenTelemetry) as primary source, with `AsyncLocal` as fallback**
+   - ✅ Priority 1: Use `Activity.TraceId` when available (OpenTelemetry standard)
+   - ✅ Priority 2: Fallback to `AsyncLocal<string>` when Activity is not available
    - ❌ Never use `ThreadLocal`
    - ❌ Never use simple static variables
-   - ✅ Always use `AsyncLocal<string>`
+   - ✅ Always synchronize Activity.TraceId with AsyncLocal for compatibility
 
 2. **Always conditionally compile framework-specific code**
    - ❌ Never mix .NET 8 and .NET Framework code without `#if`
@@ -42,9 +44,11 @@
 
 When adding/modifying code, verify:
 - [ ] Correct conditional compilation (`#if NET8_0` / `#if NET48`)
-- [ ] Use of `AsyncLocal` for asynchronous context
-- [ ] Header `X-Correlation-Id` used consistently
-- [ ] GUID generated without hyphens (`ToString("N")`)
+- [ ] Use of `Activity.TraceId` as primary source, `AsyncLocal` as fallback
+- [ ] Activities created when needed (via TraceabilityActivitySource)
+- [ ] W3C Trace Context headers propagated (traceparent, tracestate)
+- [ ] Header `X-Correlation-Id` used consistently (for backward compatibility)
+- [ ] GUID generated without hyphens (`ToString("N")`) when Activity not available
 - [ ] Doesn't modify existing correlation-id
 - [ ] Thread-safe and async-safe
 - [ ] XML comments added/updated
@@ -53,9 +57,11 @@ When adding/modifying code, verify:
 
 ### Code
 - [ ] Correct conditional compilation (`#if NET8_0` / `#if NET48`)
-- [ ] Use of `AsyncLocal` for asynchronous context
-- [ ] Header `X-Correlation-Id` used consistently
-- [ ] GUID generated without hyphens (`ToString("N")`)
+- [ ] Use of `Activity.TraceId` as primary source, `AsyncLocal` as fallback
+- [ ] Activities created when needed (via TraceabilityActivitySource)
+- [ ] W3C Trace Context headers propagated (traceparent, tracestate)
+- [ ] Header `X-Correlation-Id` used consistently (for backward compatibility)
+- [ ] GUID generated without hyphens (`ToString("N")`) when Activity not available
 - [ ] Doesn't modify existing correlation-id
 - [ ] Thread-safe and async-safe
 - [ ] XML comments added/updated

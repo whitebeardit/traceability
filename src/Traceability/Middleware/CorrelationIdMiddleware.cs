@@ -1,17 +1,18 @@
 #if NET8_0
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using Traceability;
 using Traceability.Configuration;
+using Traceability.OpenTelemetry;
 
 namespace Traceability.Middleware
 {
     /// <summary>
-    /// Middleware para ASP.NET Core que gerencia correlation-id automaticamente.
-    /// Lê o correlation-id do header da requisição ou cria um novo se não existir.
-    /// Adiciona o correlation-id no header da resposta.
+    /// Middleware para ASP.NET Core que gerencia correlation-id automaticamente
+    /// e cria Activities (spans) do OpenTelemetry quando OpenTelemetry não está configurado.
     /// </summary>
     public class CorrelationIdMiddleware
     {
@@ -44,6 +45,17 @@ namespace Traceability.Middleware
             if (correlationId.Length > 128)
                 return false;
 
+            // Valida que não contém caracteres inválidos (apenas alfanuméricos, hífens e underscores)
+            // Permite GUIDs (com ou sem hífens), trace-ids W3C (32 hex chars), e outros formatos válidos
+            for (int i = 0; i < correlationId.Length; i++)
+            {
+                var c = correlationId[i];
+                if (!char.IsLetterOrDigit(c) && c != '-' && c != '_')
+                {
+                    return false;
+                }
+            }
+
             return true;
         }
 
@@ -52,6 +64,38 @@ namespace Traceability.Middleware
         /// </summary>
         public async Task InvokeAsync(HttpContext context)
         {
+            // Criar Activity automaticamente se não existir (quando OpenTelemetry não está configurado)
+            // Se OpenTelemetry estiver configurado, Activity já será criado automaticamente
+            Activity? activity = null;
+            if (Activity.Current == null)
+            {
+                activity = TraceabilityActivitySource.StartActivity("HTTP Request", ActivityKind.Server);
+                
+                if (activity != null)
+                {
+                    // Adicionar tags padrão (igual ao que OpenTelemetry faz automaticamente)
+                    activity.SetTag("http.method", context.Request.Method);
+                    activity.SetTag("http.url", context.Request.Path.ToString());
+                    activity.SetTag("http.scheme", context.Request.Scheme);
+                    activity.SetTag("http.host", context.Request.Host.ToString());
+                    
+                    if (context.Request.Headers.ContainsKey("User-Agent"))
+                    {
+                        activity.SetTag("http.user_agent", context.Request.Headers["User-Agent"].ToString());
+                    }
+                    
+                    if (context.Request.ContentLength.HasValue)
+                    {
+                        activity.SetTag("http.request_content_length", context.Request.ContentLength.Value);
+                    }
+                    
+                    if (!string.IsNullOrEmpty(context.Request.ContentType))
+                    {
+                        activity.SetTag("http.request_content_type", context.Request.ContentType);
+                    }
+                }
+            }
+
             // Valida e obtém o nome do header (usa padrão se null/vazio)
             var headerName = string.IsNullOrWhiteSpace(_options.HeaderName) 
                 ? "X-Correlation-Id" 
@@ -70,6 +114,7 @@ namespace Traceability.Middleware
             // Se não existir ou AlwaysGenerateNew estiver habilitado, gera um novo
             if (string.IsNullOrEmpty(correlationId) || _options.AlwaysGenerateNew)
             {
+                // CorrelationContext.Current agora retorna trace-id se Activity existir
                 correlationId = CorrelationContext.GetOrCreate();
             }
             else
@@ -92,8 +137,36 @@ namespace Traceability.Middleware
                 }
             }
 
-            // Continua o pipeline
-            await _next(context);
+            try
+            {
+                // Continua o pipeline
+                await _next(context);
+                
+                // Adicionar status code ao Activity
+                var currentActivity = Activity.Current ?? activity;
+                if (currentActivity != null)
+                {
+                    currentActivity.SetTag("http.status_code", (int)context.Response.StatusCode);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Adicionar exceção ao Activity
+                var currentActivity = Activity.Current ?? activity;
+                if (currentActivity != null)
+                {
+                    currentActivity.SetTag("error", true);
+                    currentActivity.SetTag("error.type", ex.GetType().Name);
+                    currentActivity.SetTag("error.message", ex.Message);
+                    currentActivity.SetStatus(ActivityStatusCode.Error, ex.Message);
+                }
+                throw;
+            }
+            finally
+            {
+                // Parar Activity se foi criado por nós
+                activity?.Stop();
+            }
         }
     }
 }

@@ -81,9 +81,11 @@ X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 ## What Happened?
 
 1. ✅ The middleware was automatically registered
-2. ✅ A correlation-id was automatically generated (32-character GUID)
-3. ✅ The correlation-id was added to the asynchronous context
-4. ✅ The correlation-id was returned in the response header
+2. ✅ An OpenTelemetry Activity (span) was automatically created
+3. ✅ A correlation-id/trace-id was automatically generated (from Activity.TraceId or 32-character GUID)
+4. ✅ The correlation-id was added to the asynchronous context
+5. ✅ The correlation-id was returned in the response header
+6. ✅ Ready for distributed tracing with OpenTelemetry-compatible tools
 
 ## With Explicit Source (Optional)
 
