@@ -1,83 +1,83 @@
-# Documentação do Traceability
+# Traceability Documentation
 
-Bem-vindo à documentação completa do pacote Traceability para gerenciamento automático de correlation-id em aplicações .NET.
+Welcome to the complete documentation for the Traceability package for automatic correlation-id management in .NET applications.
 
-## Início Rápido
+## Quick Start
 
-- [Quick Start](getting-started.md) - Comece a usar em minutos
-- [Instalação](installation.md) - Como instalar o pacote
+- [Quick Start](getting-started.md) - Get started in minutes
+- [Installation](installation.md) - How to install the package
 
-## Guias
+## Guides
 
-- [Manual do Usuário](user-guide/index.md) - Guia progressivo para iniciantes
-- [Configuração](configuration.md) - Opções de configuração detalhadas
-- [Referência da API](api-reference.md) - Documentação completa da API
-- [Tópicos Avançados](advanced.md) - Recursos avançados e casos de uso
+- [User Manual](user-guide/index.md) - Progressive guide for beginners
+- [Configuration](configuration.md) - Detailed configuration options
+- [API Reference](api-reference.md) - Complete API documentation
+- [Advanced Topics](advanced.md) - Advanced features and use cases
 
-## Exemplos
+## Examples
 
-- [ASP.NET Core](examples/aspnet-core.md) - Exemplos para .NET 8
-- [ASP.NET Framework](examples/aspnet-framework.md) - Exemplos para .NET Framework 4.8
-- [Console Application](examples/console.md) - Exemplos para aplicações console
-- [Requisições HTTP](examples/http-requests.md) - Exemplos de requisições HTTP
+- [ASP.NET Core](examples/aspnet-core.md) - Examples for .NET 8
+- [ASP.NET Framework](examples/aspnet-framework.md) - Examples for .NET Framework 4.8
+- [Console Application](examples/console.md) - Examples for console applications
+- [HTTP Requests](examples/http-requests.md) - HTTP request examples
 
-## Suporte
+## Support
 
-- [Troubleshooting](troubleshooting.md) - Solução de problemas comuns
-- [FAQ](troubleshooting.md#faq) - Perguntas frequentes
+- [Troubleshooting](troubleshooting.md) - Common problem solutions
+- [FAQ](troubleshooting.md#faq) - Frequently asked questions
 
-## Documentação Técnica
+## Technical Documentation
 
-Para desenvolvedores que desejam contribuir ou entender a arquitetura interna:
+For developers who want to contribute or understand the internal architecture:
 
-- [CI/CD e Releases](development/ci-cd.md) - Pipeline de CI/CD e processo de release
-- [Documentação para LLMs](../AGENTS.md) - Arquitetura e guia técnico completo
+- [CI/CD and Releases](development/ci-cd.md) - CI/CD pipeline and release process
+- [Documentation for LLMs](../AGENTS.md) - Complete architecture and technical guide
 
-## O que é Traceability?
+## What is Traceability?
 
-Traceability é um pacote NuGet que gerencia automaticamente correlation-id em aplicações .NET, permitindo rastrear requisições através de múltiplos serviços em arquiteturas distribuídas.
+Traceability is a NuGet package that automatically manages correlation-id in .NET applications, allowing you to track requests across multiple services in distributed architectures.
 
-### Características Principais
+### Key Features
 
-- ✅ Gerenciamento automático de correlation-id usando `AsyncLocal`
-- ✅ Suporte para .NET 8.0 e .NET Framework 4.8
-- ✅ Middleware para ASP.NET Core (.NET 8)
-- ✅ HttpModule e MessageHandler para ASP.NET (.NET Framework 4.8)
-- ✅ Integração automática com HttpClient
-- ✅ Suporte para Serilog e Microsoft.Extensions.Logging
-- ✅ Integração com Polly para políticas de resiliência
-- ✅ Propagação automática em chamadas HTTP encadeadas
+- ✅ Automatic correlation-id management using `AsyncLocal`
+- ✅ Support for .NET 8.0 and .NET Framework 4.8
+- ✅ Middleware for ASP.NET Core (.NET 8)
+- ✅ HttpModule and MessageHandler for ASP.NET (.NET Framework 4.8)
+- ✅ Automatic integration with HttpClient
+- ✅ Support for Serilog and Microsoft.Extensions.Logging
+- ✅ Integration with Polly for resilience policies
+- ✅ Automatic propagation in chained HTTP calls
 
-### Quando Usar?
+### When to Use?
 
-Use o Traceability quando você precisa:
+Use Traceability when you need:
 
-1. **Rastreabilidade em Microserviços**: Rastrear uma requisição através de múltiplos serviços
-2. **Debugging Simplificado**: Identificar rapidamente todos os logs relacionados a uma requisição
-3. **Análise de Performance**: Medir o tempo total de processamento através de múltiplos serviços
-4. **Monitoramento e Observabilidade**: Correlacionar métricas, traces e logs de diferentes serviços
+1. **Microservices Traceability**: Track a request across multiple services
+2. **Simplified Debugging**: Quickly identify all logs related to a request
+3. **Performance Analysis**: Measure total processing time across multiple services
+4. **Monitoring and Observability**: Correlate metrics, traces, and logs from different services
 
-## Frameworks Suportados
+## Supported Frameworks
 
-- **.NET 8.0**: Suporte completo para ASP.NET Core
-- **.NET Framework 4.8**: Suporte para ASP.NET Web API e ASP.NET Tradicional
+- **.NET 8.0**: Full support for ASP.NET Core
+- **.NET Framework 4.8**: Support for ASP.NET Web API and Traditional ASP.NET
 
-## Instalação Rápida
+## Quick Installation
 
 ```bash
 dotnet add package WhiteBeard.Traceability
 ```
 
-Para mais detalhes, consulte [Instalação](installation.md).
+For more details, see [Installation](installation.md).
 
-## Exemplo Rápido
+## Quick Example
 
 ```csharp
 using Traceability.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Zero configuração - tudo é automático!
+// Zero configuration - everything is automatic!
 builder.Services.AddTraceability("MyService");
 builder.Services.AddControllers();
 
@@ -86,5 +86,5 @@ app.MapControllers();
 app.Run();
 ```
 
-Para mais exemplos, consulte [Quick Start](getting-started.md) ou o [Manual do Usuário](user-guide/index.md).
+For more examples, see [Quick Start](getting-started.md) or the [User Manual](user-guide/index.md).
 

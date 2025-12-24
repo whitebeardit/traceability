@@ -1,44 +1,44 @@
-# Referência da API
+# API Reference
 
-Documentação completa da API pública do Traceability.
+Complete documentation of the Traceability public API.
 
 ## CorrelationContext
 
-Classe estática para gerenciar o correlation-id no contexto assíncrono.
+Static class for managing correlation-id in the asynchronous context.
 
-### Propriedades
+### Properties
 
 #### Current
 ```csharp
 public static string Current { get; set; }
 ```
-Obtém ou define o correlation-id atual. Cria um novo se não existir.
+Gets or sets the current correlation-id. Creates a new one if it doesn't exist.
 
 #### HasValue
 ```csharp
 public static bool HasValue { get; }
 ```
-Verifica se existe um correlation-id no contexto.
+Checks if a correlation-id exists in the context.
 
-### Métodos
+### Methods
 
 #### GetOrCreate()
 ```csharp
 public static string GetOrCreate()
 ```
-Obtém o correlation-id existente ou cria um novo.
+Gets the existing correlation-id or creates a new one.
 
 #### TryGetValue()
 ```csharp
 public static bool TryGetValue(out string? value)
 ```
-Tenta obter o correlation-id existente sem criar um novo se não existir. Retorna `true` se um correlation-id existe, `false` caso contrário.
+Attempts to get the existing correlation-id without creating a new one if it doesn't exist. Returns `true` if a correlation-id exists, `false` otherwise.
 
 #### Clear()
 ```csharp
 public static void Clear()
 ```
-Limpa o correlation-id do contexto.
+Clears the correlation-id from the context.
 
 ## Extensions
 
@@ -51,26 +51,26 @@ public static IServiceCollection AddTraceability(
     string? source = null,
     Action<TraceabilityOptions>? configureOptions = null)
 ```
-Registra os serviços do Traceability no container de DI.
+Registers Traceability services in the DI container.
 
-**Parâmetros:**
-- `source` (opcional): Nome da origem/serviço. Se não fornecido, será lido de `TraceabilityOptions.Source`, variável de ambiente `TRACEABILITY_SERVICENAME`, ou assembly name (se `UseAssemblyNameAsFallback = true`).
-- `configureOptions` (opcional): Ação para configurar opções adicionais.
+**Parameters:**
+- `source` (optional): Name of the origin/service. If not provided, it will be read from `TraceabilityOptions.Source`, `TRACEABILITY_SERVICENAME` environment variable, or assembly name (if `UseAssemblyNameAsFallback = true`).
+- `configureOptions` (optional): Action to configure additional options.
 
-**Exemplos:**
+**Examples:**
 ```csharp
-// Com source explícito
+// With explicit source
 builder.Services.AddTraceability("UserService");
 
-// Com source e opções
+// With source and options
 builder.Services.AddTraceability("UserService", options => {
     options.HeaderName = "X-Custom-Id";
 });
 
-// Sem source (usa env var ou assembly name)
+// Without source (uses env var or assembly name)
 builder.Services.AddTraceability();
 
-// Apenas opções (source vem de env var ou assembly name)
+// Options only (source comes from env var or assembly name)
 builder.Services.AddTraceability(configureOptions: options => {
     options.HeaderName = "X-Custom-Id";
 });
@@ -83,13 +83,13 @@ public static IServiceCollection AddTraceabilityLogging(
     string? source = null,
     Action<TraceabilityOptions>? configureOptions = null)
 ```
-Adiciona os serviços de traceability com logging configurado. Configura apenas o Source para identificação da origem dos logs, sem registrar middleware ou HttpClient automaticamente.
+Adds traceability services with logging configured. Only configures the Source for log origin identification, without automatically registering middleware or HttpClient.
 
-**Parâmetros:**
-- `source` (opcional): Nome da origem/serviço. Se não fornecido, será lido de `TraceabilityOptions.Source`, variável de ambiente `TRACEABILITY_SERVICENAME`, ou assembly name (se `UseAssemblyNameAsFallback = true`).
-- `configureOptions` (opcional): Ação para configurar opções adicionais.
+**Parameters:**
+- `source` (optional): Name of the origin/service. If not provided, it will be read from `TraceabilityOptions.Source`, `TRACEABILITY_SERVICENAME` environment variable, or assembly name (if `UseAssemblyNameAsFallback = true`).
+- `configureOptions` (optional): Action to configure additional options.
 
-**Nota:** Este método configura apenas o logging. Para configuração completa (middleware + HttpClient + logging), use `AddTraceability()`.
+**Note:** This method only configures logging. For complete configuration (middleware + HttpClient + logging), use `AddTraceability()`.
 
 #### AddTraceableHttpClient
 ```csharp
@@ -98,7 +98,7 @@ public static IHttpClientBuilder AddTraceableHttpClient(
     string clientName,
     Action<HttpClient>? configureClient = null)
 ```
-Configura HttpClient com CorrelationIdHandler automaticamente.
+Configures HttpClient with CorrelationIdHandler automatically.
 
 ### ApplicationBuilderExtensions
 
@@ -106,7 +106,7 @@ Configura HttpClient com CorrelationIdHandler automaticamente.
 ```csharp
 public static IApplicationBuilder UseCorrelationId(this IApplicationBuilder app)
 ```
-Registra o middleware CorrelationIdMiddleware no pipeline HTTP.
+Registers the CorrelationIdMiddleware in the HTTP pipeline.
 
 ### LoggerConfigurationExtensions
 
@@ -116,7 +116,7 @@ public static LoggerConfiguration WithTraceability(
     this LoggerConfiguration config,
     string? source = null)
 ```
-Adiciona SourceEnricher e CorrelationIdEnricher ao Serilog.
+Adds SourceEnricher and CorrelationIdEnricher to Serilog.
 
 #### WithTraceabilityJson
 ```csharp
@@ -125,15 +125,15 @@ public static LoggerConfiguration WithTraceabilityJson(
     string? source = null,
     Action<TraceabilityOptions>? configureOptions = null)
 ```
-Adiciona SourceEnricher, CorrelationIdEnricher e DataEnricher para template JSON.
+Adds SourceEnricher, CorrelationIdEnricher, and DataEnricher for JSON template.
 
 ## Middleware
 
 ### CorrelationIdMiddleware (ASP.NET Core)
 
-Middleware que gerencia correlation-id automaticamente.
+Middleware that automatically manages correlation-id.
 
-**Uso:**
+**Usage:**
 ```csharp
 app.UseCorrelationId();
 ```
@@ -142,24 +142,24 @@ app.UseCorrelationId();
 
 ### CorrelationIdMessageHandler (ASP.NET Web API)
 
-MessageHandler para ASP.NET Web API.
+MessageHandler for ASP.NET Web API.
 
-**Uso:**
+**Usage:**
 ```csharp
 config.MessageHandlers.Add(new CorrelationIdMessageHandler());
 ```
 
-### CorrelationIdHttpModule (ASP.NET Tradicional)
+### CorrelationIdHttpModule (Traditional ASP.NET)
 
-HttpModule para aplicações ASP.NET tradicionais.
+HttpModule for traditional ASP.NET applications.
 
-**Configuração:** Via web.config (veja exemplos)
+**Configuration:** Via web.config (see examples)
 
 ### CorrelationIdHandler (HttpClient)
 
-DelegatingHandler que adiciona correlation-id aos headers HTTP.
+DelegatingHandler that adds correlation-id to HTTP headers.
 
-**Uso:**
+**Usage:**
 ```csharp
 services.AddHttpClient("MyClient")
     .AddHttpMessageHandler<CorrelationIdHandler>();
@@ -169,9 +169,9 @@ services.AddHttpClient("MyClient")
 
 ### TraceableHttpClientFactory
 
-Factory para criar HttpClient com correlation-id usando IHttpClientFactory.
+Factory for creating HttpClient with correlation-id using IHttpClientFactory.
 
-**Métodos (.NET 8):**
+**Methods (.NET 8):**
 ```csharp
 public static HttpClient CreateFromFactory(
     IHttpClientFactory factory,
@@ -179,7 +179,7 @@ public static HttpClient CreateFromFactory(
     string? baseAddress = null)
 ```
 
-**Exemplo de uso:**
+**Usage example:**
 ```csharp
 builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 {
@@ -191,9 +191,9 @@ builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 
 ### CorrelationIdEnricher (Serilog)
 
-Enricher que adiciona correlation-id aos logs do Serilog.
+Enricher that adds correlation-id to Serilog logs.
 
-**Uso:**
+**Usage:**
 ```csharp
 Log.Logger = new LoggerConfiguration()
     .WithTraceability("UserService")
@@ -202,9 +202,9 @@ Log.Logger = new LoggerConfiguration()
 
 ### CorrelationIdScopeProvider (Microsoft.Extensions.Logging)
 
-Provider que adiciona correlation-id ao scope de logging.
+Provider that adds correlation-id to the logging scope.
 
-**Uso:**
+**Usage:**
 ```csharp
 builder.Services.AddTraceability("UserService");
 builder.Logging.AddConsole(options => options.IncludeScopes = true);
@@ -214,8 +214,6 @@ builder.Logging.AddConsole(options => options.IncludeScopes = true);
 
 ### TraceabilityOptions
 
-Opções de configuração para o pacote.
+Configuration options for the package.
 
-Veja [Configuração](configuration.md) para detalhes completos.
-
-
+See [Configuration](configuration.md) for complete details.

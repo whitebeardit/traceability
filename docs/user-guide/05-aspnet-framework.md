@@ -1,10 +1,10 @@
-# Lição 5: ASP.NET Framework
+# Lesson 5: ASP.NET Framework
 
-Nesta lição, você aprenderá a integrar o Traceability com ASP.NET Framework 4.8.
+In this lesson, you'll learn to integrate Traceability with ASP.NET Framework 4.8.
 
 ## ASP.NET Web API
 
-### Configuração
+### Configuration
 
 **Global.asax.cs:**
 ```csharp
@@ -24,7 +24,7 @@ public class WebApiApplication : System.Web.HttpApplication
 }
 ```
 
-### Usando em um Controller
+### Using in a Controller
 
 **ValuesController.cs:**
 ```csharp
@@ -36,37 +36,37 @@ public class ValuesController : ApiController
     [HttpGet]
     public IHttpActionResult Get()
     {
-        // Correlation-id está automaticamente disponível
+        // Correlation-id is automatically available
         var correlationId = CorrelationContext.Current;
         return Ok(new { CorrelationId = correlationId });
     }
 }
 ```
 
-### Testando
+### Testing
 
-**Requisição:**
+**Request:**
 ```bash
 curl -X GET http://localhost:8080/api/values
 ```
 
-**Resposta:**
+**Response:**
 ```json
 {
   "correlationId": "f1e2d3c4b5a6978012345678901234cd"
 }
 ```
 
-**Headers da resposta:**
+**Response headers:**
 ```
 HTTP/1.1 200 OK
 Content-Type: application/json
 X-Correlation-Id: f1e2d3c4b5a6978012345678901234cd
 ```
 
-## ASP.NET Tradicional
+## Traditional ASP.NET
 
-### Configuração no web.config
+### Configuration in web.config
 
 **web.config:**
 ```xml
@@ -78,7 +78,7 @@ X-Correlation-Id: f1e2d3c4b5a6978012345678901234cd
 </system.webServer>
 ```
 
-### Configuração de Opções (Opcional)
+### Options Configuration (Optional)
 
 **Global.asax.cs:**
 ```csharp
@@ -95,7 +95,7 @@ protected void Application_Start()
 }
 ```
 
-### Usando em uma Page
+### Using in a Page
 
 **MyPage.aspx.cs:**
 ```csharp
@@ -106,16 +106,16 @@ public class MyPage : System.Web.UI.Page
     protected void Page_Load(object sender, EventArgs e)
     {
         var correlationId = CorrelationContext.Current;
-        // Usar correlation-id
+        // Use correlation-id
     }
 }
 ```
 
-## Configuração de Opções
+## Options Configuration
 
-Para configurar opções no .NET Framework, use os métodos estáticos `Configure()`:
+To configure options in .NET Framework, use the static `Configure()` methods:
 
-**Para Web API:**
+**For Web API:**
 ```csharp
 CorrelationIdMessageHandler.Configure(new TraceabilityOptions
 {
@@ -124,7 +124,7 @@ CorrelationIdMessageHandler.Configure(new TraceabilityOptions
 });
 ```
 
-**Para ASP.NET Tradicional:**
+**For Traditional ASP.NET:**
 ```csharp
 CorrelationIdHttpModule.Configure(new TraceabilityOptions
 {
@@ -133,16 +133,14 @@ CorrelationIdHttpModule.Configure(new TraceabilityOptions
 });
 ```
 
-## Diferenças do .NET 8
+## Differences from .NET 8
 
-No .NET Framework 4.8:
+In .NET Framework 4.8:
 
-- ❌ Não há DI nativo, então use métodos estáticos `Configure()` para opções
-- ❌ Não há `IHttpClientFactory`, então gerencie HttpClient manualmente
-- ✅ Funcionalidade de correlation-id é idêntica
+- ❌ There's no native DI, so use static `Configure()` methods for options
+- ❌ There's no `IHttpClientFactory`, so manage HttpClient manually
+- ✅ Correlation-id functionality is identical
 
-## Próximos Passos
+## Next Steps
 
-Agora que você sabe integrar com ambos os frameworks, vamos ver como usar com logging na [Lição 6: Logging](06-logging.md).
-
-
+Now that you know how to integrate with both frameworks, let's see how to use with logging in [Lesson 6: Logging](06-logging.md).

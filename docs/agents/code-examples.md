@@ -1,27 +1,27 @@
-# Exemplos de Código de Referência
+# Reference Code Examples
 
-## Exemplo 1: Uso Básico do CorrelationContext
+## Example 1: Basic CorrelationContext Usage
 
 ```csharp
 using Traceability;
 
-// Obter ou criar correlation-id
+// Get or create correlation-id
 var correlationId = CorrelationContext.Current;
 
-// Verificar se existe
+// Check if exists
 if (CorrelationContext.HasValue)
 {
     var id = CorrelationContext.Current;
 }
 
-// Obter explicitamente ou criar
+// Get explicitly or create
 var id = CorrelationContext.GetOrCreate();
 
-// Limpar contexto
+// Clear context
 CorrelationContext.Clear();
 ```
 
-## Exemplo 2: ASP.NET Core - Zero Configuração
+## Example 2: ASP.NET Core - Zero Configuration
 
 ```csharp
 // Program.cs
@@ -30,7 +30,7 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar Serilog com Traceability (recomendado)
+// Configure Serilog with Traceability (recommended)
 Log.Logger = new LoggerConfiguration()
     .WithTraceability("UserService")
     .WriteTo.Console(
@@ -39,14 +39,14 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// Zero configuração - tudo é automático!
-// - Middleware é registrado automaticamente via IStartupFilter
-// - HttpClient é configurado automaticamente com CorrelationIdHandler
-// - Source vem de TRACEABILITY_SERVICENAME ou assembly name
+// Zero configuration - everything is automatic!
+// - Middleware is automatically registered via IStartupFilter
+// - HttpClient is automatically configured with CorrelationIdHandler
+// - Source comes from TRACEABILITY_SERVICENAME or assembly name
 builder.Services.AddTraceability("UserService");
 
-// HttpClient já está configurado automaticamente!
-// Não precisa de .AddHttpMessageHandler<CorrelationIdHandler>()
+// HttpClient is already automatically configured!
+// No need for .AddHttpMessageHandler<CorrelationIdHandler>()
 builder.Services.AddHttpClient("ExternalApi", client =>
 {
     client.BaseAddress = new Uri("https://api.example.com/");
@@ -56,14 +56,14 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// Middleware já está registrado automaticamente!
-// Não precisa de app.UseCorrelationId()
+// Middleware is already automatically registered!
+// No need for app.UseCorrelationId()
 
 app.MapControllers();
 app.Run();
 ```
 
-## Exemplo 3: Uso em Controller
+## Example 3: Usage in Controller
 
 ```csharp
 using Traceability;
@@ -85,12 +85,12 @@ public class MyController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        // Correlation-id está automaticamente disponível
+        // Correlation-id is automatically available
         var correlationId = CorrelationContext.Current;
         
-        _logger.LogInformation("Processando requisição. CorrelationId: {CorrelationId}", correlationId);
+        _logger.LogInformation("Processing request. CorrelationId: {CorrelationId}", correlationId);
 
-        // HttpClient automaticamente adiciona correlation-id
+        // HttpClient automatically adds correlation-id
         var client = _httpClientFactory.CreateClient("ExternalApi");
         var response = await client.GetAsync("endpoint");
 
@@ -99,10 +99,10 @@ public class MyController : ControllerBase
 }
 ```
 
-## Exemplo 4: HttpClient com IHttpClientFactory
+## Example 4: HttpClient with IHttpClientFactory
 
 ```csharp
-// Program.cs - Configure o HttpClient
+// Program.cs - Configure HttpClient
 using Traceability.Extensions;
 using Traceability.HttpClient;
 using Polly;
@@ -119,11 +119,11 @@ builder.Services.AddTraceableHttpClient("ExternalApi", client =>
 })
 .AddPolicyHandler(retryPolicy);
 
-// No serviço ou controller
+// In service or controller
 var client = _httpClientFactory.CreateClient("ExternalApi");
 ```
 
-## Exemplo 5: Teste Unitário
+## Example 5: Unit Test
 
 ```csharp
 using FluentAssertions;
@@ -148,18 +148,18 @@ public class CorrelationContextTests
 }
 ```
 
-## Exemplo 6: Isolamento Assíncrono
+## Example 6: Asynchronous Isolation
 
 ```csharp
 using Traceability;
 
-// Contexto principal
+// Main context
 var mainId = CorrelationContext.GetOrCreate();
 
-// Task isolada terá seu próprio contexto
+// Isolated task will have its own context
 var task = Task.Run(async () =>
 {
-    // Este contexto é isolado
+    // This context is isolated
     var taskId = CorrelationContext.GetOrCreate();
     await Task.Delay(100);
     return taskId;
@@ -167,8 +167,6 @@ var task = Task.Run(async () =>
 
 var taskId = await task;
 
-// mainId e taskId são diferentes
+// mainId and taskId are different
 Console.WriteLine($"Main: {mainId}, Task: {taskId}");
 ```
-
-
