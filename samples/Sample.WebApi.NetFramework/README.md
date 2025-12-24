@@ -1,10 +1,10 @@
 # Sample.WebApi.NetFramework
 
-Este é um exemplo de uso do pacote Traceability em uma aplicação ASP.NET Web API no .NET Framework 4.8.
+This is an example of using the Traceability package in an ASP.NET Web API application on .NET Framework 4.8.
 
-## Configuração
+## Configuration
 
-### 1. Adicionar MessageHandler no Global.asax.cs
+### 1. Add MessageHandler in Global.asax.cs
 
 ```csharp
 using System.Web.Http;
@@ -16,17 +16,17 @@ public class WebApiApplication : System.Web.HttpApplication
     {
         GlobalConfiguration.Configure(config =>
         {
-            // Adicionar o CorrelationIdMessageHandler
+            // Add the CorrelationIdMessageHandler
             config.MessageHandlers.Add(new CorrelationIdMessageHandler());
             
-            // Suas outras configurações...
+            // Your other configurations...
             config.MapHttpAttributeRoutes();
         });
     }
 }
 ```
 
-### 2. Usar CorrelationContext nos Controllers
+### 2. Use CorrelationContext in Controllers
 
 ```csharp
 using System.Web.Http;
@@ -42,15 +42,15 @@ public class ApiController : ApiController
 }
 ```
 
-### 3. Usar HttpClient com Correlation-id
+### 3. Use HttpClient with Correlation-id
 
-Para .NET Framework 4.8, você precisa gerenciar o HttpClient manualmente. Use `CorrelationIdHandler` para adicionar o correlation-id automaticamente:
+For .NET Framework 4.8, you need to manage HttpClient manually. Use `CorrelationIdHandler` to automatically add the correlation-id:
 
 ```csharp
 using System.Net.Http;
 using Traceability.HttpClient;
 
-// Configure o HttpClient uma vez (reutilize para evitar socket exhaustion)
+// Configure HttpClient once (reuse to avoid socket exhaustion)
 var handler = new CorrelationIdHandler
 {
     InnerHandler = new HttpClientHandler()
@@ -60,16 +60,15 @@ var httpClient = new HttpClient(handler)
     BaseAddress = new Uri("https://api.example.com/")
 };
 
-// Use o mesmo HttpClient para múltiplas requisições
+// Use the same HttpClient for multiple requests
 var response = await httpClient.GetAsync("endpoint");
-// O correlation-id é automaticamente adicionado ao header
+// The correlation-id is automatically added to the header
 ```
 
-**Importante**: Reutilize o mesmo `HttpClient` para múltiplas requisições. Não crie um novo `HttpClient` a cada chamada para evitar socket exhaustion.
+**Important**: Reuse the same `HttpClient` for multiple requests. Do not create a new `HttpClient` for each call to avoid socket exhaustion.
 
-## Notas
+## Notes
 
-- O CorrelationIdMessageHandler deve ser adicionado primeiro na cadeia de MessageHandlers
-- O correlation-id é automaticamente propagado para chamadas HTTP feitas com TraceableHttpClientFactory
-- Para logging, use Serilog com CorrelationIdEnricher ou Microsoft.Extensions.Logging com CorrelationIdScopeProvider
-
+- The CorrelationIdMessageHandler must be added first in the MessageHandlers chain
+- The correlation-id is automatically propagated for HTTP calls made with TraceableHttpClientFactory
+- For logging, use Serilog with CorrelationIdEnricher or Microsoft.Extensions.Logging with CorrelationIdScopeProvider

@@ -1,66 +1,66 @@
-# Traceability - Arquitetura e Guia para LLMs
+# Traceability - Architecture and Guide for LLMs
 
-> **Nota**: Esta documentação foi refatorada em arquivos menores para facilitar navegação. Veja o [índice completo em `docs/agents/`](docs/agents/index.md).
+> **Note**: This documentation has been refactored into smaller files for easier navigation. See the [complete index at `docs/agents/`](docs/agents/index.md).
 
-## Índice Rápido
+## Quick Index
 
-Esta documentação técnica está organizada nos seguintes arquivos:
+This technical documentation is organized in the following files:
 
-### Informações Básicas
-- [Metadata e Contexto Inicial](docs/agents/metadata.md) - Informações do projeto, dependências e estrutura de namespaces
+### Basic Information
+- [Metadata and Initial Context](docs/agents/metadata.md) - Project information, dependencies and namespace structure
 
-### Arquitetura
-- [Arquitetura de Alto Nível](docs/agents/architecture.md) - Diagramas de componentes e fluxos de dados
+### Architecture
+- [High-Level Architecture](docs/agents/architecture.md) - Component diagrams and data flows
 
-### Componentes
-- [Componentes Core](docs/agents/components.md) - Detalhamento técnico de todos os componentes do pacote
+### Components
+- [Core Components](docs/agents/components.md) - Technical details of all package components
 
-### Padrões e Práticas
-- [Padrões de Implementação](docs/agents/patterns.md) - Padrões de código e convenções utilizadas
-- [Regras e Constraints](docs/agents/rules.md) - Regras obrigatórias e constraints de design
-- [Decisões de Design](docs/agents/design-decisions.md) - Racionais por trás das decisões arquiteturais
+### Patterns and Practices
+- [Implementation Patterns](docs/agents/patterns.md) - Code patterns and conventions used
+- [Rules and Constraints](docs/agents/rules.md) - Mandatory rules and design constraints
+- [Design Decisions](docs/agents/design-decisions.md) - Rationale behind architectural decisions
 
-### Guias
-- [Guia de Modificação](docs/agents/modification-guide.md) - Como adicionar novos componentes e manter compatibilidade
-- [Exemplos de Código](docs/agents/code-examples.md) - Exemplos práticos de uso
+### Guides
+- [Modification Guide](docs/agents/modification-guide.md) - How to add new components and maintain compatibility
+- [Code Examples](docs/agents/code-examples.md) - Practical usage examples
 
-### Referência
-- [Glossário](docs/agents/glossary.md) - Definições de termos técnicos
+### Reference
+- [Glossary](docs/agents/glossary.md) - Technical term definitions
 
-## Visão Geral
+## Overview
 
-O Traceability é um pacote NuGet para gerenciamento automático de correlation-id em aplicações .NET, com suporte para .NET 8 e .NET Framework 4.8.
+Traceability is a NuGet package for automatic correlation-id management in .NET applications, with support for .NET 8 and .NET Framework 4.8.
 
-### Frameworks Suportados
-- **.NET 8.0**: Suporte completo para ASP.NET Core
-- **.NET Framework 4.8**: Suporte para ASP.NET Web API e ASP.NET Tradicional
+### Supported Frameworks
+- **.NET 8.0**: Full support for ASP.NET Core
+- **.NET Framework 4.8**: Support for ASP.NET Web API and Traditional ASP.NET
 
-### Princípios Fundamentais
+### Fundamental Principles
 
-1. **AsyncLocal para Isolamento**: Sempre usar `AsyncLocal<string>` para contexto assíncrono
-2. **Conditional Compilation**: Código específico de framework deve usar `#if NET8_0` ou `#if NET48`
-3. **Header Padrão**: Sempre usar `X-Correlation-Id` como header padrão
-4. **GUID sem Hífens**: Gerar correlation-id como GUID de 32 caracteres (sem hífens)
-5. **Não Modificar Existente**: Nunca sobrescrever correlation-id existente no contexto
-6. **Zero Configuração**: Funciona sem configuração, mas permite customização
+1. **AsyncLocal for Isolation**: Always use `AsyncLocal<string>` for async context
+2. **Conditional Compilation**: Framework-specific code must use `#if NET8_0` or `#if NET48`
+3. **Default Header**: Always use `X-Correlation-Id` as the default header
+4. **GUID without Hyphens**: Generate correlation-id as a 32-character GUID (without hyphens)
+5. **Don't Modify Existing**: Never overwrite existing correlation-id in context
+6. **Zero Configuration**: Works without configuration, but allows customization
 
-## Estrutura do Projeto
+## Project Structure
 
 ```
 src/Traceability/
-├── Configuration/          # Opções de configuração
-├── CorrelationContext.cs    # Core: Gerenciamento de contexto
-├── Extensions/             # Métodos de extensão
-├── HttpClient/             # Integração com HttpClient
-├── Logging/                # Integrações de logging
-├── Middleware/             # Middleware e handlers HTTP
-├── Utilities/              # Utilitários compartilhados
-└── WebApi/                 # Handlers específicos Web API
+├── Configuration/          # Configuration options
+├── CorrelationContext.cs    # Core: Context management
+├── Extensions/             # Extension methods
+├── HttpClient/             # HttpClient integration
+├── Logging/                # Logging integrations
+├── Middleware/             # Middleware and HTTP handlers
+├── Utilities/              # Shared utilities
+└── WebApi/                 # Web API specific handlers
 ```
 
-## Referências Rápidas
+## Quick References
 
-### Arquivos Principais
+### Main Files
 - Core: `src/Traceability/CorrelationContext.cs`
 - Middleware (.NET 8): `src/Traceability/Middleware/CorrelationIdMiddleware.cs`
 - HttpModule (.NET Framework): `src/Traceability/Middleware/CorrelationIdHttpModule.cs`
@@ -69,16 +69,16 @@ src/Traceability/
 - Factory: `src/Traceability/HttpClient/TraceableHttpClientFactory.cs`
 - Configuration: `src/Traceability/Configuration/TraceabilityOptions.cs`
 
-### Exemplos
+### Examples
 - ASP.NET Core: `samples/Sample.WebApi.Net8/`
 - Console: `samples/Sample.Console.Net8/`
 - .NET Framework: `samples/Sample.WebApi.NetFramework/`
 
-### Testes
-- Todos os testes: `tests/Traceability.Tests/`
+### Tests
+- All tests: `tests/Traceability.Tests/`
 
 ---
 
-**Para documentação completa, consulte**: [docs/agents/index.md](docs/agents/index.md)
+**For complete documentation, see**: [docs/agents/index.md](docs/agents/index.md)
 
-**Última atualização**: Baseado na versão ![NuGet Version](https://img.shields.io/nuget/v/WhiteBeard.Traceability.svg?style=flat-square&label=version) do projeto Traceability
+**Last updated**: Based on version ![NuGet Version](https://img.shields.io/nuget/v/WhiteBeard.Traceability.svg?style=flat-square&label=version) of the Traceability project
