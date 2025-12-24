@@ -55,11 +55,17 @@
 - [x] `docs/agents/code-examples.md` - Code examples
 - [x] `docs/agents/glossary.md` - Technical glossary
 
+## Root Level Files (3 files)
+
+- [x] `README.md` - Main project documentation
+- [x] `AGENTS.md` - Technical architecture guide for LLMs
+- [x] `samples/Sample.WebApi.NetFramework/README.md` - Sample project README
+
 ## Other (1 file)
 
 - [x] `docs/setup-nodejs.md` - Node.js setup guide
 
-## Total: 36 files
+## Total: 39 files
 
 ## ✅ ALL FILES TRANSLATED!
 
