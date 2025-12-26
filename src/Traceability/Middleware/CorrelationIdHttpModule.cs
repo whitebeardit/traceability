@@ -6,6 +6,7 @@ using System.Web;
 using Traceability;
 using Traceability.Configuration;
 using Traceability.OpenTelemetry;
+using Traceability.WebApi;
 
 namespace Traceability.Middleware
 {
@@ -250,20 +251,9 @@ namespace Traceability.Middleware
                 context.Items[PreviousActivityKey] = Activity.Current;
                 Activity.Current = activity;
 
-                // Best-effort span naming early (route template may not be available yet).
-                try
-                {
-                    var method = context.Request.HttpMethod;
-                    var path = context.Request.Url != null ? context.Request.Url.AbsolutePath.TrimStart('/') : "/";
-                    if (!string.IsNullOrEmpty(method) && !string.IsNullOrEmpty(path))
-                    {
-                        activity.DisplayName = $"{method} {path}";
-                    }
-                }
-                catch
-                {
-                    // ignore
-                }
+                // Best-effort: tentar obter route template cedo (pode não estar disponível ainda)
+                // Se não conseguir, será tentado novamente em OnPostRequestHandlerExecute, OnPreSendRequestHeaders e OnEndRequest
+                TryRenameToRouteTemplate(context, activity);
             }
         }
 
@@ -278,6 +268,9 @@ namespace Traceability.Middleware
             {
                 try
                 {
+                    // Try to rename to route template now that handler has executed (route may be resolved)
+                    TryRenameToRouteTemplate(context, activity);
+
                     // Restore previous activity for safety
                     var previous = context.Items[PreviousActivityKey] as Activity;
                     if (ReferenceEquals(Activity.Current, activity))
@@ -376,63 +369,53 @@ namespace Traceability.Middleware
         private static void TryRenameToRouteTemplate(HttpContext context, Activity activity)
         {
             if (context == null || activity == null) return;
+            
+            // Se já renomeamos com sucesso, não tentar novamente
             if (context.Items[ActivityRenamedKey] is bool already && already) return;
 
             try
             {
-                // WebApi stores HttpRequestMessage under this key when hosted in System.Web
-                var httpRequestMessage = context.Items["MS_HttpRequestMessage"] as HttpRequestMessage;
-                if (httpRequestMessage != null)
+                var method = context.Request.HttpMethod;
+                string template = null;
+
+                // Tentativa 1: Extrair template do HttpContext (via HttpRequestMessage)
+                template = RouteTemplateHelper.TryGetRouteTemplate(context);
+                
+                // Tentativa 2: Se não encontrou, tentar inferir do path via HttpConfiguration
+                if (string.IsNullOrEmpty(template))
                 {
-                    var template = TryGetRouteTemplate(httpRequestMessage);
-                    var method = httpRequestMessage.Method != null
-                        ? httpRequestMessage.Method.Method
-                        : context.Request.HttpMethod;
-                    if (!string.IsNullOrEmpty(template))
+                    var path = context.Request.Url != null ? context.Request.Url.AbsolutePath : null;
+                    if (!string.IsNullOrEmpty(path))
                     {
-                        activity.DisplayName = $"{method} {template}";
+                        template = RouteTemplateHelper.TryInferRouteTemplateFromPath(path, method);
+                    }
+                }
+
+                // Se encontrou template, normalizar e aplicar
+                if (!string.IsNullOrEmpty(template))
+                {
+                    var displayName = RouteTemplateHelper.NormalizeDisplayName(method, template);
+                    if (!string.IsNullOrEmpty(displayName))
+                    {
+                        activity.DisplayName = displayName;
                         context.Items[ActivityRenamedKey] = true;
                         return;
                     }
                 }
 
-                // fallback: method + path
-                var fallbackMethod = context.Request.HttpMethod;
-                var fallbackPath = context.Request.Url != null ? context.Request.Url.AbsolutePath : "/";
-                activity.DisplayName = $"{fallbackMethod} {fallbackPath}";
-                context.Items[ActivityRenamedKey] = true;
+                // Fallback extremo: usar path (mas logar que não encontramos template)
+                // Isso só deve acontecer em casos muito raros
+                var fallbackPath = context.Request.Url != null ? context.Request.Url.AbsolutePath.TrimStart('/') : "/";
+                if (!string.IsNullOrEmpty(fallbackPath))
+                {
+                    activity.DisplayName = RouteTemplateHelper.NormalizeDisplayName(method, fallbackPath) ?? $"{method.ToUpperInvariant()} {fallbackPath}";
+                    context.Items[ActivityRenamedKey] = true;
+                }
             }
             catch
             {
                 // Ignore route naming failures
             }
-        }
-
-        private static string TryGetRouteTemplate(HttpRequestMessage request)
-        {
-            if (request == null) return null;
-
-            try
-            {
-                // WebApi v2 commonly stores IHttpRouteData under this key.
-                if (request.Properties != null && request.Properties.TryGetValue("MS_HttpRouteData", out var routeData) && routeData != null)
-                {
-                    var routeProp = routeData.GetType().GetProperty("Route");
-                    var route = routeProp != null ? routeProp.GetValue(routeData) : null;
-                    if (route != null)
-                    {
-                        var templateProp = route.GetType().GetProperty("RouteTemplate");
-                        var template = templateProp != null ? templateProp.GetValue(route) as string : null;
-                        return template;
-                    }
-                }
-            }
-            catch
-            {
-                // ignore
-            }
-
-            return null;
         }
     }
 }
