@@ -1,3 +1,10 @@
+# [2.1.0](https://github.com/whitebeardit/traceability/compare/v2.0.0...v2.1.0) (2025-12-26)
+
+
+### Features
+
+* Auto-instrumentação zero-code e naming consistente de spans para .NET Framework 4.8 ([#26](https://github.com/whitebeardit/traceability/issues/26)) ([e20c770](https://github.com/whitebeardit/traceability/commit/e20c770ad29008f23272512f30284a511b947d9d))
+
 # [2.0.0](https://github.com/whitebeardit/traceability/compare/v1.1.0...v2.0.0) (2025-12-24)
 
 
