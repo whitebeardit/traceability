@@ -88,34 +88,101 @@ namespace Traceability.WebApi
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            // IMPORTANTE: Ler o header PRIMEIRO para garantir que o trace-id do header tenha prioridade
-            // Isso garante que o trace-id seja propagado corretamente entre serviços
+            // Thread-safe: ler _options uma vez para evitar race condition
+            var options = _options;
+
+            // IMPORTANTE: Ler headers PRIMEIRO para decidir o trace-id e a hierarquia do span.
+            // - X-Correlation-Id tem prioridade sobre traceparent
+            // - traceparent define o parent para criar hierarquia real
             var headerName = CorrelationIdHeader;
-            
-            // Tenta obter o correlation-id do header da requisição (compatibilidade)
-            string? correlationId = null;
+
+            string? correlationIdFromHeader = null;
             if (request.Headers.Contains(headerName))
             {
                 var values = request.Headers.GetValues(headerName);
                 if (values != null)
                 {
-                    correlationId = values.FirstOrDefault();
+                    correlationIdFromHeader = values.FirstOrDefault();
                 }
             }
 
             // Valida formato se habilitado
-            if (!string.IsNullOrEmpty(correlationId) && !IsValidCorrelationId(correlationId))
+            if (!string.IsNullOrEmpty(correlationIdFromHeader) && !IsValidCorrelationId(correlationIdFromHeader))
             {
                 // Se inválido, ignora o header e gera novo
-                correlationId = null;
+                correlationIdFromHeader = null;
             }
 
-            // Thread-safe: ler _options uma vez para evitar race condition
-            var options = _options;
-            
-            // Criar Activity automaticamente (OpenTelemetry) - igual ao que .NET 8 faz
-            using var activity = TraceabilityActivitySource.StartActivity("Web API Request", ActivityKind.Server);
-            
+            // Tentar extrair parent context W3C do traceparent/tracestate (se existir)
+            ActivityContext parentFromTraceparent = default;
+            var hasTraceparentHeader = request.Headers.Contains("traceparent");
+            if (hasTraceparentHeader)
+            {
+                var traceparent = request.Headers.GetValues("traceparent").FirstOrDefault();
+                var tracestate = request.Headers.Contains("tracestate")
+                    ? request.Headers.GetValues("tracestate").FirstOrDefault()
+                    : null;
+
+                if (!string.IsNullOrWhiteSpace(traceparent))
+                {
+                    ActivityContext.TryParse(traceparent, tracestate, out parentFromTraceparent);
+                }
+            }
+
+            // Decidir qual trace-id/correlation-id vamos usar neste request
+            // Prioridade: AlwaysGenerateNew > X-Correlation-Id > traceparent > gerar novo
+            string effectiveCorrelationId;
+            if (options.AlwaysGenerateNew)
+            {
+                effectiveCorrelationId = Guid.NewGuid().ToString("N");
+            }
+            else if (!string.IsNullOrEmpty(correlationIdFromHeader))
+            {
+                effectiveCorrelationId = correlationIdFromHeader!;
+            }
+            else if (parentFromTraceparent != default)
+            {
+                effectiveCorrelationId = parentFromTraceparent.TraceId.ToString();
+            }
+            else
+            {
+                effectiveCorrelationId = Guid.NewGuid().ToString("N");
+            }
+
+            // Construir o parent context para o Activity:
+            // - Se houver traceparent (e não houver X-Correlation-Id/AlwaysGenerateNew), respeitar o parent real
+            // - Caso contrário, criar um parent artificial para garantir que o Activity.TraceId seja o correlation-id efetivo
+            ActivityContext parentContext;
+            if (!options.AlwaysGenerateNew && string.IsNullOrEmpty(correlationIdFromHeader) && parentFromTraceparent != default)
+            {
+                parentContext = parentFromTraceparent;
+            }
+            else
+            {
+                // Se o correlation-id não for um trace-id W3C (32 hex), não é possível setar no TraceId.
+                // Nesse caso, vamos cair no fallback AsyncLocal via CorrelationContext.
+                if (effectiveCorrelationId.Length == 32)
+                {
+                    var traceId = ActivityTraceId.CreateFromString(effectiveCorrelationId.AsSpan());
+                    parentContext = new ActivityContext(traceId, ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded);
+                }
+                else
+                {
+                    parentContext = default;
+                }
+            }
+
+            // Garantir que o CorrelationContext esteja sempre setado (fallback),
+            // mesmo quando o trace-id não puder ser aplicado ao Activity.
+            CorrelationContext.Current = effectiveCorrelationId;
+
+            // Criar Activity (span) do request.
+            // Observação: ActivitySource só cria Activity se houver ActivityListener.
+            // Nome inicial será atualizado após base.SendAsync quando route template estiver disponível
+            using var activity = parentContext != default
+                ? TraceabilityActivitySource.StartActivity("HTTP Request", ActivityKind.Server, parentContext)
+                : TraceabilityActivitySource.StartActivity("HTTP Request", ActivityKind.Server);
+
             if (activity != null)
             {
                 // Adicionar tags padrão (igual ao que OpenTelemetry faz no .NET 8)
@@ -123,12 +190,15 @@ namespace Traceability.WebApi
                 activity.SetTag("http.url", request.RequestUri?.ToString());
                 activity.SetTag("http.scheme", request.RequestUri?.Scheme);
                 activity.SetTag("http.host", request.RequestUri?.Host);
-                
+                // Setar placeholder para garantir que o controller enxergue a tag durante o processamento.
+                // (O valor real será atualizado após base.SendAsync retornar.)
+                activity.SetTag("http.status_code", "0");
+
                 if (request.Content != null && request.Content.Headers.ContentLength.HasValue)
                 {
                     activity.SetTag("http.request_content_length", request.Content.Headers.ContentLength.Value);
                 }
-                
+
                 if (request.Content != null && request.Content.Headers.ContentType != null)
                 {
                     var contentType = request.Content.Headers.ContentType.ToString();
@@ -137,27 +207,6 @@ namespace Traceability.WebApi
                         activity.SetTag("http.request_content_type", contentType);
                     }
                 }
-                
-                // Ler traceparent se existir (W3C Trace Context)
-                if (request.Headers.Contains("traceparent"))
-                {
-                    var traceParent = request.Headers.GetValues("traceparent").FirstOrDefault();
-                    // OpenTelemetry já processa traceparent automaticamente via DiagnosticSource
-                }
-            }
-            
-            // Se não existir ou AlwaysGenerateNew estiver habilitado, gera um novo
-            if (string.IsNullOrEmpty(correlationId) || options.AlwaysGenerateNew)
-            {
-                // CorrelationContext.Current já retorna trace-id se Activity existir
-                // Se não houver Activity válido, gera um novo GUID
-                correlationId = CorrelationContext.GetOrCreate();
-            }
-            else
-            {
-                // Se existir no header, usa o valor do header (prioridade sobre Activity)
-                // Isso garante que o trace-id seja propagado corretamente entre serviços
-                CorrelationContext.Current = correlationId!;
             }
 
             try
@@ -167,8 +216,38 @@ namespace Traceability.WebApi
                 
                 if (activity != null)
                 {
+                    // Tentar obter route template e atualizar DisplayName
+                    var template = RouteTemplateHelper.TryGetRouteTemplate(request);
+                    if (!string.IsNullOrEmpty(template))
+                    {
+                        var method = request.Method != null ? request.Method.Method : "GET";
+                        var displayName = RouteTemplateHelper.NormalizeDisplayName(method, template);
+                        if (!string.IsNullOrEmpty(displayName))
+                        {
+                            activity.DisplayName = displayName!;
+                        }
+                    }
+                    else
+                    {
+                        // Se não encontrou template, tentar inferir do path
+                        var path = request.RequestUri != null ? request.RequestUri.AbsolutePath : null;
+                        if (!string.IsNullOrEmpty(path))
+                        {
+                            var method = request.Method != null ? request.Method.Method : "GET";
+                            template = RouteTemplateHelper.TryInferRouteTemplateFromPath(path, method);
+                            if (!string.IsNullOrEmpty(template))
+                            {
+                                var displayName = RouteTemplateHelper.NormalizeDisplayName(method, template);
+                                if (!string.IsNullOrEmpty(displayName))
+                                {
+                                    activity.DisplayName = displayName!;
+                                }
+                            }
+                        }
+                    }
+
                     // Adicionar status code (igual ao que OpenTelemetry faz no .NET 8)
-                    activity.SetTag("http.status_code", (int)response.StatusCode);
+                    activity.SetTag("http.status_code", ((int)response.StatusCode).ToString());
                     
                     if (response.Content != null && response.Content.Headers.ContentLength.HasValue)
                     {
@@ -177,7 +256,7 @@ namespace Traceability.WebApi
                 }
                 
                 // Adiciona o correlation-id no header da resposta
-                if (response != null && !string.IsNullOrEmpty(correlationId))
+                if (response != null && !string.IsNullOrEmpty(effectiveCorrelationId))
                 {
                     try
                     {
@@ -186,7 +265,7 @@ namespace Traceability.WebApi
                         {
                             response.Headers.Remove(headerName);
                         }
-                        response.Headers.Add(headerName, correlationId);
+                        response.Headers.Add(headerName, effectiveCorrelationId);
                     }
                     catch
                     {
@@ -201,7 +280,7 @@ namespace Traceability.WebApi
                 if (activity != null)
                 {
                     // Adicionar exceção ao Activity (igual ao que OpenTelemetry faz no .NET 8)
-                    activity.SetTag("error", true);
+                    activity.SetTag("error", "true");
                     activity.SetTag("error.type", ex.GetType().Name);
                     activity.SetTag("error.message", ex.Message);
                     activity.SetStatus(ActivityStatusCode.Error, ex.Message);

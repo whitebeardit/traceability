@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -138,6 +139,55 @@ namespace Traceability.Tests
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>());
         }
+
+#if NET8_0
+        [Fact]
+        public async Task SendAsync_Net8_Default_ShouldNotCreateHttpClientSpan_ButShouldPropagateHeaders()
+        {
+            // Arrange
+            Environment.SetEnvironmentVariable("TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED", null);
+
+            using var parent = new Activity("parent");
+            parent.SetIdFormat(ActivityIdFormat.W3C);
+            parent.Start();
+            // CorrelationContext prioritizes Activity.TraceId; keep expectations aligned with that contract.
+            var correlationId = parent.TraceId.ToString();
+
+            HttpRequestMessage? capturedRequest = null;
+
+            var mockHandler = new Mock<HttpMessageHandler>();
+            mockHandler.Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
+                .ReturnsAsync(new HttpResponseMessage());
+
+            // No IOptions passed => Net8HttpClientSpansEnabled defaults false
+            var handler = new CorrelationIdHandler
+            {
+                InnerHandler = mockHandler.Object
+            };
+
+            var httpClient = new System.Net.Http.HttpClient(handler);
+
+            // Act
+            await httpClient.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://example.com"));
+
+            // Assert
+            capturedRequest.Should().NotBeNull();
+            // capturedRequest já foi verificado como não-null acima
+            capturedRequest!.Headers.Contains("X-Correlation-Id").Should().BeTrue();
+            capturedRequest.Headers.GetValues("X-Correlation-Id").Should().Contain(correlationId);
+
+            // traceparent should be propagated from parent activity (no new span created)
+            capturedRequest!.Headers.Contains("traceparent").Should().BeTrue();
+            capturedRequest.Headers.GetValues("traceparent").Should().Contain(parent.Id);
+
+            Activity.Current.Should().Be(parent);
+        }
+#endif
     }
 }
 
