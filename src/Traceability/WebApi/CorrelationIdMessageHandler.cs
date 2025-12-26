@@ -224,7 +224,7 @@ namespace Traceability.WebApi
                         var displayName = RouteTemplateHelper.NormalizeDisplayName(method, template);
                         if (!string.IsNullOrEmpty(displayName))
                         {
-                            activity.DisplayName = displayName;
+                            activity.DisplayName = displayName!;
                         }
                     }
                     else
@@ -240,7 +240,7 @@ namespace Traceability.WebApi
                                 var displayName = RouteTemplateHelper.NormalizeDisplayName(method, template);
                                 if (!string.IsNullOrEmpty(displayName))
                                 {
-                                    activity.DisplayName = displayName;
+                                    activity.DisplayName = displayName!;
                                 }
                             }
                         }

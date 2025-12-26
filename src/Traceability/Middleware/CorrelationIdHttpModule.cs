@@ -151,7 +151,7 @@ namespace Traceability.Middleware
 
             // Create server span for every request (NET48 does not reliably provide an ambient Activity for controllers).
             // This keeps behavior consistent and ensures Activity.Current is available for WebApi actions.
-            Activity activity = null;
+            Activity? activity = null;
 
             // Build parent context:
             // - If traceparent exists and no correlation header override, keep real parent
@@ -376,7 +376,7 @@ namespace Traceability.Middleware
             try
             {
                 var method = context.Request.HttpMethod;
-                string template = null;
+                string? template = null;
 
                 // Tentativa 1: Extrair template do HttpContext (via HttpRequestMessage)
                 template = RouteTemplateHelper.TryGetRouteTemplate(context);
@@ -397,7 +397,7 @@ namespace Traceability.Middleware
                     var displayName = RouteTemplateHelper.NormalizeDisplayName(method, template);
                     if (!string.IsNullOrEmpty(displayName))
                     {
-                        activity.DisplayName = displayName;
+                        activity.DisplayName = displayName!;
                         context.Items[ActivityRenamedKey] = true;
                         return;
                     }
@@ -408,7 +408,8 @@ namespace Traceability.Middleware
                 var fallbackPath = context.Request.Url != null ? context.Request.Url.AbsolutePath.TrimStart('/') : "/";
                 if (!string.IsNullOrEmpty(fallbackPath))
                 {
-                    activity.DisplayName = RouteTemplateHelper.NormalizeDisplayName(method, fallbackPath) ?? $"{method.ToUpperInvariant()} {fallbackPath}";
+                    var fallbackDisplayName = RouteTemplateHelper.NormalizeDisplayName(method, fallbackPath);
+                    activity.DisplayName = fallbackDisplayName ?? $"{method.ToUpperInvariant()} {fallbackPath}";
                     context.Items[ActivityRenamedKey] = true;
                 }
             }

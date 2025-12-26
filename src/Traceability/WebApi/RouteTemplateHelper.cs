@@ -135,7 +135,8 @@ namespace Traceability.WebApi
                     return null;
 
                 // Normalizar path (remover leading slash)
-                var normalizedPath = path.TrimStart('/');
+                // path já foi verificado como não-null na linha 111, mas o compilador não sabe
+                var normalizedPath = path!.TrimStart('/');
 
                 // Tentar fazer match com cada rota registrada
                 var enumerable = routes as System.Collections.IEnumerable;
@@ -151,7 +152,8 @@ namespace Traceability.WebApi
                             continue;
 
                         // Verificar se o path corresponde ao template
-                        if (MatchesRouteTemplate(normalizedPath, routeTemplate))
+                        // routeTemplate já foi verificado como não-null acima
+                        if (MatchesRouteTemplate(normalizedPath, routeTemplate!))
                         {
                             return routeTemplate;
                         }
@@ -180,10 +182,12 @@ namespace Traceability.WebApi
                 return null;
 
             // Method sempre uppercase
-            var normalizedMethod = method.ToUpperInvariant();
+            // method já foi verificado como não-null acima
+            var normalizedMethod = method!.ToUpperInvariant();
 
             // Template sem leading slash
-            var normalizedTemplate = template.TrimStart('/');
+            // template já foi verificado como não-null acima
+            var normalizedTemplate = template!.TrimStart('/');
 
             return $"{normalizedMethod} {normalizedTemplate}";
         }
