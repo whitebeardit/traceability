@@ -223,7 +223,7 @@ namespace Traceability.WebApi
             try
             {
                 var pattern = template;
-                
+
                 // Substituir placeholders por padrões de match
                 // {controller}, {id}, etc. -> [^/]+
                 var placeholderPattern = @"\{[^}]+\}";
@@ -267,4 +267,3 @@ namespace Traceability.WebApi
     }
 }
 #endif
-
