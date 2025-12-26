@@ -25,7 +25,25 @@ namespace Traceability.OpenTelemetry
         /// <returns>O Activity criado ou null se não houver listeners.</returns>
         public static Activity? StartActivity(string name, ActivityKind kind = ActivityKind.Server)
         {
+#if NET48
+            TraceabilityAutoInstrumentationNet48.EnsureInitialized();
+#endif
             return _activitySource.StartActivity(name, kind);
+        }
+
+        /// <summary>
+        /// Cria um novo Activity (span) com um ActivityContext pai explícito (ex: extraído de traceparent).
+        /// </summary>
+        /// <param name="name">Nome do Activity (span).</param>
+        /// <param name="kind">Tipo do Activity.</param>
+        /// <param name="parentContext">Contexto pai (W3C) a ser usado como parent.</param>
+        /// <returns>O Activity criado ou null se não houver listeners.</returns>
+        public static Activity? StartActivity(string name, ActivityKind kind, ActivityContext parentContext)
+        {
+#if NET48
+            TraceabilityAutoInstrumentationNet48.EnsureInitialized();
+#endif
+            return _activitySource.StartActivity(name, kind, parentContext);
         }
         
         /// <summary>
@@ -38,6 +56,9 @@ namespace Traceability.OpenTelemetry
         /// <returns>O Activity criado ou null se não houver listeners.</returns>
         public static Activity? StartActivity(string name, ActivityKind kind, Activity? parent)
         {
+#if NET48
+            TraceabilityAutoInstrumentationNet48.EnsureInitialized();
+#endif
             if (parent != null)
             {
                 return _activitySource.StartActivity(name, kind, parent.Context);
