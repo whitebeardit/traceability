@@ -44,6 +44,24 @@ namespace Traceability.HttpClient
         {
             _options = options?.Value;
         }
+
+        private bool ShouldCreateHttpClientSpan()
+        {
+            // Default false on NET8 to avoid duplication with System.Net.Http/OpenTelemetry instrumentation.
+            // Opt-in via options or env var.
+            if (_options?.Net8HttpClientSpansEnabled == true)
+            {
+                return true;
+            }
+
+            var env = Environment.GetEnvironmentVariable("TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED");
+            if (bool.TryParse(env, out var enabled))
+            {
+                return enabled;
+            }
+
+            return false;
+        }
 #else
         private const string CorrelationIdHeader = "X-Correlation-Id";
 #endif
@@ -56,39 +74,46 @@ namespace Traceability.HttpClient
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            // Criar Activity filho (span hierárquico - igual ao que OpenTelemetry faz no .NET 8)
             var parentActivity = Activity.Current;
-            using var activity = TraceabilityActivitySource.StartActivity("HTTP Client", ActivityKind.Client, parentActivity);
-            
+
+            // Only propagate/create spans when we already have a correlation context (no implicit GUID creation).
+            var hasCorrelationContext = CorrelationContext.TryGetValue(out var correlationId) && !string.IsNullOrEmpty(correlationId);
+
+#if NET8_0
+            var createSpan = ShouldCreateHttpClientSpan();
+#else
+            var createSpan = true;
+#endif
+
+            // If there is no context at all, we must not create a root span (would implicitly create correlation id via Activity).
+            if (!hasCorrelationContext)
+            {
+                createSpan = false;
+            }
+
+            // Create Activity child span only when enabled (to avoid duplication on NET8)
+            using var activity = createSpan
+                ? TraceabilityActivitySource.StartActivity("HTTP Client", ActivityKind.Client, parentActivity)
+                : null;
+
+            // Propagate trace context even when not creating span
+            var traceParent = activity?.Id ?? parentActivity?.Id;
+            if (!string.IsNullOrEmpty(traceParent) && !request.Headers.Contains("traceparent"))
+            {
+                request.Headers.Add("traceparent", traceParent);
+            }
+
+            // Add standard tags if we created a span
             if (activity != null)
             {
-                // Adicionar tags padrão (igual ao que OpenTelemetry faz no .NET 8)
                 activity.SetTag("http.method", request.Method.ToString());
                 activity.SetTag("http.url", request.RequestUri?.ToString());
                 activity.SetTag("http.scheme", request.RequestUri?.Scheme);
                 activity.SetTag("http.host", request.RequestUri?.Host);
-                
-                // Propagar trace context (W3C Trace Context)
-                var traceParent = activity.Id;
-                if (!request.Headers.Contains("traceparent"))
-                {
-                    request.Headers.Add("traceparent", traceParent);
-                }
-                
-                // Adicionar tracestate se houver baggage
-                if (activity.Baggage != null && activity.Baggage.Any())
-                {
-                    var traceState = string.Join(",", 
-                        activity.Baggage.Select(b => $"{b.Key}={b.Value}"));
-                    if (!string.IsNullOrEmpty(traceState) && !request.Headers.Contains("tracestate"))
-                    {
-                        request.Headers.Add("tracestate", traceState);
-                    }
-                }
             }
             
             // Adicionar X-Correlation-Id para compatibilidade
-            if (CorrelationContext.TryGetValue(out var correlationId) && !string.IsNullOrEmpty(correlationId))
+            if (hasCorrelationContext)
             {
                 var headerName = CorrelationIdHeader;
                 // Verifica se o header existe antes de remover (evita operação desnecessária)
@@ -150,35 +175,25 @@ namespace Traceability.HttpClient
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            // Criar Activity filho (span hierárquico)
             var parentActivity = Activity.Current;
-            using var activity = TraceabilityActivitySource.StartActivity("HTTP Client", ActivityKind.Client, parentActivity);
-            
+
+            var createSpan = ShouldCreateHttpClientSpan();
+            using var activity = createSpan
+                ? TraceabilityActivitySource.StartActivity("HTTP Client", ActivityKind.Client, parentActivity)
+                : null;
+
+            var traceParent = activity?.Id ?? parentActivity?.Id;
+            if (!string.IsNullOrEmpty(traceParent) && !request.Headers.Contains("traceparent"))
+            {
+                request.Headers.Add("traceparent", traceParent);
+            }
+
             if (activity != null)
             {
-                // Adicionar tags padrão
                 activity.SetTag("http.method", request.Method.ToString());
                 activity.SetTag("http.url", request.RequestUri?.ToString());
                 activity.SetTag("http.scheme", request.RequestUri?.Scheme);
                 activity.SetTag("http.host", request.RequestUri?.Host);
-                
-                // Propagar trace context
-                var traceParent = activity.Id;
-                if (!request.Headers.Contains("traceparent"))
-                {
-                    request.Headers.Add("traceparent", traceParent);
-                }
-                
-                // Adicionar tracestate se houver baggage
-                if (activity.Baggage != null && activity.Baggage.Any())
-                {
-                    var traceState = string.Join(",", 
-                        activity.Baggage.Select(b => $"{b.Key}={b.Value}"));
-                    if (!string.IsNullOrEmpty(traceState) && !request.Headers.Contains("tracestate"))
-                    {
-                        request.Headers.Add("tracestate", traceState);
-                    }
-                }
             }
             
             // Adicionar X-Correlation-Id para compatibilidade
