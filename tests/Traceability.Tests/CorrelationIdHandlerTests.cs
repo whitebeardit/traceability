@@ -153,7 +153,7 @@ namespace Traceability.Tests
             // CorrelationContext prioritizes Activity.TraceId; keep expectations aligned with that contract.
             var correlationId = parent.TraceId.ToString();
 
-            HttpRequestMessage capturedRequest = null;
+            HttpRequestMessage? capturedRequest = null;
 
             var mockHandler = new Mock<HttpMessageHandler>();
             mockHandler.Protected()
@@ -177,11 +177,12 @@ namespace Traceability.Tests
 
             // Assert
             capturedRequest.Should().NotBeNull();
-            capturedRequest.Headers.Contains("X-Correlation-Id").Should().BeTrue();
+            // capturedRequest já foi verificado como não-null acima
+            capturedRequest!.Headers.Contains("X-Correlation-Id").Should().BeTrue();
             capturedRequest.Headers.GetValues("X-Correlation-Id").Should().Contain(correlationId);
 
             // traceparent should be propagated from parent activity (no new span created)
-            capturedRequest.Headers.Contains("traceparent").Should().BeTrue();
+            capturedRequest!.Headers.Contains("traceparent").Should().BeTrue();
             capturedRequest.Headers.GetValues("traceparent").Should().Contain(parent.Id);
 
             Activity.Current.Should().Be(parent);
