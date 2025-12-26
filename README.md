@@ -21,10 +21,14 @@ Use **Traceability** when you need:
 
 ## Features
 
+- ✅ **Zero-code/Zero-config**: Works automatically - just install the package!
 - ✅ Automatic correlation-id management using OpenTelemetry `Activity.TraceId` (with `AsyncLocal` fallback)
 - ✅ OpenTelemetry integration with automatic Activity (span) creation
+- ✅ Automatic span naming using route templates (e.g., `GET api/values/{id}`)
 - ✅ W3C Trace Context propagation (`traceparent`, `tracestate` headers)
 - ✅ Support for .NET 8.0 and .NET Framework 4.8
+- ✅ **Zero-code for .NET Framework 4.8**: Automatic registration via `PreApplicationStartMethod`
+- ✅ **Zero-config for .NET 8.0**: Automatic middleware and HttpClient registration
 - ✅ Middleware for ASP.NET Core (.NET 8)
 - ✅ HttpModule and MessageHandler for ASP.NET (.NET Framework 4.8)
 - ✅ Automatic integration with HttpClient
@@ -95,10 +99,91 @@ public class ValuesController : ControllerBase
 **Result:**
 - ✅ Correlation-id/trace-id automatically generated on each request
 - ✅ OpenTelemetry Activity (span) automatically created
+- ✅ Span automatically named using route template (e.g., `GET api/values`)
 - ✅ Automatically propagated in HTTP calls (with W3C Trace Context)
 - ✅ Automatically included in logs
 - ✅ Returned in the `X-Correlation-Id` response header
 - ✅ Compatible with all OpenTelemetry-compatible observability tools
+
+### ASP.NET Framework 4.8 - Zero Code
+
+**1. Install the package:**
+```bash
+Install-Package WhiteBeard.Traceability
+```
+
+**2. That's it!** No code needed!
+
+The library automatically:
+- ✅ Registers `CorrelationIdHttpModule` via `PreApplicationStartMethod`
+- ✅ Initializes `ActivityListener` for OpenTelemetry spans
+- ✅ Creates Activities (spans) for each HTTP request
+- ✅ Names spans using route templates (e.g., `GET api/values/{id}`)
+- ✅ Manages correlation-id automatically
+
+**Optional: Configure Serilog**
+```csharp
+// Global.asax.cs
+using Traceability.Extensions;
+using Serilog;
+
+protected void Application_Start()
+{
+    Log.Logger = new LoggerConfiguration()
+        .WithTraceability("MyService")
+        .WriteTo.Console(
+            outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}{NewLine}{Exception}")
+        .CreateLogger();
+
+    GlobalConfiguration.Configure(config =>
+    {
+        config.MapHttpAttributeRoutes();
+    });
+}
+```
+
+**3. Use in a Controller:**
+```csharp
+using System.Web.Http;
+using Traceability;
+
+public class ValuesController : ApiController
+{
+    [HttpGet]
+    [Route("api/values")]
+    public IHttpActionResult Get()
+    {
+        // Correlation-id is automatically available
+        // Activity (span) is automatically created with name "GET api/values"
+        var correlationId = CorrelationContext.Current;
+        return Ok(new { CorrelationId = correlationId });
+    }
+}
+```
+
+**Result:**
+- ✅ Correlation-id automatically generated for each request
+- ✅ OpenTelemetry Activity (span) automatically created
+- ✅ Span automatically named using route template
+- ✅ Automatically propagated in HTTP calls
+- ✅ Automatically included in logs (if Serilog is configured)
+- ✅ Returned in the `X-Correlation-Id` response header
+
+**Opt-out: Disable Automatic Spans**
+
+If you need to disable automatic span creation:
+
+**Option 1: appSettings in Web.config**
+```xml
+<appSettings>
+  <add key="Traceability:SpansEnabled" value="false" />
+</appSettings>
+```
+
+**Option 2: Environment Variable**
+```powershell
+$env:TRACEABILITY_SPANS_ENABLED="false"
+```
 
 ## Environment Variables
 
