@@ -1,3 +1,18 @@
+# [2.0.0](https://github.com/whitebeardit/traceability/compare/v1.1.0...v2.0.0) (2025-12-24)
+
+
+### Bug Fixes
+
+* fixes tests ([3ecc57e](https://github.com/whitebeardit/traceability/commit/3ecc57e59a8f244be52f0a6465fadf69aee79ff6))
+
+
+* feat!: add OpenTelemetry support ([65f25be](https://github.com/whitebeardit/traceability/commit/65f25be12a40b901146358450b348da7866b1d6b))
+
+
+### BREAKING CHANGES
+
+* Adds OpenTelemetry ActivitySource support, which may require additional configuration for users not using OpenTelemetry.
+
 # [1.1.0](https://github.com/whitebeardit/traceability/compare/v1.0.1...v1.1.0) (2025-12-23)
 
 
