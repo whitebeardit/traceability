@@ -178,9 +178,10 @@ namespace Traceability.WebApi
 
             // Criar Activity (span) do request.
             // Observação: ActivitySource só cria Activity se houver ActivityListener.
+            // Nome inicial será atualizado após base.SendAsync quando route template estiver disponível
             using var activity = parentContext != default
-                ? TraceabilityActivitySource.StartActivity("Web API Request", ActivityKind.Server, parentContext)
-                : TraceabilityActivitySource.StartActivity("Web API Request", ActivityKind.Server);
+                ? TraceabilityActivitySource.StartActivity("HTTP Request", ActivityKind.Server, parentContext)
+                : TraceabilityActivitySource.StartActivity("HTTP Request", ActivityKind.Server);
 
             if (activity != null)
             {
@@ -215,6 +216,36 @@ namespace Traceability.WebApi
                 
                 if (activity != null)
                 {
+                    // Tentar obter route template e atualizar DisplayName
+                    var template = RouteTemplateHelper.TryGetRouteTemplate(request);
+                    if (!string.IsNullOrEmpty(template))
+                    {
+                        var method = request.Method != null ? request.Method.Method : "GET";
+                        var displayName = RouteTemplateHelper.NormalizeDisplayName(method, template);
+                        if (!string.IsNullOrEmpty(displayName))
+                        {
+                            activity.DisplayName = displayName;
+                        }
+                    }
+                    else
+                    {
+                        // Se não encontrou template, tentar inferir do path
+                        var path = request.RequestUri != null ? request.RequestUri.AbsolutePath : null;
+                        if (!string.IsNullOrEmpty(path))
+                        {
+                            var method = request.Method != null ? request.Method.Method : "GET";
+                            template = RouteTemplateHelper.TryInferRouteTemplateFromPath(path, method);
+                            if (!string.IsNullOrEmpty(template))
+                            {
+                                var displayName = RouteTemplateHelper.NormalizeDisplayName(method, template);
+                                if (!string.IsNullOrEmpty(displayName))
+                                {
+                                    activity.DisplayName = displayName;
+                                }
+                            }
+                        }
+                    }
+
                     // Adicionar status code (igual ao que OpenTelemetry faz no .NET 8)
                     activity.SetTag("http.status_code", ((int)response.StatusCode).ToString());
                     
