@@ -16,7 +16,9 @@ Or via Package Manager Console:
 Install-Package WhiteBeard.Traceability
 ```
 
-## Minimal Configuration (ASP.NET Core)
+## Minimal Configuration
+
+### ASP.NET Core (.NET 8) - Zero Config
 
 The simplest possible configuration - just one line of code!
 
@@ -35,7 +37,52 @@ app.MapControllers();
 app.Run();
 ```
 
-**Done!** Now Traceability is configured and working. Let's see how to use it.
+**Done!** Now Traceability is configured and working.
+
+### ASP.NET Framework 4.8 - Zero Code
+
+The simplest possible setup - just install the package!
+
+**1. Install the package:**
+```bash
+Install-Package WhiteBeard.Traceability
+```
+
+**2. That's it!** No code needed!
+
+The library automatically:
+- ✅ Registers `CorrelationIdHttpModule` via `PreApplicationStartMethod`
+- ✅ Initializes `ActivityListener` for OpenTelemetry spans
+- ✅ Creates Activities (spans) for each HTTP request
+- ✅ Names spans using route templates
+
+**Global.asax.cs** (only if you want to configure Serilog):
+```csharp
+using System.Web;
+using System.Web.Http;
+using Traceability.Extensions;
+using Serilog;
+
+public class WebApiApplication : HttpApplication
+{
+    protected void Application_Start()
+    {
+        // Optional: Configure Serilog with Traceability
+        Log.Logger = new LoggerConfiguration()
+            .WithTraceability("MyService")
+            .WriteTo.Console()
+            .CreateLogger();
+
+        // Configure Web API routes (standard setup)
+        GlobalConfiguration.Configure(config =>
+        {
+            config.MapHttpAttributeRoutes();
+        });
+    }
+}
+```
+
+**Done!** Traceability is working automatically - no manual registration needed!
 
 ## Using in a Controller
 

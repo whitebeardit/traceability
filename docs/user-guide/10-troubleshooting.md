@@ -80,11 +80,34 @@ builder.Services.AddTraceability(options =>
 
 ## Problems with .NET Framework 4.8
 
-### Web API - Handler doesn't work
+### Zero-Code Setup (Default)
 
-**Solution:**
+**The library works automatically!** Just install the package - no configuration needed.
+
+- ✅ `CorrelationIdHttpModule` is automatically registered via `PreApplicationStartMethod`
+- ✅ `ActivityListener` is automatically initialized
+- ✅ OpenTelemetry Activities (spans) are automatically created
+
+### If Zero-Code Doesn't Work
+
+1. **Check if package is installed correctly**
+   ```bash
+   Install-Package WhiteBeard.Traceability
+   ```
+
+2. **Check if spans are disabled**
+   - Verify `appSettings['Traceability:SpansEnabled']` is not set to `false` in `Web.config`
+   - Verify `TRACEABILITY_SPANS_ENABLED` environment variable is not set to `false`
+
+3. **Check application startup logs** for any errors
+
+### Manual Configuration (Advanced - Not Recommended)
+
+If you need manual control, you can configure manually:
+
+**For Web API:**
 ```csharp
-// Make sure handler is in Global.asax.cs
+// Manual registration (not needed - automatic via PreApplicationStartMethod)
 GlobalConfiguration.Configure(config =>
 {
     config.MessageHandlers.Add(new CorrelationIdMessageHandler());
@@ -92,11 +115,9 @@ GlobalConfiguration.Configure(config =>
 });
 ```
 
-### Traditional ASP.NET - Module doesn't work
-
-**Solution:**
+**For Traditional ASP.NET:**
 ```xml
-<!-- Make sure module is in web.config -->
+<!-- Manual registration (not needed - automatic via PreApplicationStartMethod) -->
 <system.webServer>
   <modules>
     <add name="CorrelationIdHttpModule" 
@@ -104,6 +125,8 @@ GlobalConfiguration.Configure(config =>
   </modules>
 </system.webServer>
 ```
+
+**Note**: Manual configuration is only needed for edge cases. The default zero-code approach works for 99% of scenarios.
 
 ## HttpClient causing socket exhaustion
 

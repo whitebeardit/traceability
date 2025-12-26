@@ -33,5 +33,3 @@ namespace Traceability.Startup
     }
 }
 #endif
-
-

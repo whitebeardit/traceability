@@ -39,8 +39,13 @@ Traceability is a NuGet package that automatically manages correlation-id in .NE
 
 ### Key Features
 
+- ✅ **Zero-code/Zero-config**: Works automatically - just install the package!
 - ✅ Automatic correlation-id management using `AsyncLocal`
 - ✅ Support for .NET 8.0 and .NET Framework 4.8
+- ✅ **Zero-code for .NET Framework 4.8**: Automatic registration via `PreApplicationStartMethod`
+- ✅ **Zero-config for .NET 8.0**: Automatic middleware and HttpClient registration
+- ✅ Automatic OpenTelemetry Activities (spans) creation
+- ✅ Automatic span naming using route templates (e.g., `GET api/values/{id}`)
 - ✅ Middleware for ASP.NET Core (.NET 8)
 - ✅ HttpModule and MessageHandler for ASP.NET (.NET Framework 4.8)
 - ✅ Automatic integration with HttpClient
@@ -70,7 +75,9 @@ dotnet add package WhiteBeard.Traceability
 
 For more details, see [Installation](installation.md).
 
-## Quick Example
+## Quick Examples
+
+### ASP.NET Core (.NET 8) - Zero Config
 
 ```csharp
 using Traceability.Extensions;
@@ -84,6 +91,29 @@ builder.Services.AddControllers();
 var app = builder.Build();
 app.MapControllers();
 app.Run();
+```
+
+### ASP.NET Framework 4.8 - Zero Code
+
+**Just install the package - that's it!**
+
+```bash
+Install-Package WhiteBeard.Traceability
+```
+
+No code needed! The library automatically:
+- ✅ Registers `CorrelationIdHttpModule` via `PreApplicationStartMethod`
+- ✅ Initializes `ActivityListener` for OpenTelemetry spans
+- ✅ Creates Activities (spans) for each HTTP request
+- ✅ Names spans using route templates
+
+**Optional: Configure Serilog**
+```csharp
+// Global.asax.cs
+Log.Logger = new LoggerConfiguration()
+    .WithTraceability("MyService")
+    .WriteTo.Console()
+    .CreateLogger();
 ```
 
 For more examples, see [Quick Start](getting-started.md) or the [User Manual](user-guide/index.md).

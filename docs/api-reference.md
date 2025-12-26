@@ -182,7 +182,9 @@ app.UseCorrelationId();
 
 MessageHandler for ASP.NET Web API.
 
-**Usage:**
+**Note**: In .NET Framework 4.8, the `CorrelationIdHttpModule` is automatically registered via `PreApplicationStartMethod` - manual registration is not needed.
+
+**Manual Usage (Advanced - Not Recommended):**
 ```csharp
 config.MessageHandlers.Add(new CorrelationIdMessageHandler());
 ```
@@ -191,7 +193,9 @@ config.MessageHandlers.Add(new CorrelationIdMessageHandler());
 
 HttpModule for traditional ASP.NET applications.
 
-**Configuration:** Via web.config (see examples)
+**Note**: The `CorrelationIdHttpModule` is automatically registered via `PreApplicationStartMethod` - no manual configuration needed.
+
+**Manual Configuration (Advanced - Not Recommended):** Via web.config (see examples)
 
 ### CorrelationIdHandler (HttpClient)
 
