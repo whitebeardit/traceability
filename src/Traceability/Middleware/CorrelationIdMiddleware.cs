@@ -6,7 +6,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using Traceability;
 using Traceability.Configuration;
-using Traceability.OpenTelemetry;
+using Traceability.Core;
+using Traceability.Core.Interfaces;
+using Traceability.Core.Services;
 
 namespace Traceability.Middleware
 {
@@ -18,45 +20,34 @@ namespace Traceability.Middleware
     {
         private readonly RequestDelegate _next;
         private readonly TraceabilityOptions _options;
+        private readonly ICorrelationIdValidator _validator;
+        private readonly ICorrelationIdExtractor _extractor;
+        private readonly IActivityFactory _activityFactory;
+        private readonly IActivityTagProvider _tagProvider;
 
         /// <summary>
         /// Cria uma nova instância do CorrelationIdMiddleware.
         /// </summary>
         /// <param name="next">O próximo middleware no pipeline.</param>
         /// <param name="options">Opções de configuração (opcional, usa padrão se não fornecido).</param>
-        public CorrelationIdMiddleware(RequestDelegate next, IOptions<TraceabilityOptions>? options = null)
+        /// <param name="validator">Validador de correlation-id (opcional, cria instância padrão se não fornecido).</param>
+        /// <param name="extractor">Extrator de correlation-id (opcional, cria instância padrão se não fornecido).</param>
+        /// <param name="activityFactory">Factory de Activities (opcional, cria instância padrão se não fornecido).</param>
+        /// <param name="tagProvider">Provider de tags HTTP (opcional, cria instância padrão se não fornecido).</param>
+        public CorrelationIdMiddleware(
+            RequestDelegate next,
+            IOptions<TraceabilityOptions>? options = null,
+            ICorrelationIdValidator? validator = null,
+            ICorrelationIdExtractor? extractor = null,
+            IActivityFactory? activityFactory = null,
+            IActivityTagProvider? tagProvider = null)
         {
             _next = next;
             _options = options?.Value ?? new TraceabilityOptions();
-        }
-
-        /// <summary>
-        /// Valida o formato do correlation-id se a validação estiver habilitada.
-        /// </summary>
-        private bool IsValidCorrelationId(string? correlationId)
-        {
-            if (!_options.ValidateCorrelationIdFormat)
-                return true;
-
-            if (string.IsNullOrEmpty(correlationId))
-                return false;
-
-            // Valida tamanho máximo (128 caracteres)
-            if (correlationId.Length > 128)
-                return false;
-
-            // Valida que não contém caracteres inválidos (apenas alfanuméricos, hífens e underscores)
-            // Permite GUIDs (com ou sem hífens), trace-ids W3C (32 hex chars), e outros formatos válidos
-            for (int i = 0; i < correlationId.Length; i++)
-            {
-                var c = correlationId[i];
-                if (!char.IsLetterOrDigit(c) && c != '-' && c != '_')
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            _validator = validator ?? new CorrelationIdValidator();
+            _extractor = extractor ?? new HttpContextCorrelationIdExtractor();
+            _activityFactory = activityFactory ?? new TraceabilityActivityFactory();
+            _tagProvider = tagProvider ?? new HttpActivityTagProvider();
         }
 
         /// <summary>
@@ -69,48 +60,29 @@ namespace Traceability.Middleware
             Activity? activity = null;
             if (Activity.Current == null)
             {
-                activity = TraceabilityActivitySource.StartActivity("HTTP Request", ActivityKind.Server);
-                
+                activity = _activityFactory.StartActivity(Constants.ActivityNames.HttpRequest, ActivityKind.Server);
+
                 if (activity != null)
                 {
-                    // Adicionar tags padrão (igual ao que OpenTelemetry faz automaticamente)
-                    activity.SetTag("http.method", context.Request.Method);
-                    activity.SetTag("http.url", context.Request.Path.ToString());
-                    activity.SetTag("http.scheme", context.Request.Scheme);
-                    activity.SetTag("http.host", context.Request.Host.ToString());
-                    
-                    if (context.Request.Headers.ContainsKey("User-Agent"))
-                    {
-                        activity.SetTag("http.user_agent", context.Request.Headers["User-Agent"].ToString());
-                    }
-                    
-                    if (context.Request.ContentLength.HasValue)
-                    {
-                        activity.SetTag("http.request_content_length", context.Request.ContentLength.Value);
-                    }
-                    
-                    if (!string.IsNullOrEmpty(context.Request.ContentType))
-                    {
-                        activity.SetTag("http.request_content_type", context.Request.ContentType);
-                    }
+                    _tagProvider.AddRequestTags(activity, context);
                 }
             }
 
             // Valida e obtém o nome do header (usa padrão se null/vazio)
-            var headerName = string.IsNullOrWhiteSpace(_options.HeaderName) 
-                ? "X-Correlation-Id" 
+            var headerName = string.IsNullOrWhiteSpace(_options.HeaderName)
+                ? Constants.HttpHeaders.CorrelationId
                 : _options.HeaderName;
-            
+
             // Tenta obter o correlation-id do header da requisição
-            var correlationId = context.Request.Headers[headerName].FirstOrDefault();
-            
+            var correlationId = _extractor.ExtractCorrelationId(context, headerName);
+
             // Valida formato se habilitado
-            if (!string.IsNullOrEmpty(correlationId) && !IsValidCorrelationId(correlationId))
+            if (!string.IsNullOrEmpty(correlationId) && !_validator.Validate(correlationId, _options))
             {
                 // Se inválido, ignora o header e gera novo
                 correlationId = null;
             }
-            
+
             // Se não existir ou AlwaysGenerateNew estiver habilitado, gera um novo
             if (string.IsNullOrEmpty(correlationId) || _options.AlwaysGenerateNew)
             {
@@ -141,12 +113,12 @@ namespace Traceability.Middleware
             {
                 // Continua o pipeline
                 await _next(context);
-                
+
                 // Adicionar status code ao Activity
                 var currentActivity = Activity.Current ?? activity;
                 if (currentActivity != null)
                 {
-                    currentActivity.SetTag("http.status_code", (int)context.Response.StatusCode);
+                    _tagProvider.AddResponseTags(currentActivity, context);
                 }
             }
             catch (Exception ex)
@@ -155,10 +127,7 @@ namespace Traceability.Middleware
                 var currentActivity = Activity.Current ?? activity;
                 if (currentActivity != null)
                 {
-                    currentActivity.SetTag("error", true);
-                    currentActivity.SetTag("error.type", ex.GetType().Name);
-                    currentActivity.SetTag("error.message", ex.Message);
-                    currentActivity.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    _tagProvider.AddErrorTags(currentActivity, ex);
                 }
                 throw;
             }

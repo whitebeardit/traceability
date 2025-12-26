@@ -74,7 +74,13 @@ CorrelationContext.Clear();
 ```csharp
 public class CorrelationIdMiddleware
 {
-    public CorrelationIdMiddleware(RequestDelegate next, IOptions<TraceabilityOptions>? options = null);
+    public CorrelationIdMiddleware(
+        RequestDelegate next,
+        IOptions<TraceabilityOptions>? options = null,
+        ICorrelationIdValidator? validator = null,
+        ICorrelationIdExtractor? extractor = null,
+        IActivityFactory? activityFactory = null,
+        IActivityTagProvider? tagProvider = null);
     public Task InvokeAsync(HttpContext context);
 }
 ```
@@ -82,6 +88,8 @@ public class CorrelationIdMiddleware
 **Dependencies**:
 - `Microsoft.AspNetCore.Http`
 - `Traceability.CorrelationContext`
+- `Traceability.Core.Interfaces` (ICorrelationIdValidator, ICorrelationIdExtractor, IActivityFactory, IActivityTagProvider)
+- `Traceability.Core.Services` (implementations)
 - `Traceability.OpenTelemetry.TraceabilityActivitySource`
 
 **Behavior**:
@@ -116,6 +124,12 @@ app.UseCorrelationId();
 ```csharp
 public class CorrelationIdMessageHandler : DelegatingHandler
 {
+    public CorrelationIdMessageHandler(
+        ITraceabilityOptionsProvider? optionsProvider = null,
+        ICorrelationIdValidator? validator = null,
+        ICorrelationIdExtractor? extractor = null,
+        IActivityFactory? activityFactory = null,
+        IActivityTagProvider? tagProvider = null);
     public static void Configure(TraceabilityOptions options);
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
@@ -127,7 +141,9 @@ public class CorrelationIdMessageHandler : DelegatingHandler
 - `System.Net.Http`
 - `System.Web.Http`
 - `Traceability.CorrelationContext`
-- `Traceability.Configuration`
+- `Traceability.Configuration` (TraceabilityOptions, ITraceabilityOptionsProvider)
+- `Traceability.Core.Interfaces` (ICorrelationIdValidator, ICorrelationIdExtractor, IActivityFactory, IActivityTagProvider)
+- `Traceability.Core.Services` (implementations)
 
 **Behavior**: Similar to Middleware, but adapted for Web API pipeline. Since .NET Framework doesn't have native DI, uses static configuration via `Configure()`.
 
@@ -161,6 +177,12 @@ GlobalConfiguration.Configure(config =>
 ```csharp
 public class CorrelationIdHttpModule : IHttpModule
 {
+    public CorrelationIdHttpModule(
+        ITraceabilityOptionsProvider? optionsProvider = null,
+        ICorrelationIdValidator? validator = null,
+        ICorrelationIdExtractor? extractor = null,
+        IActivityFactory? activityFactory = null,
+        IActivityTagProvider? tagProvider = null);
     public static void Configure(TraceabilityOptions options);
     public void Init(HttpApplication context);
     public void Dispose();
@@ -170,7 +192,9 @@ public class CorrelationIdHttpModule : IHttpModule
 **Dependencies**:
 - `System.Web`
 - `Traceability.CorrelationContext`
-- `Traceability.Configuration`
+- `Traceability.Configuration` (TraceabilityOptions, ITraceabilityOptionsProvider)
+- `Traceability.Core.Interfaces` (ICorrelationIdValidator, ICorrelationIdExtractor, IActivityFactory, IActivityTagProvider)
+- `Traceability.Core.Services` (implementations)
 
 **Behavior**: Intercepts `BeginRequest` and `PreSendRequestHeaders` events from IIS pipeline. Since .NET Framework doesn't have native DI, uses static configuration via `Configure()`.
 
@@ -225,6 +249,8 @@ public class CorrelationIdHandler : DelegatingHandler
 - `Traceability.CorrelationContext`
 - `Traceability.OpenTelemetry.TraceabilityActivitySource`
 - `.NET 8`: `Microsoft.Extensions.Options`, `Traceability.Configuration`
+- `.NET 8`: `Traceability.Core.Interfaces` (IActivityFactory, IActivityTagProvider)
+- `.NET 8`: `Traceability.Core.Services` (implementations)
 
 **Behavior**:
 - **Creates child Activity**: Creates a child Activity (span) for each HTTP request, maintaining hierarchical trace structure
@@ -669,7 +695,105 @@ public class TraceabilityOptions
 - `AutoConfigureHttpClient`: If false, disables automatic configuration of all HttpClients with CorrelationIdHandler (default: true)
 - `UseAssemblyNameAsFallback`: If false, disables using assembly name as fallback for Source (default: true)
 
-## 16. Extensions
+## 16. Core Components (Refactored Architecture)
+
+The following components were created during refactoring to improve code maintainability, testability, and reduce duplication.
+
+### 16.1 Constants
+
+**Location**: `src/Traceability/Core/Constants.cs`
+
+**Responsibility**: Centralized constants for HTTP headers, activity tags, activity names, and HTTP context keys.
+
+**Structure**:
+```csharp
+internal static class Constants
+{
+    public static class HttpHeaders
+    {
+        public const string CorrelationId = "X-Correlation-Id";
+        public const string TraceParent = "traceparent";
+        public const string TraceState = "tracestate";
+        // ... other headers
+    }
+    
+    public static class ActivityTags
+    {
+        public const string HttpMethod = "http.method";
+        public const string HttpUrl = "http.url";
+        // ... other tags
+    }
+    
+    public static class ActivityNames
+    {
+        public const string HttpRequest = "HTTP Request";
+        public const string HttpClient = "HTTP Client";
+    }
+    
+    public static class HttpContextKeys
+    {
+        public const string ActivityItem = "TraceabilityActivity";
+        // ... other keys
+    }
+}
+```
+
+**Purpose**: Eliminates magic strings throughout the codebase, improving maintainability and reducing typo risks.
+
+### 16.2 Core Interfaces
+
+**Location**: `src/Traceability/Core/Interfaces/`
+
+**Interfaces**:
+- `ICorrelationIdValidator`: Validates correlation ID format
+- `ICorrelationIdExtractor`: Extracts correlation ID from HTTP requests
+- `IActivityFactory`: Creates OpenTelemetry Activities (spans)
+- `IActivityTagProvider`: Adds HTTP-related tags to Activities
+
+**Purpose**: Provides abstractions for dependency injection and improved testability.
+
+### 16.3 Core Services
+
+**Location**: `src/Traceability/Core/Services/`
+
+**Services**:
+- `CorrelationIdValidator`: Validates correlation ID format (implements `ICorrelationIdValidator`)
+- `HttpContextCorrelationIdExtractor`: Extracts correlation ID from ASP.NET Core HttpContext (implements `ICorrelationIdExtractor`)
+- `HttpRequestMessageCorrelationIdExtractor`: Extracts correlation ID from HttpRequestMessage (implements `ICorrelationIdExtractor`)
+- `TraceabilityActivityFactory`: Factory for creating Activities (implements `IActivityFactory`)
+- `HttpActivityTagProvider`: Adds HTTP tags to Activities (implements `IActivityTagProvider`)
+- `CorrelationIdResolver`: Resolves effective correlation ID based on priority (AlwaysGenerateNew > header > traceparent > generate)
+- `ActivityContextBuilder`: Builds parent ActivityContext from correlation ID or traceparent
+- `TraceParentExtractor`: Extracts ActivityContext from traceparent/tracestate headers
+
+**Purpose**: Shared implementations that eliminate code duplication across framework-specific components.
+
+### 16.4 Configuration Providers
+
+**Location**: `src/Traceability/Configuration/`
+
+**Components**:
+- `ITraceabilityOptionsProvider`: Interface for accessing TraceabilityOptions
+- `StaticTraceabilityOptionsProvider` (NET48): Thread-safe wrapper over static field for .NET Framework 4.8
+- `DITraceabilityOptionsProvider` (NET8): Uses `IOptions<TraceabilityOptions>` via Dependency Injection for .NET 8
+
+**Purpose**: Abstracts options access, removing dependency on static volatile fields in NET48 while maintaining backward compatibility.
+
+### 16.5 Route Template Resolution
+
+**Location**: `src/Traceability/WebApi/`
+
+**Components**:
+- `IRouteTemplateResolver`: Interface for resolving route templates
+- `RouteTemplateHelper`: Implementation of `IRouteTemplateResolver` (converted from static class)
+- `HttpRouteDataExtractor`: Extracts route data using reflection
+- `RouteMatcher`: Matches paths against route templates
+
+**Purpose**: Improves testability and organization of route template resolution logic.
+
+**Note**: `RouteTemplateHelper` maintains static methods for backward compatibility.
+
+## 17. Extensions
 
 ### ServiceCollectionExtensions
 

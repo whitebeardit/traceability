@@ -1,5 +1,6 @@
 using System.Net.Http;
 using Traceability;
+using Traceability.Core;
 
 namespace Traceability.Extensions
 {
@@ -21,7 +22,7 @@ namespace Traceability.Extensions
             // Tenta obter correlation-id sem criar um novo (evita criar indesejadamente)
             if (CorrelationContext.TryGetValue(out var correlationId) && !string.IsNullOrEmpty(correlationId))
             {
-                const string headerName = "X-Correlation-Id";
+                var headerName = Constants.HttpHeaders.CorrelationId;
                 if (request.Headers.Contains(headerName))
                 {
                     request.Headers.Remove(headerName);
@@ -32,4 +33,3 @@ namespace Traceability.Extensions
         }
     }
 }
-

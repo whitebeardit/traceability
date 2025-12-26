@@ -167,3 +167,78 @@ Log.Logger = new LoggerConfiguration()
 ### Thread-Safety
 - **.NET Framework**: Static configuration now uses `volatile` and `lock` to ensure thread-safety
 - **CorrelationContext**: Implementation improvements to ensure thread-safety in all scenarios
+
+## Refactoring Decisions (Clean Code and Clean Architecture)
+
+### Why Create Abstractions (Interfaces)
+
+**Reason**: To eliminate code duplication and improve testability and maintainability.
+
+**Implementation**:
+- Created interfaces (`ICorrelationIdValidator`, `ICorrelationIdExtractor`, `IActivityFactory`, `IActivityTagProvider`) to abstract common functionality
+- Extracted duplicated logic from `CorrelationIdMiddleware`, `CorrelationIdHttpModule`, and `CorrelationIdMessageHandler` into shared services
+- All three components now use the same implementations, reducing code duplication from ~300 lines to 0
+
+**Benefits**:
+- Single source of truth for validation, extraction, activity creation, and tag provisioning
+- Easy to test by mocking interfaces
+- Changes in one place affect all usages
+- Better separation of concerns
+
+**Trade-off**: More files and abstractions, but significantly improved maintainability.
+
+### Why Extract Constants
+
+**Reason**: Eliminate magic strings throughout the codebase.
+
+**Implementation**:
+- Created `Constants.cs` with nested classes: `HttpHeaders`, `ActivityTags`, `ActivityNames`, `HttpContextKeys`
+- Replaced all hardcoded strings with constants
+
+**Benefits**:
+- Reduced risk of typos
+- Easier refactoring (change in one place)
+- Better IDE support (autocomplete, find usages)
+- Self-documenting code
+
+### Why Create ITraceabilityOptionsProvider
+
+**Reason**: Remove dependency on static volatile fields in NET48 while maintaining backward compatibility.
+
+**Implementation**:
+- Created `ITraceabilityOptionsProvider` interface
+- Implemented `StaticTraceabilityOptionsProvider` for NET48 (thread-safe wrapper over static field)
+- Implemented `DITraceabilityOptionsProvider` for NET8 (uses `IOptions<T>` via DI)
+- Refactored `CorrelationIdHttpModule` and `CorrelationIdMessageHandler` to use provider
+- Maintained static `Configure()` method for backward compatibility
+
+**Benefits**:
+- Better testability (can inject mock provider)
+- Cleaner architecture (no direct static field access)
+- Thread-safety maintained
+- Backward compatibility preserved
+
+### Why Refactor RouteTemplateHelper
+
+**Reason**: Improve testability and organization of reflection-heavy code.
+
+**Implementation**:
+- Created `IRouteTemplateResolver` interface
+- Converted `RouteTemplateHelper` from static class to instance class implementing interface
+- Extracted reflection logic to `HttpRouteDataExtractor`
+- Extracted route matching logic to `RouteMatcher`
+- Maintained static methods for backward compatibility
+
+**Benefits**:
+- Better testability (can inject mock resolver)
+- Clearer separation of concerns
+- Easier to understand and maintain
+- Backward compatibility preserved
+
+### Refactoring Principles Applied
+
+1. **Extract, don't alter**: All extracted logic was copied EXACTLY from existing code
+2. **Maintain 100% functional compatibility**: All tests continue to pass without modification
+3. **Preserve public APIs**: All public methods and properties remain unchanged
+4. **Backward compatibility**: Static methods and configuration methods still work
+5. **Test after each step**: Validated that all tests pass after each refactoring phase

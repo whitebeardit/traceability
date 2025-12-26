@@ -35,6 +35,9 @@
 ```
 Traceability
 ├── Traceability                          # Core: CorrelationContext
+├── Traceability.Core                     # Core business logic
+│   ├── Traceability.Core.Interfaces      # Core interfaces (ICorrelationIdValidator, IActivityFactory, etc.)
+│   └── Traceability.Core.Services        # Shared service implementations
 ├── Traceability.Configuration            # Configuration options
 ├── Traceability.Extensions               # Extensions for DI and middleware
 ├── Traceability.HttpClient               # HttpClient integration

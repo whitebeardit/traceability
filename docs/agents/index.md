@@ -30,6 +30,10 @@ This directory contains the complete technical documentation of the Traceability
 ```
 src/Traceability/
 ├── Configuration/          # Configuration options
+├── Core/                   # Core business logic and abstractions
+│   ├── Interfaces/         # Core interfaces (ICorrelationIdValidator, IActivityFactory, etc.)
+│   ├── Services/           # Shared service implementations
+│   └── Constants.cs        # Shared constants
 ├── CorrelationContext.cs    # Core: Context management
 ├── Extensions/             # Extension methods
 ├── HttpClient/             # HttpClient integration
