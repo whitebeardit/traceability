@@ -25,6 +25,14 @@ namespace Traceability
             
             try
             {
+                // Prefer TraceId whenever it's available (some runtimes may not reflect IdFormat as W3C reliably).
+                var traceIdString = activity.TraceId.ToString();
+                if (!string.IsNullOrEmpty(traceIdString) && traceIdString != "00000000000000000000000000000000")
+                {
+                    traceId = traceIdString;
+                    return true;
+                }
+
                 // Prioridade 1: W3C format (preferencial)
                 if (activity.IdFormat == ActivityIdFormat.W3C)
                 {
