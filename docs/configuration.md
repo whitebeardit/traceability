@@ -196,6 +196,45 @@ export LOG_LEVEL="Information"
 $env:LOG_LEVEL="Information"
 ```
 
+### TRACEABILITY_SPANS_ENABLED (.NET Framework 4.8)
+
+Controls whether OpenTelemetry Activities (spans) are automatically created in .NET Framework 4.8.
+
+**Default:** `true` (spans are enabled by default)
+
+**Configuration Priority:**
+1. `Traceability:SpansEnabled` in `appSettings` (Web.config)
+2. `TRACEABILITY_SPANS_ENABLED` environment variable
+3. `true` (default - spans enabled)
+
+**Disable spans via appSettings (Web.config):**
+```xml
+<configuration>
+  <appSettings>
+    <add key="Traceability:SpansEnabled" value="false" />
+  </appSettings>
+</configuration>
+```
+
+**Disable spans via environment variable:**
+
+**Linux/Mac:**
+```bash
+export TRACEABILITY_SPANS_ENABLED="false"
+```
+
+**Windows PowerShell:**
+```powershell
+$env:TRACEABILITY_SPANS_ENABLED="false"
+```
+
+**Windows CMD:**
+```cmd
+set TRACEABILITY_SPANS_ENABLED=false
+```
+
+**Note:** This option only applies to .NET Framework 4.8. In .NET 8.0, spans are controlled by OpenTelemetry SDK configuration.
+
 ## Configuration Examples
 
 ### Basic Configuration
