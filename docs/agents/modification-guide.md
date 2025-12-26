@@ -24,6 +24,20 @@
 4. **Add dependencies**
    - Use `CorrelationContext` if you need correlation-id
    - Follow dependency injection pattern if applicable
+   - Use existing interfaces from `Traceability.Core.Interfaces` when possible:
+     - `ICorrelationIdValidator` for validation
+     - `ICorrelationIdExtractor` for extraction
+     - `IActivityFactory` for activity creation
+     - `IActivityTagProvider` for adding tags
+   - Use constants from `Traceability.Core.Constants` instead of magic strings
+   - Use `ITraceabilityOptionsProvider` for accessing options (NET48: `StaticTraceabilityOptionsProvider`, NET8: `DITraceabilityOptionsProvider`)
+   - Use existing interfaces from `Traceability.Core.Interfaces` when possible:
+     - `ICorrelationIdValidator` for validation
+     - `ICorrelationIdExtractor` for extraction
+     - `IActivityFactory` for activity creation
+     - `IActivityTagProvider` for adding tags
+   - Use constants from `Traceability.Core.Constants` instead of magic strings
+   - Use `ITraceabilityOptionsProvider` for accessing options (NET48: `StaticTraceabilityOptionsProvider`, NET8: `DITraceabilityOptionsProvider`)
 
 5. **Add tests**
    - Create file in `tests/Traceability.Tests/`
@@ -116,11 +130,16 @@ public void Current_WhenNoValue_ShouldGenerateNew()
 
 ### Main Files
 - Core: `src/Traceability/CorrelationContext.cs`
+- Constants: `src/Traceability/Core/Constants.cs`
+- Core Interfaces: `src/Traceability/Core/Interfaces/`
+- Core Services: `src/Traceability/Core/Services/`
 - Middleware (.NET 8): `src/Traceability/Middleware/CorrelationIdMiddleware.cs`
 - HttpModule (.NET Framework): `src/Traceability/Middleware/CorrelationIdHttpModule.cs`
 - MessageHandler: `src/Traceability/WebApi/CorrelationIdMessageHandler.cs`
 - HttpClient Handler: `src/Traceability/HttpClient/CorrelationIdHandler.cs`
 - Factory: `src/Traceability/HttpClient/TraceableHttpClientFactory.cs`
+- Route Template Helper: `src/Traceability/WebApi/RouteTemplateHelper.cs`
+- Route Template Resolver: `src/Traceability/WebApi/IRouteTemplateResolver.cs`
 - Utilities: `src/Traceability/Utilities/TraceabilityUtilities.cs`
 - Serilog CorrelationId: `src/Traceability/Logging/CorrelationIdEnricher.cs`
 - Serilog Source: `src/Traceability/Logging/SourceEnricher.cs`
@@ -129,6 +148,7 @@ public void Current_WhenNoValue_ShouldGenerateNew()
 - MEL CorrelationId: `src/Traceability/Logging/CorrelationIdScopeProvider.cs`
 - MEL Source: `src/Traceability/Logging/SourceScopeProvider.cs`
 - Configuration: `src/Traceability/Configuration/TraceabilityOptions.cs`
+- Options Provider: `src/Traceability/Configuration/ITraceabilityOptionsProvider.cs`
 
 ### Examples
 - ASP.NET Core: `samples/Sample.WebApi.Net8/`

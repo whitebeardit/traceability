@@ -49,6 +49,10 @@ Traceability is a NuGet package for automatic correlation-id management in .NET 
 ```
 src/Traceability/
 ├── Configuration/          # Configuration options
+├── Core/                   # Core business logic and abstractions
+│   ├── Interfaces/         # Core interfaces (ICorrelationIdValidator, IActivityFactory, etc.)
+│   ├── Services/           # Shared service implementations
+│   └── Constants.cs        # Shared constants
 ├── CorrelationContext.cs    # Core: Context management
 ├── Extensions/             # Extension methods
 ├── HttpClient/             # HttpClient integration
@@ -62,12 +66,16 @@ src/Traceability/
 
 ### Main Files
 - Core: `src/Traceability/CorrelationContext.cs`
+- Constants: `src/Traceability/Core/Constants.cs`
+- Core Interfaces: `src/Traceability/Core/Interfaces/`
+- Core Services: `src/Traceability/Core/Services/`
 - Middleware (.NET 8): `src/Traceability/Middleware/CorrelationIdMiddleware.cs`
 - HttpModule (.NET Framework): `src/Traceability/Middleware/CorrelationIdHttpModule.cs`
 - MessageHandler: `src/Traceability/WebApi/CorrelationIdMessageHandler.cs`
 - HttpClient Handler: `src/Traceability/HttpClient/CorrelationIdHandler.cs`
 - Factory: `src/Traceability/HttpClient/TraceableHttpClientFactory.cs`
 - Configuration: `src/Traceability/Configuration/TraceabilityOptions.cs`
+- Options Provider: `src/Traceability/Configuration/ITraceabilityOptionsProvider.cs`
 
 ### Examples
 - ASP.NET Core: `samples/Sample.WebApi.Net8/`
