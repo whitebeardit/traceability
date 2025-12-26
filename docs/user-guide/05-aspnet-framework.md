@@ -1,30 +1,56 @@
 # Lesson 5: ASP.NET Framework
 
-In this lesson, you'll learn to integrate Traceability with ASP.NET Framework 4.8.
+In this lesson, you'll learn to integrate Traceability with ASP.NET Framework 4.8 using **zero-code** automatic instrumentation.
+
+## Zero-Code Setup
+
+**Step 1: Install the package**
+
+```bash
+Install-Package WhiteBeard.Traceability
+```
+
+**Step 2: That's it!** 
+
+The library automatically:
+- ✅ Registers `CorrelationIdHttpModule` via `PreApplicationStartMethod`
+- ✅ Initializes `ActivityListener` for OpenTelemetry spans
+- ✅ Creates Activities (spans) for each HTTP request
+- ✅ Names spans using route templates (e.g., `GET api/values/{id}`)
+- ✅ Manages correlation-id automatically
+
+**No code needed!** No `web.config` changes needed! Everything works automatically.
+
+## How It Works
+
+The library uses ASP.NET's `PreApplicationStartMethod` feature to automatically register the `CorrelationIdHttpModule` before your application starts. This means:
+
+- No manual registration in `Global.asax.cs`
+- No manual registration in `web.config`
+- No manual `ActivityListener` setup
+- Everything happens automatically
 
 ## ASP.NET Web API
 
-### Configuration
+### Basic Example (Zero-Code)
 
-**Global.asax.cs:**
+**Global.asax.cs** (only for Web API routes - Traceability is automatic):
 ```csharp
+using System.Web;
 using System.Web.Http;
-using Traceability.WebApi;
 
-public class WebApiApplication : System.Web.HttpApplication
+public class WebApiApplication : HttpApplication
 {
     protected void Application_Start()
     {
+        // Only configure Web API routes - Traceability is automatic!
         GlobalConfiguration.Configure(config =>
         {
-            config.MessageHandlers.Add(new CorrelationIdMessageHandler());
             config.MapHttpAttributeRoutes();
         });
     }
 }
 ```
-
-### Using in a Controller
 
 **ValuesController.cs:**
 ```csharp
@@ -34,9 +60,11 @@ using Traceability;
 public class ValuesController : ApiController
 {
     [HttpGet]
+    [Route("api/values")]
     public IHttpActionResult Get()
     {
         // Correlation-id is automatically available
+        // Activity (span) is automatically created with name "GET api/values"
         var correlationId = CorrelationContext.Current;
         return Ok(new { CorrelationId = correlationId });
     }
@@ -64,38 +92,18 @@ Content-Type: application/json
 X-Correlation-Id: f1e2d3c4b5a6978012345678901234cd
 ```
 
+**What happened automatically:**
+- ✅ `CorrelationIdHttpModule` intercepted the request
+- ✅ OpenTelemetry Activity (span) was created
+- ✅ Span was named: `GET api/values`
+- ✅ Correlation-id was generated
+- ✅ Correlation-id was returned in response header
+
 ## Traditional ASP.NET
 
-### Configuration in web.config
+### Basic Example (Zero-Code)
 
-**web.config:**
-```xml
-<system.webServer>
-  <modules>
-    <add name="CorrelationIdHttpModule" 
-         type="Traceability.Middleware.CorrelationIdHttpModule, Traceability" />
-  </modules>
-</system.webServer>
-```
-
-### Options Configuration (Optional)
-
-**Global.asax.cs:**
-```csharp
-using Traceability.Middleware;
-using Traceability.Configuration;
-
-protected void Application_Start()
-{
-    CorrelationIdHttpModule.Configure(new TraceabilityOptions
-    {
-        HeaderName = "X-Correlation-Id",
-        ValidateCorrelationIdFormat = true
-    });
-}
-```
-
-### Using in a Page
+**No web.config changes needed!** The `CorrelationIdHttpModule` is automatically registered.
 
 **MyPage.aspx.cs:**
 ```csharp
@@ -105,13 +113,99 @@ public class MyPage : System.Web.UI.Page
 {
     protected void Page_Load(object sender, EventArgs e)
     {
+        // Correlation-id is automatically available
+        // Activity (span) is automatically created
         var correlationId = CorrelationContext.Current;
         // Use correlation-id
     }
 }
 ```
 
-## Options Configuration
+## Example with Serilog
+
+**Global.asax.cs:**
+```csharp
+using System.Web;
+using System.Web.Http;
+using Traceability.Extensions;
+using Serilog;
+
+public class WebApiApplication : HttpApplication
+{
+    protected void Application_Start()
+    {
+        // Configure Serilog with Traceability
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Information()
+            .WithTraceability("MyService") // Automatically adds CorrelationIdEnricher
+            .WriteTo.Console(
+                outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Source} {CorrelationId} {Message:lj}{NewLine}{Exception}")
+            .CreateLogger();
+
+        Log.Information("Application started. Configuring Web API...");
+
+        // Configure Web API routes
+        GlobalConfiguration.Configure(config =>
+        {
+            config.MapHttpAttributeRoutes();
+        });
+
+        Log.Information("Web API configured. Ready for requests...");
+    }
+
+    protected void Application_End()
+    {
+        Log.CloseAndFlush();
+    }
+}
+```
+
+**Controller:**
+```csharp
+using System.Web.Http;
+using Serilog;
+
+public class ValuesController : ApiController
+{
+    [HttpGet]
+    [Route("api/values")]
+    public IHttpActionResult Get()
+    {
+        // Correlation-id appears automatically in logs
+        Log.Information("Processing request");
+        return Ok(new { Message = "Success" });
+    }
+}
+```
+
+**Log Output:**
+```
+[14:23:45 INF] MyService a1b2c3d4e5f6789012345678901234ab Processing request
+```
+
+## Opt-out: Disable Automatic Spans
+
+If you need to disable automatic span creation:
+
+**Option 1: appSettings in Web.config**
+```xml
+<configuration>
+  <appSettings>
+    <add key="Traceability:SpansEnabled" value="false" />
+  </appSettings>
+</configuration>
+```
+
+**Option 2: Environment Variable**
+```powershell
+$env:TRACEABILITY_SPANS_ENABLED="false"
+```
+
+## Advanced: Manual Configuration (Optional)
+
+If you need manual control, you can configure manually. However, **this is not needed** for most scenarios.
+
+### Manual Options Configuration
 
 To configure options in .NET Framework, use the static `Configure()` methods:
 
@@ -133,13 +227,38 @@ CorrelationIdHttpModule.Configure(new TraceabilityOptions
 });
 ```
 
+### Manual Module Registration (Not Recommended)
+
+**For Web API:**
+```csharp
+GlobalConfiguration.Configure(config =>
+{
+    // Manual registration (not needed - automatic via PreApplicationStartMethod)
+    config.MessageHandlers.Add(new CorrelationIdMessageHandler());
+});
+```
+
+**For Traditional ASP.NET:**
+```xml
+<!-- web.config -->
+<system.webServer>
+  <modules>
+    <add name="CorrelationIdHttpModule" 
+         type="Traceability.Middleware.CorrelationIdHttpModule, Traceability" />
+  </modules>
+</system.webServer>
+```
+
 ## Differences from .NET 8
 
 In .NET Framework 4.8:
 
-- ❌ There's no native DI, so use static `Configure()` methods for options
+- ✅ **Zero-code**: Automatic registration via `PreApplicationStartMethod` (no manual setup needed)
+- ❌ There's no native DI, so use static `Configure()` methods for options (if needed)
 - ❌ There's no `IHttpClientFactory`, so manage HttpClient manually
 - ✅ Correlation-id functionality is identical
+- ✅ OpenTelemetry Activities (spans) are automatically created
+- ✅ Spans are automatically named using route templates
 
 ## Next Steps
 
