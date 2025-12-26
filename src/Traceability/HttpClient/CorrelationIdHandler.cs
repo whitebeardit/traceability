@@ -7,8 +7,11 @@ using System.Threading.Tasks;
 #if NET8_0
 using Microsoft.Extensions.Options;
 using Traceability.Configuration;
+using Traceability.Core.Interfaces;
+using Traceability.Core.Services;
 #endif
 using Traceability;
+using Traceability.Core;
 #if NET48 || NET8_0
 using Traceability.OpenTelemetry;
 #endif
@@ -23,6 +26,8 @@ namespace Traceability.HttpClient
     {
 #if NET8_0
         private readonly TraceabilityOptions? _options;
+        private readonly IActivityFactory _activityFactory;
+        private readonly IActivityTagProvider _tagProvider;
         private string CorrelationIdHeader
         {
             get
@@ -30,7 +35,7 @@ namespace Traceability.HttpClient
                 var headerName = _options?.HeaderName;
                 if (string.IsNullOrWhiteSpace(headerName))
                 {
-                    return "X-Correlation-Id";
+                    return Constants.HttpHeaders.CorrelationId;
                 }
                 return headerName;
             }
@@ -40,9 +45,16 @@ namespace Traceability.HttpClient
         /// Cria uma nova instância do CorrelationIdHandler.
         /// </summary>
         /// <param name="options">Opções de configuração (opcional, injetado via DI).</param>
-        public CorrelationIdHandler(IOptions<TraceabilityOptions>? options = null)
+        /// <param name="activityFactory">Factory de Activities (opcional, cria instância padrão se não fornecido).</param>
+        /// <param name="tagProvider">Provider de tags HTTP (opcional, cria instância padrão se não fornecido).</param>
+        public CorrelationIdHandler(
+            IOptions<TraceabilityOptions>? options = null,
+            IActivityFactory? activityFactory = null,
+            IActivityTagProvider? tagProvider = null)
         {
             _options = options?.Value;
+            _activityFactory = activityFactory ?? new TraceabilityActivityFactory();
+            _tagProvider = tagProvider ?? new HttpActivityTagProvider();
         }
 
         private bool ShouldCreateHttpClientSpan()
@@ -63,7 +75,7 @@ namespace Traceability.HttpClient
             return false;
         }
 #else
-        private const string CorrelationIdHeader = "X-Correlation-Id";
+        private const string CorrelationIdHeader = Constants.HttpHeaders.CorrelationId;
 #endif
 
         /// <summary>
@@ -92,26 +104,36 @@ namespace Traceability.HttpClient
             }
 
             // Create Activity child span only when enabled (to avoid duplication on NET8)
+#if NET8_0
             using var activity = createSpan
-                ? TraceabilityActivitySource.StartActivity("HTTP Client", ActivityKind.Client, parentActivity)
+                ? _activityFactory.StartActivity(Constants.ActivityNames.HttpClient, ActivityKind.Client, parentActivity)
                 : null;
+#else
+            using var activity = createSpan
+                ? TraceabilityActivitySource.StartActivity(Constants.ActivityNames.HttpClient, ActivityKind.Client, parentActivity)
+                : null;
+#endif
 
             // Propagate trace context even when not creating span
             var traceParent = activity?.Id ?? parentActivity?.Id;
-            if (!string.IsNullOrEmpty(traceParent) && !request.Headers.Contains("traceparent"))
+            if (!string.IsNullOrEmpty(traceParent) && !request.Headers.Contains(Constants.HttpHeaders.TraceParent))
             {
-                request.Headers.Add("traceparent", traceParent);
+                request.Headers.Add(Constants.HttpHeaders.TraceParent, traceParent);
             }
 
             // Add standard tags if we created a span
             if (activity != null)
             {
-                activity.SetTag("http.method", request.Method.ToString());
-                activity.SetTag("http.url", request.RequestUri?.ToString());
-                activity.SetTag("http.scheme", request.RequestUri?.Scheme);
-                activity.SetTag("http.host", request.RequestUri?.Host);
+#if NET8_0
+                _tagProvider.AddRequestTags(activity, request);
+#else
+                activity.SetTag(Constants.ActivityTags.HttpMethod, request.Method.ToString());
+                activity.SetTag(Constants.ActivityTags.HttpUrl, request.RequestUri?.ToString());
+                activity.SetTag(Constants.ActivityTags.HttpScheme, request.RequestUri?.Scheme);
+                activity.SetTag(Constants.ActivityTags.HttpHost, request.RequestUri?.Host);
+#endif
             }
-            
+
             // Adicionar X-Correlation-Id para compatibilidade
             if (hasCorrelationContext)
             {
@@ -129,7 +151,7 @@ namespace Traceability.HttpClient
                 // Capturar Activity antes da continuação para garantir que está disponível
                 var capturedActivity = activity;
                 var responseTask = base.SendAsync(request, cancellationToken);
-                
+
                 // Adicionar status code quando resposta estiver disponível
                 if (capturedActivity != null)
                 {
@@ -141,7 +163,11 @@ namespace Traceability.HttpClient
                             if (task.Status == TaskStatus.RanToCompletion && task.Result != null)
                             {
                                 // Activity foi capturado antes da continuação, então está disponível
-                                capturedActivity.SetTag("http.status_code", (int)task.Result.StatusCode);
+#if NET8_0
+                                _tagProvider.AddResponseTags(capturedActivity, task.Result);
+#else
+                                capturedActivity.SetTag(Constants.ActivityTags.HttpStatusCode, (int)task.Result.StatusCode);
+#endif
                             }
                         }
                         catch
@@ -150,17 +176,21 @@ namespace Traceability.HttpClient
                         }
                     }, TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously);
                 }
-                
+
                 return responseTask;
             }
             catch (Exception ex)
             {
                 if (activity != null)
                 {
-                    activity.SetTag("error", true);
-                    activity.SetTag("error.type", ex.GetType().Name);
-                    activity.SetTag("error.message", ex.Message);
+#if NET8_0
+                    _tagProvider.AddErrorTags(activity, ex);
+#else
+                    activity.SetTag(Constants.ActivityTags.Error, true);
+                    activity.SetTag(Constants.ActivityTags.ErrorType, ex.GetType().Name);
+                    activity.SetTag(Constants.ActivityTags.ErrorMessage, ex.Message);
                     activity.SetStatus(ActivityStatusCode.Error, ex.Message);
+#endif
                 }
                 throw;
             }
@@ -179,23 +209,20 @@ namespace Traceability.HttpClient
 
             var createSpan = ShouldCreateHttpClientSpan();
             using var activity = createSpan
-                ? TraceabilityActivitySource.StartActivity("HTTP Client", ActivityKind.Client, parentActivity)
+                ? _activityFactory.StartActivity(Constants.ActivityNames.HttpClient, ActivityKind.Client, parentActivity)
                 : null;
 
             var traceParent = activity?.Id ?? parentActivity?.Id;
-            if (!string.IsNullOrEmpty(traceParent) && !request.Headers.Contains("traceparent"))
+            if (!string.IsNullOrEmpty(traceParent) && !request.Headers.Contains(Constants.HttpHeaders.TraceParent))
             {
-                request.Headers.Add("traceparent", traceParent);
+                request.Headers.Add(Constants.HttpHeaders.TraceParent, traceParent);
             }
 
             if (activity != null)
             {
-                activity.SetTag("http.method", request.Method.ToString());
-                activity.SetTag("http.url", request.RequestUri?.ToString());
-                activity.SetTag("http.scheme", request.RequestUri?.Scheme);
-                activity.SetTag("http.host", request.RequestUri?.Host);
+                _tagProvider.AddRequestTags(activity, request);
             }
-            
+
             // Adicionar X-Correlation-Id para compatibilidade
             if (CorrelationContext.TryGetValue(out var correlationId) && !string.IsNullOrEmpty(correlationId))
             {
@@ -211,22 +238,19 @@ namespace Traceability.HttpClient
             try
             {
                 var response = base.Send(request, cancellationToken);
-                
+
                 if (activity != null && response != null)
                 {
-                    activity.SetTag("http.status_code", (int)response.StatusCode);
+                    _tagProvider.AddResponseTags(activity, response);
                 }
-                
+
                 return response!;
             }
             catch (Exception ex)
             {
                 if (activity != null)
                 {
-                    activity.SetTag("error", true);
-                    activity.SetTag("error.type", ex.GetType().Name);
-                    activity.SetTag("error.message", ex.Message);
-                    activity.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    _tagProvider.AddErrorTags(activity, ex);
                 }
                 throw;
             }
@@ -234,4 +258,3 @@ namespace Traceability.HttpClient
 #endif
     }
 }
-

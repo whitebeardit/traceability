@@ -8,7 +8,13 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using Traceability;
 using Traceability.Configuration;
+using Traceability.Core;
+using Traceability.Core.Interfaces;
+using Traceability.Core.Services;
 using Traceability.OpenTelemetry;
+#if NET48
+using StaticTraceabilityOptionsProvider = Traceability.Configuration.StaticTraceabilityOptionsProvider;
+#endif
 
 namespace Traceability.WebApi
 {
@@ -19,18 +25,52 @@ namespace Traceability.WebApi
     /// </summary>
     public class CorrelationIdMessageHandler : DelegatingHandler
     {
-        private static volatile TraceabilityOptions _options = new TraceabilityOptions();
-        private static readonly object _optionsLock = new object();
+        private readonly ITraceabilityOptionsProvider _optionsProvider;
+        private readonly ICorrelationIdValidator _validator;
+        private readonly ICorrelationIdExtractor _extractor;
+        private readonly IActivityFactory _activityFactory;
+        private readonly IActivityTagProvider _tagProvider;
         
         private string CorrelationIdHeader
         {
             get
             {
-                // Thread-safe: ler _options uma vez para evitar race condition
-                var options = _options;
+                // Thread-safe: ler options uma vez para evitar race condition
+                var options = _optionsProvider.GetOptions();
                 var headerName = options.HeaderName;
-                return string.IsNullOrWhiteSpace(headerName) ? "X-Correlation-Id" : headerName;
+                return string.IsNullOrWhiteSpace(headerName) ? Constants.HttpHeaders.CorrelationId : headerName;
             }
+        }
+
+        /// <summary>
+        /// Cria uma nova instância do CorrelationIdMessageHandler.
+        /// Construtor sem parâmetros para compatibilidade.
+        /// </summary>
+        public CorrelationIdMessageHandler()
+            : this(null, null, null, null, null)
+        {
+        }
+
+        /// <summary>
+        /// Cria uma nova instância do CorrelationIdMessageHandler.
+        /// </summary>
+        /// <param name="optionsProvider">Provider de opções (opcional, usa StaticTraceabilityOptionsProvider como padrão).</param>
+        /// <param name="validator">Validador de correlation-id (opcional, cria instância padrão se não fornecido).</param>
+        /// <param name="extractor">Extrator de correlation-id (opcional, cria instância padrão se não fornecido).</param>
+        /// <param name="activityFactory">Factory de Activities (opcional, cria instância padrão se não fornecido).</param>
+        /// <param name="tagProvider">Provider de tags HTTP (opcional, cria instância padrão se não fornecido).</param>
+        public CorrelationIdMessageHandler(
+            ITraceabilityOptionsProvider? optionsProvider,
+            ICorrelationIdValidator? validator,
+            ICorrelationIdExtractor? extractor,
+            IActivityFactory? activityFactory,
+            IActivityTagProvider? tagProvider)
+        {
+            _optionsProvider = optionsProvider ?? StaticTraceabilityOptionsProvider.Instance;
+            _validator = validator ?? new CorrelationIdValidator();
+            _extractor = extractor ?? new HttpRequestMessageCorrelationIdExtractor();
+            _activityFactory = activityFactory ?? new TraceabilityActivityFactory();
+            _tagProvider = tagProvider ?? new HttpActivityTagProvider();
         }
 
         /// <summary>
@@ -41,44 +81,7 @@ namespace Traceability.WebApi
         /// <param name="options">Opções de configuração.</param>
         public static void Configure(TraceabilityOptions options)
         {
-            if (options == null)
-                throw new ArgumentNullException(nameof(options));
-            
-            lock (_optionsLock)
-            {
-                _options = options;
-            }
-        }
-
-        /// <summary>
-        /// Valida o formato do correlation-id se a validação estiver habilitada.
-        /// </summary>
-        private bool IsValidCorrelationId(string? correlationId)
-        {
-            // Thread-safe: ler _options uma vez para evitar race condition
-            var options = _options;
-            if (!options.ValidateCorrelationIdFormat)
-                return true;
-
-            if (string.IsNullOrEmpty(correlationId))
-                return false;
-
-            // Valida tamanho máximo (128 caracteres)
-            if (correlationId!.Length > 128)
-                return false;
-
-            // Valida que não contém caracteres inválidos (apenas alfanuméricos, hífens e underscores)
-            // Permite GUIDs (com ou sem hífens), trace-ids W3C (32 hex chars), e outros formatos válidos
-            for (int i = 0; i < correlationId.Length; i++)
-            {
-                var c = correlationId[i];
-                if (!char.IsLetterOrDigit(c) && c != '-' && c != '_')
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            StaticTraceabilityOptionsProvider.Configure(options);
         }
 
         /// <summary>
@@ -88,89 +91,41 @@ namespace Traceability.WebApi
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
-            // Thread-safe: ler _options uma vez para evitar race condition
-            var options = _options;
+            // Thread-safe: ler options uma vez para evitar race condition
+            var options = _optionsProvider.GetOptions();
 
             // IMPORTANTE: Ler headers PRIMEIRO para decidir o trace-id e a hierarquia do span.
             // - X-Correlation-Id tem prioridade sobre traceparent
             // - traceparent define o parent para criar hierarquia real
             var headerName = CorrelationIdHeader;
 
-            string? correlationIdFromHeader = null;
-            if (request.Headers.Contains(headerName))
-            {
-                var values = request.Headers.GetValues(headerName);
-                if (values != null)
-                {
-                    correlationIdFromHeader = values.FirstOrDefault();
-                }
-            }
+            // Extrair correlation-id do header
+            string? correlationIdFromHeader = _extractor.ExtractCorrelationId(request, headerName);
 
             // Valida formato se habilitado
-            if (!string.IsNullOrEmpty(correlationIdFromHeader) && !IsValidCorrelationId(correlationIdFromHeader))
+            if (!string.IsNullOrEmpty(correlationIdFromHeader) && !_validator.Validate(correlationIdFromHeader, options))
             {
                 // Se inválido, ignora o header e gera novo
                 correlationIdFromHeader = null;
             }
 
             // Tentar extrair parent context W3C do traceparent/tracestate (se existir)
-            ActivityContext parentFromTraceparent = default;
-            var hasTraceparentHeader = request.Headers.Contains("traceparent");
-            if (hasTraceparentHeader)
-            {
-                var traceparent = request.Headers.GetValues("traceparent").FirstOrDefault();
-                var tracestate = request.Headers.Contains("tracestate")
-                    ? request.Headers.GetValues("tracestate").FirstOrDefault()
-                    : null;
-
-                if (!string.IsNullOrWhiteSpace(traceparent))
-                {
-                    ActivityContext.TryParse(traceparent, tracestate, out parentFromTraceparent);
-                }
-            }
+            var traceparent = request.Headers.Contains(Constants.HttpHeaders.TraceParent)
+                ? request.Headers.GetValues(Constants.HttpHeaders.TraceParent).FirstOrDefault()
+                : null;
+            var tracestate = request.Headers.Contains(Constants.HttpHeaders.TraceState)
+                ? request.Headers.GetValues(Constants.HttpHeaders.TraceState).FirstOrDefault()
+                : null;
+            var parentFromTraceparent = TraceParentExtractor.Extract(traceparent, tracestate);
 
             // Decidir qual trace-id/correlation-id vamos usar neste request
             // Prioridade: AlwaysGenerateNew > X-Correlation-Id > traceparent > gerar novo
-            string effectiveCorrelationId;
-            if (options.AlwaysGenerateNew)
-            {
-                effectiveCorrelationId = Guid.NewGuid().ToString("N");
-            }
-            else if (!string.IsNullOrEmpty(correlationIdFromHeader))
-            {
-                effectiveCorrelationId = correlationIdFromHeader!;
-            }
-            else if (parentFromTraceparent != default)
-            {
-                effectiveCorrelationId = parentFromTraceparent.TraceId.ToString();
-            }
-            else
-            {
-                effectiveCorrelationId = Guid.NewGuid().ToString("N");
-            }
+            var effectiveCorrelationId = CorrelationIdResolver.Resolve(options, correlationIdFromHeader, parentFromTraceparent);
 
             // Construir o parent context para o Activity:
             // - Se houver traceparent (e não houver X-Correlation-Id/AlwaysGenerateNew), respeitar o parent real
             // - Caso contrário, criar um parent artificial para garantir que o Activity.TraceId seja o correlation-id efetivo
-            ActivityContext parentContext;
-            if (!options.AlwaysGenerateNew && string.IsNullOrEmpty(correlationIdFromHeader) && parentFromTraceparent != default)
-            {
-                parentContext = parentFromTraceparent;
-            }
-            else
-            {
-                // Se o correlation-id não for um trace-id W3C (32 hex), não é possível setar no TraceId.
-                // Nesse caso, vamos cair no fallback AsyncLocal via CorrelationContext.
-                if (effectiveCorrelationId.Length == 32)
-                {
-                    var traceId = ActivityTraceId.CreateFromString(effectiveCorrelationId.AsSpan());
-                    parentContext = new ActivityContext(traceId, ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded);
-                }
-                else
-                {
-                    parentContext = default;
-                }
-            }
+            var parentContext = ActivityContextBuilder.BuildParentContext(options, effectiveCorrelationId, correlationIdFromHeader, parentFromTraceparent);
 
             // Garantir que o CorrelationContext esteja sempre setado (fallback),
             // mesmo quando o trace-id não puder ser aplicado ao Activity.
@@ -180,33 +135,12 @@ namespace Traceability.WebApi
             // Observação: ActivitySource só cria Activity se houver ActivityListener.
             // Nome inicial será atualizado após base.SendAsync quando route template estiver disponível
             using var activity = parentContext != default
-                ? TraceabilityActivitySource.StartActivity("HTTP Request", ActivityKind.Server, parentContext)
-                : TraceabilityActivitySource.StartActivity("HTTP Request", ActivityKind.Server);
+                ? _activityFactory.StartActivity(Constants.ActivityNames.HttpRequest, ActivityKind.Server, parentContext)
+                : _activityFactory.StartActivity(Constants.ActivityNames.HttpRequest, ActivityKind.Server);
 
             if (activity != null)
             {
-                // Adicionar tags padrão (igual ao que OpenTelemetry faz no .NET 8)
-                activity.SetTag("http.method", request.Method.ToString());
-                activity.SetTag("http.url", request.RequestUri?.ToString());
-                activity.SetTag("http.scheme", request.RequestUri?.Scheme);
-                activity.SetTag("http.host", request.RequestUri?.Host);
-                // Setar placeholder para garantir que o controller enxergue a tag durante o processamento.
-                // (O valor real será atualizado após base.SendAsync retornar.)
-                activity.SetTag("http.status_code", "0");
-
-                if (request.Content != null && request.Content.Headers.ContentLength.HasValue)
-                {
-                    activity.SetTag("http.request_content_length", request.Content.Headers.ContentLength.Value);
-                }
-
-                if (request.Content != null && request.Content.Headers.ContentType != null)
-                {
-                    var contentType = request.Content.Headers.ContentType.ToString();
-                    if (!string.IsNullOrEmpty(contentType))
-                    {
-                        activity.SetTag("http.request_content_type", contentType);
-                    }
-                }
+                _tagProvider.AddRequestTags(activity, request);
             }
 
             try
@@ -246,13 +180,7 @@ namespace Traceability.WebApi
                         }
                     }
 
-                    // Adicionar status code (igual ao que OpenTelemetry faz no .NET 8)
-                    activity.SetTag("http.status_code", ((int)response.StatusCode).ToString());
-                    
-                    if (response.Content != null && response.Content.Headers.ContentLength.HasValue)
-                    {
-                        activity.SetTag("http.response_content_length", response.Content.Headers.ContentLength.Value);
-                    }
+                    _tagProvider.AddResponseTags(activity, response);
                 }
                 
                 // Adiciona o correlation-id no header da resposta
@@ -279,11 +207,7 @@ namespace Traceability.WebApi
             {
                 if (activity != null)
                 {
-                    // Adicionar exceção ao Activity (igual ao que OpenTelemetry faz no .NET 8)
-                    activity.SetTag("error", "true");
-                    activity.SetTag("error.type", ex.GetType().Name);
-                    activity.SetTag("error.message", ex.Message);
-                    activity.SetStatus(ActivityStatusCode.Error, ex.Message);
+                    _tagProvider.AddErrorTags(activity, ex);
                 }
                 throw;
             }
