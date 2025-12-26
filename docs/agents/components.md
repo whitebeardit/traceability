@@ -131,7 +131,9 @@ public class CorrelationIdMessageHandler : DelegatingHandler
 
 **Behavior**: Similar to Middleware, but adapted for Web API pipeline. Since .NET Framework doesn't have native DI, uses static configuration via `Configure()`.
 
-**Usage Example**:
+**Note**: In .NET Framework 4.8, the `CorrelationIdHttpModule` is automatically registered via `PreApplicationStartMethod` - manual registration is not needed.
+
+**Manual Usage Example (Advanced - Not Recommended)**:
 ```csharp
 // Global.asax.cs - Configure options (optional)
 CorrelationIdMessageHandler.Configure(new TraceabilityOptions
@@ -142,6 +144,7 @@ CorrelationIdMessageHandler.Configure(new TraceabilityOptions
 
 GlobalConfiguration.Configure(config =>
 {
+    // Manual registration (not needed - automatic via PreApplicationStartMethod)
     config.MessageHandlers.Add(new CorrelationIdMessageHandler());
 });
 ```
@@ -171,7 +174,9 @@ public class CorrelationIdHttpModule : IHttpModule
 
 **Behavior**: Intercepts `BeginRequest` and `PreSendRequestHeaders` events from IIS pipeline. Since .NET Framework doesn't have native DI, uses static configuration via `Configure()`.
 
-**Usage Example**:
+**Note**: The `CorrelationIdHttpModule` is automatically registered via `PreApplicationStartMethod` - no manual configuration needed.
+
+**Manual Usage Example (Advanced - Not Recommended)**:
 ```csharp
 // Global.asax.cs - Configure options (optional, before module is used)
 CorrelationIdHttpModule.Configure(new TraceabilityOptions
@@ -182,7 +187,7 @@ CorrelationIdHttpModule.Configure(new TraceabilityOptions
 ```
 
 ```xml
-<!-- web.config -->
+<!-- web.config - Manual registration (not needed - automatic via PreApplicationStartMethod) -->
 <system.webServer>
   <modules>
     <add name="CorrelationIdHttpModule" 
