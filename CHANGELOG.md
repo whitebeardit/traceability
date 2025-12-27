@@ -1,3 +1,10 @@
+## [2.1.1](https://github.com/whitebeardit/traceability/compare/v2.1.0...v2.1.1) (2025-12-27)
+
+
+### Bug Fixes
+
+* trigger CI ([a641a3b](https://github.com/whitebeardit/traceability/commit/a641a3b3ccc0cdcb1ca095f56174cfb6fd28f294))
+
 # [2.1.0](https://github.com/whitebeardit/traceability/compare/v2.0.0...v2.1.0) (2025-12-26)
 
 
