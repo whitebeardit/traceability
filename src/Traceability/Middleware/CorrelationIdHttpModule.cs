@@ -1,6 +1,7 @@
 #if NET48
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Net.Http;
 using System.Web;
 using Traceability;
@@ -23,6 +24,8 @@ namespace Traceability.Middleware
     /// </summary>
     public class CorrelationIdHttpModule : IHttpModule
     {
+        private const string PipelineKey_PreSendFired = "TraceabilityPipeline_PreSendFired";
+        private const string PipelineKey_EndRequestFired = "TraceabilityPipeline_EndRequestFired";
 
         private readonly ITraceabilityOptionsProvider _optionsProvider;
         private readonly ICorrelationIdValidator _validator;
@@ -104,7 +107,7 @@ namespace Traceability.Middleware
             var request = context.Request;
 
             var headerName = CorrelationIdHeader;
-            
+
             // Extrair correlation-id do header
             var correlationId = _extractor.ExtractCorrelationId(request, headerName);
 
@@ -167,11 +170,20 @@ namespace Traceability.Middleware
 
                 // Parar Activity
                 activity.Stop();
+            }
 
-                // Remover do HttpContext.Items para liberar memória
+            // Mark EndRequest fired. In classic IIS pipeline, PreSendRequestHeaders may fire AFTER EndRequest.
+            // We keep items until we're sure PreSend has had a chance to read them.
+            context.Items[PipelineKey_EndRequestFired] = true;
+
+            // If PreSend already happened earlier, we can safely cleanup now.
+            if (context.Items[PipelineKey_PreSendFired] is bool preSend && preSend)
+            {
                 context.Items.Remove(Constants.HttpContextKeys.ActivityItem);
                 context.Items.Remove(Constants.HttpContextKeys.ActivityOwned);
                 context.Items.Remove(Constants.HttpContextKeys.ActivityRenamed);
+                context.Items.Remove(PipelineKey_PreSendFired);
+                context.Items.Remove(PipelineKey_EndRequestFired);
             }
         }
 
@@ -191,6 +203,41 @@ namespace Traceability.Middleware
                 // Best-effort: tentar obter route template cedo (pode não estar disponível ainda)
                 // Se não conseguir, será tentado novamente em OnPostRequestHandlerExecute, OnPreSendRequestHeaders e OnEndRequest
                 TryRenameToRouteTemplate(context, activity);
+
+                // Se ainda não renomeou, tenta fallback "MVC convencional" bem cedo (antes da Action logar)
+                // Regra especial: action Index vira "Controller/" (ex: "GET Home/")
+                if (activity.DisplayName == Constants.ActivityNames.HttpRequest)
+                {
+                    try
+                    {
+                        var rd = context.Request?.RequestContext?.RouteData;
+                        var controllerName = rd?.Values["controller"]?.ToString();
+                        var actionName = rd?.Values["action"]?.ToString();
+                        if (!string.IsNullOrEmpty(controllerName))
+                        {
+                            var method = context.Request.HttpMethod?.ToUpperInvariant() ?? "GET";
+                            string? forced = null;
+                            if (string.Equals(actionName, "Index", StringComparison.OrdinalIgnoreCase))
+                            {
+                                forced = $"{method} {controllerName}/";
+                            }
+                            else if (!string.IsNullOrEmpty(actionName))
+                            {
+                                forced = $"{method} {controllerName}/{actionName}";
+                            }
+
+                            if (!string.IsNullOrEmpty(forced))
+                            {
+                                activity.DisplayName = forced!;
+                                context.Items[Constants.HttpContextKeys.ActivityRenamed] = true;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+                }
             }
         }
 
@@ -246,32 +293,61 @@ namespace Traceability.Middleware
             var context = application.Context;
             var response = context.Response;
 
+            // Mark PreSend fired early. In some pipelines this happens after EndRequest.
+            context.Items[PipelineKey_PreSendFired] = true;
+
+            // Debug headers (opt-in) to allow tests / local debugging without an exporter.
+            // Enable via header: X-Traceability-Debug: 1
+            // or via query string: ?traceabilityDebug=1
+            string? debug = null;
+            try
+            {
+                debug = context.Request.Headers[Constants.HttpHeaders.TraceabilityDebug];
+                if (string.IsNullOrEmpty(debug))
+                {
+                    debug = context.Request.QueryString["traceabilityDebug"];
+                }
+                if (string.IsNullOrEmpty(debug))
+                {
+                    var raw = context.Request.RawUrl;
+                    if (!string.IsNullOrEmpty(raw) &&
+                        raw.IndexOf("traceabilityDebug", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        debug = "1";
+                    }
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+
             // If we created the activity, attempt to rename it to the route template before headers are sent.
             var activity = context.Items[Constants.HttpContextKeys.ActivityItem] as Activity;
             var owned = context.Items[Constants.HttpContextKeys.ActivityOwned] as bool?;
             if (activity != null && owned == true)
             {
                 TryRenameToRouteTemplate(context, activity);
+            }
 
-                // Optional debug headers (opt-in) to allow sample tests to assert span naming without exporter.
-                var debug = context.Request.Headers[Constants.HttpHeaders.TraceabilityDebug];
-                if (string.IsNullOrEmpty(debug))
+            // When debug is enabled, ALWAYS emit diagnostic headers, even if activity is null.
+            if (!string.IsNullOrEmpty(debug))
+            {
+                // Span headers (best-effort). This is the official opt-in debug behavior.
+                try
                 {
-                    debug = context.Request.QueryString["traceabilityDebug"];
+                    var a = activity ?? Activity.Current;
+                    if (a != null)
+                    {
+                        response.AppendHeader(Constants.HttpHeaders.TraceabilitySpanName, a.DisplayName ?? "");
+                        response.AppendHeader(Constants.HttpHeaders.TraceabilityOperationName, a.OperationName ?? "");
+                        response.AppendHeader(Constants.HttpHeaders.TraceabilityTraceId, a.TraceId.ToString());
+                        response.AppendHeader(Constants.HttpHeaders.TraceabilitySpanId, a.SpanId.ToString());
+                    }
                 }
-                if (!string.IsNullOrEmpty(debug))
+                catch
                 {
-                    try
-                    {
-                        response.Headers[Constants.HttpHeaders.TraceabilitySpanName] = activity.DisplayName;
-                        response.Headers[Constants.HttpHeaders.TraceabilityOperationName] = activity.OperationName;
-                        response.Headers[Constants.HttpHeaders.TraceabilityTraceId] = activity.TraceId.ToString();
-                        response.Headers[Constants.HttpHeaders.TraceabilitySpanId] = activity.SpanId.ToString();
-                    }
-                    catch
-                    {
-                        // Ignore header failures
-                    }
+                    // ignore
                 }
             }
 
@@ -289,6 +365,16 @@ namespace Traceability.Middleware
                     // Ignora exceções ao adicionar header (pode ocorrer em casos raros)
                 }
             }
+
+            // If EndRequest already ran, cleanup now (PreSend fired after EndRequest in this pipeline).
+            if (context.Items[PipelineKey_EndRequestFired] is bool end && end)
+            {
+                context.Items.Remove(Constants.HttpContextKeys.ActivityItem);
+                context.Items.Remove(Constants.HttpContextKeys.ActivityOwned);
+                context.Items.Remove(Constants.HttpContextKeys.ActivityRenamed);
+                context.Items.Remove(PipelineKey_PreSendFired);
+                context.Items.Remove(PipelineKey_EndRequestFired);
+            }
         }
 
         /// <summary>
@@ -302,37 +388,81 @@ namespace Traceability.Middleware
         private static void TryRenameToRouteTemplate(HttpContext context, Activity activity)
         {
             if (context == null || activity == null) return;
-            
+
             // Se já renomeamos com sucesso, não tentar novamente
             if (context.Items[Constants.HttpContextKeys.ActivityRenamed] is bool already && already) return;
 
             try
             {
                 var method = context.Request.HttpMethod;
+                var path = context.Request.Url != null ? context.Request.Url.AbsolutePath : null;
+
                 string? template = null;
 
                 // Tentativa 1: Extrair template do HttpContext (via HttpRequestMessage)
                 template = RouteTemplateHelper.TryGetRouteTemplate(context);
-                
+
                 // Tentativa 2: Se não encontrou, tentar inferir do path via HttpConfiguration
                 if (string.IsNullOrEmpty(template))
                 {
-                    var path = context.Request.Url != null ? context.Request.Url.AbsolutePath : null;
                     if (!string.IsNullOrEmpty(path))
                     {
                         template = RouteTemplateHelper.TryInferRouteTemplateFromPath(path, method);
                     }
                 }
 
-                // Se encontrou template, normalizar e aplicar
-                if (!string.IsNullOrEmpty(template))
+                // Tentativa 3: Se path for "/" e não encontramos template, usar "Home/Index" diretamente
+                if (string.IsNullOrEmpty(template) && path == "/")
                 {
-                    var displayName = RouteTemplateHelper.NormalizeDisplayName(method, template);
+                    var displayName = RouteTemplateHelper.NormalizeDisplayName(method, "Home/Index");
                     if (!string.IsNullOrEmpty(displayName))
                     {
                         activity.DisplayName = displayName!;
                         context.Items[Constants.HttpContextKeys.ActivityRenamed] = true;
                         return;
+                    }
+                }
+
+                // Se encontrou template, normalizar e aplicar
+                if (!string.IsNullOrEmpty(template))
+                {
+                    // Se template for "/" (rota raiz), usar "Home/Index" diretamente
+                    if (template == "/")
+                    {
+                        var displayName = RouteTemplateHelper.NormalizeDisplayName(method, "Home/Index");
+                        if (!string.IsNullOrEmpty(displayName))
+                        {
+                            activity.DisplayName = displayName!;
+                            context.Items[Constants.HttpContextKeys.ActivityRenamed] = true;
+                            return;
+                        }
+                    }
+
+                    var displayName2 = RouteTemplateHelper.NormalizeDisplayName(method, template);
+                    if (!string.IsNullOrEmpty(displayName2))
+                    {
+                        activity.DisplayName = displayName2!;
+                        context.Items[Constants.HttpContextKeys.ActivityRenamed] = true;
+                        return;
+                    }
+                }
+
+                // Fallback: tentar construir rota convencional usando RouteData
+                var routeData = context.Request.RequestContext?.RouteData;
+                if (routeData != null)
+                {
+                    var controllerName = routeData.Values["controller"]?.ToString();
+                    var actionName = routeData.Values["action"]?.ToString();
+                    if (!string.IsNullOrEmpty(controllerName) && !string.IsNullOrEmpty(actionName))
+                    {
+                        var conventionalRoute = $"/{controllerName}/{actionName}";
+                        var conventionalDisplayName = RouteTemplateHelper.NormalizeDisplayName(method, conventionalRoute);
+                        if (!string.IsNullOrEmpty(conventionalDisplayName))
+                        {
+                            activity.DisplayName = conventionalDisplayName!;
+                            context.Items[Constants.HttpContextKeys.ActivityRenamed] = true;
+                            return;
+                        }
                     }
                 }
 
@@ -346,7 +476,7 @@ namespace Traceability.Middleware
                     context.Items[Constants.HttpContextKeys.ActivityRenamed] = true;
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // Ignore route naming failures
             }
