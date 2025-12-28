@@ -6,11 +6,6 @@ namespace Traceability.Core
     internal static class Constants
     {
         /// <summary>
-        /// Nome padrão do header HTTP para correlation-id.
-        /// </summary>
-        public const string DefaultCorrelationIdHeader = "X-Correlation-Id";
-
-        /// <summary>
         /// Chaves usadas no HttpContext.Items para armazenar informações do Activity (NET48).
         /// </summary>
         public static class HttpContextKeys

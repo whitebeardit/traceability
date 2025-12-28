@@ -1,6 +1,7 @@
 #if NET8_0
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
@@ -55,44 +56,42 @@ namespace Traceability.Middleware
         /// </summary>
         public async Task InvokeAsync(HttpContext context)
         {
-            // Criar Activity automaticamente se não existir (quando OpenTelemetry não está configurado)
-            // Se OpenTelemetry estiver configurado, Activity já será criado automaticamente
+            var options = _options;
+
+            var headerName = CorrelationPolicy.GetCorrelationIdHeaderName(options);
+            var correlationIdFromHeader = _extractor.ExtractCorrelationId(context, headerName);
+
+            // Preserve existing context when middleware isn't the first component in the pipeline.
+            var existingContextCorrelationId =
+                CorrelationContext.TryGetValue(out var existing) ? existing : null;
+
+            // If OpenTelemetry isn't configured (no Activity.Current), respect inbound traceparent/tracestate as well.
+            var traceparent = context.Request.Headers[Constants.HttpHeaders.TraceParent].FirstOrDefault();
+            var tracestate = context.Request.Headers[Constants.HttpHeaders.TraceState].FirstOrDefault();
+
+            var decision = CorrelationPolicy.DecideInbound(
+                options,
+                _validator,
+                correlationIdFromHeader,
+                existingContextCorrelationId,
+                traceparent,
+                tracestate);
+
+            // Always set fallback context; Activity.TraceId may not be overridable when OTel is configured.
+            CorrelationContext.Current = decision.CorrelationId;
+
+            // Create Activity only when none exists (avoid duplication with OpenTelemetry automatic instrumentation)
             Activity? activity = null;
             if (Activity.Current == null)
             {
-                activity = _activityFactory.StartActivity(Constants.ActivityNames.HttpRequest, ActivityKind.Server);
+                activity = decision.ParentContext != default
+                    ? _activityFactory.StartActivity(Constants.ActivityNames.HttpRequest, ActivityKind.Server, decision.ParentContext)
+                    : _activityFactory.StartActivity(Constants.ActivityNames.HttpRequest, ActivityKind.Server);
 
                 if (activity != null)
                 {
                     _tagProvider.AddRequestTags(activity, context);
                 }
-            }
-
-            // Valida e obtém o nome do header (usa padrão se null/vazio)
-            var headerName = string.IsNullOrWhiteSpace(_options.HeaderName)
-                ? Constants.HttpHeaders.CorrelationId
-                : _options.HeaderName;
-
-            // Tenta obter o correlation-id do header da requisição
-            var correlationId = _extractor.ExtractCorrelationId(context, headerName);
-
-            // Valida formato se habilitado
-            if (!string.IsNullOrEmpty(correlationId) && !_validator.Validate(correlationId, _options))
-            {
-                // Se inválido, ignora o header e gera novo
-                correlationId = null;
-            }
-
-            // Se não existir ou AlwaysGenerateNew estiver habilitado, gera um novo
-            if (string.IsNullOrEmpty(correlationId) || _options.AlwaysGenerateNew)
-            {
-                // CorrelationContext.Current agora retorna trace-id se Activity existir
-                correlationId = CorrelationContext.GetOrCreate();
-            }
-            else
-            {
-                // Se existir, usa o valor do header
-                CorrelationContext.Current = correlationId;
             }
 
             // Adiciona o correlation-id no header da resposta (antes de chamar o próximo middleware)
@@ -101,7 +100,7 @@ namespace Traceability.Middleware
             {
                 try
                 {
-                    context.Response.Headers[headerName] = correlationId;
+                    context.Response.Headers[decision.HeaderName] = decision.CorrelationId;
                 }
                 catch
                 {

@@ -37,8 +37,7 @@ namespace Traceability.WebApi
             {
                 // Thread-safe: ler options uma vez para evitar race condition
                 var options = _optionsProvider.GetOptions();
-                var headerName = options.HeaderName;
-                return string.IsNullOrWhiteSpace(headerName) ? Constants.HttpHeaders.CorrelationId : headerName;
+                return CorrelationPolicy.GetCorrelationIdHeaderName(options);
             }
         }
 
@@ -102,13 +101,6 @@ namespace Traceability.WebApi
             // Extrair correlation-id do header
             string? correlationIdFromHeader = _extractor.ExtractCorrelationId(request, headerName);
 
-            // Valida formato se habilitado
-            if (!string.IsNullOrEmpty(correlationIdFromHeader) && !_validator.Validate(correlationIdFromHeader, options))
-            {
-                // Se inválido, ignora o header e gera novo
-                correlationIdFromHeader = null;
-            }
-
             // Tentar extrair parent context W3C do traceparent/tracestate (se existir)
             var traceparent = request.Headers.Contains(Constants.HttpHeaders.TraceParent)
                 ? request.Headers.GetValues(Constants.HttpHeaders.TraceParent).FirstOrDefault()
@@ -116,26 +108,28 @@ namespace Traceability.WebApi
             var tracestate = request.Headers.Contains(Constants.HttpHeaders.TraceState)
                 ? request.Headers.GetValues(Constants.HttpHeaders.TraceState).FirstOrDefault()
                 : null;
-            var parentFromTraceparent = TraceParentExtractor.Extract(traceparent, tracestate);
+            
+            // Preserve existing context when handler isn't the first component in the pipeline (rare, but safe).
+            var existingContextCorrelationId =
+                CorrelationContext.TryGetValue(out var existing) ? existing : null;
 
-            // Decidir qual trace-id/correlation-id vamos usar neste request
-            // Prioridade: AlwaysGenerateNew > X-Correlation-Id > traceparent > gerar novo
-            var effectiveCorrelationId = CorrelationIdResolver.Resolve(options, correlationIdFromHeader, parentFromTraceparent);
-
-            // Construir o parent context para o Activity:
-            // - Se houver traceparent (e não houver X-Correlation-Id/AlwaysGenerateNew), respeitar o parent real
-            // - Caso contrário, criar um parent artificial para garantir que o Activity.TraceId seja o correlation-id efetivo
-            var parentContext = ActivityContextBuilder.BuildParentContext(options, effectiveCorrelationId, correlationIdFromHeader, parentFromTraceparent);
+            var decision = CorrelationPolicy.DecideInbound(
+                options,
+                _validator,
+                correlationIdFromHeader,
+                existingContextCorrelationId,
+                traceparent,
+                tracestate);
 
             // Garantir que o CorrelationContext esteja sempre setado (fallback),
             // mesmo quando o trace-id não puder ser aplicado ao Activity.
-            CorrelationContext.Current = effectiveCorrelationId;
+            CorrelationContext.Current = decision.CorrelationId;
 
             // Criar Activity (span) do request.
             // Observação: ActivitySource só cria Activity se houver ActivityListener.
             // Nome inicial será atualizado após base.SendAsync quando route template estiver disponível
-            using var activity = parentContext != default
-                ? _activityFactory.StartActivity(Constants.ActivityNames.HttpRequest, ActivityKind.Server, parentContext)
+            using var activity = decision.ParentContext != default
+                ? _activityFactory.StartActivity(Constants.ActivityNames.HttpRequest, ActivityKind.Server, decision.ParentContext)
                 : _activityFactory.StartActivity(Constants.ActivityNames.HttpRequest, ActivityKind.Server);
 
             if (activity != null)
@@ -184,7 +178,7 @@ namespace Traceability.WebApi
                 }
                 
                 // Adiciona o correlation-id no header da resposta
-                if (response != null && !string.IsNullOrEmpty(effectiveCorrelationId))
+                if (response != null && !string.IsNullOrEmpty(decision.CorrelationId))
                 {
                     try
                     {
@@ -193,7 +187,7 @@ namespace Traceability.WebApi
                         {
                             response.Headers.Remove(headerName);
                         }
-                        response.Headers.Add(headerName, effectiveCorrelationId);
+                        response.Headers.Add(headerName, decision.CorrelationId);
                     }
                     catch
                     {

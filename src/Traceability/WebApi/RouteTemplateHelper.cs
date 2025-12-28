@@ -1,8 +1,11 @@
 #if NET48
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Web;
 using System.Web.Http;
+using Traceability.Utilities;
 
 namespace Traceability.WebApi
 {
@@ -12,6 +15,96 @@ namespace Traceability.WebApi
     /// </summary>
     internal class RouteTemplateHelper : IRouteTemplateResolver
     {
+        private static readonly ConcurrentDictionary<string, string?> _inferenceCache = new();
+        private static readonly object _routesCacheLock = new object();
+        private static object? _cachedRoutesInstance;
+        private static string[] _cachedRouteTemplates = Array.Empty<string>();
+
+        private static string[] GetCachedRouteTemplates()
+        {
+            var cached = _cachedRouteTemplates;
+            if (cached.Length > 0)
+            {
+                return cached;
+            }
+
+            lock (_routesCacheLock)
+            {
+                cached = _cachedRouteTemplates;
+                if (cached.Length > 0)
+                {
+                    return cached;
+                }
+
+                TryRefreshRoutesCache();
+                return _cachedRouteTemplates;
+            }
+        }
+
+        private static void TryRefreshRoutesCache()
+        {
+            try
+            {
+                // Acessar GlobalConfiguration.Configuration via reflection (pode não estar disponível diretamente)
+                var globalConfigType = Type.GetType("System.Web.Http.GlobalConfiguration, System.Web.Http", false);
+                if (globalConfigType == null)
+                    return;
+
+                var configProperty = globalConfigType.GetProperty(
+                    "Configuration",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                if (configProperty == null)
+                    return;
+
+                var config = configProperty.GetValue(null);
+                if (config == null)
+                    return;
+
+                var routesProperty = config.GetType().GetProperty("Routes");
+                if (routesProperty == null)
+                    return;
+
+                var routes = routesProperty.GetValue(config);
+                if (routes == null)
+                    return;
+
+                // If the underlying routes collection instance changed, refresh.
+                if (!ReferenceEquals(_cachedRoutesInstance, routes))
+                {
+                    var enumerable = routes as System.Collections.IEnumerable;
+                    if (enumerable == null)
+                        return;
+
+                    var templates = new List<string>();
+                    foreach (var route in enumerable)
+                    {
+                        try
+                        {
+                            var routeTemplate = RouteMatcher.GetRouteTemplate(route);
+                            if (!string.IsNullOrEmpty(routeTemplate))
+                            {
+                                templates.Add(routeTemplate!);
+                            }
+                        }
+                        catch
+                        {
+                            // ignore individual route failures in cache build
+                        }
+                    }
+
+                    _cachedRoutesInstance = routes;
+                    _cachedRouteTemplates = templates.ToArray();
+                    _inferenceCache.Clear();
+                }
+            }
+            catch (Exception ex)
+            {
+                TraceabilityDiagnostics.TryWriteException(
+                    "Traceability.RouteTemplateHelper.TryRefreshRoutesCache.Exception",
+                    ex);
+            }
+        }
+
         /// <summary>
         /// Instância padrão do resolver para uso quando não há injeção de dependência.
         /// </summary>
@@ -65,63 +158,49 @@ namespace Traceability.WebApi
             if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(method))
                 return null;
 
+            // Currently unused, but kept for compatibility (future verb-based matching).
+            _ = method;
+
+            // Normalizar path (remover leading slash). "/" vira "".
+            var normalizedPath = path!.TrimStart('/');
+
+            if (_inferenceCache.TryGetValue(normalizedPath, out var cached))
+            {
+                return cached;
+            }
+
             try
             {
-                // Acessar GlobalConfiguration.Configuration via reflection (pode não estar disponível diretamente)
-                var globalConfigType = Type.GetType("System.Web.Http.GlobalConfiguration, System.Web.Http", false);
-                if (globalConfigType == null)
-                    return null;
-
-                var configProperty = globalConfigType.GetProperty("Configuration", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-                if (configProperty == null)
-                    return null;
-
-                var config = configProperty.GetValue(null);
-                if (config == null)
-                    return null;
-
-                var routesProperty = config.GetType().GetProperty("Routes");
-                if (routesProperty == null)
-                    return null;
-
-                var routes = routesProperty.GetValue(config);
-                if (routes == null)
-                    return null;
-
-                // Normalizar path (remover leading slash)
-                var normalizedPath = path!.TrimStart('/');
-
-                // Tentar fazer match com cada rota registrada
-                var enumerable = routes as System.Collections.IEnumerable;
-                if (enumerable == null)
-                    return null;
-
-                foreach (var route in enumerable)
+                // Refresh cache lazily. This may no-op if routes instance didn't change.
+                lock (_routesCacheLock)
                 {
-                    try
-                    {
-                        var routeTemplate = RouteMatcher.GetRouteTemplate(route);
-                        if (string.IsNullOrEmpty(routeTemplate))
-                            continue;
+                    TryRefreshRoutesCache();
+                }
 
-                        // Verificar se o path corresponde ao template
-                        if (RouteMatcher.MatchesRouteTemplate(normalizedPath, routeTemplate!))
-                        {
-                            return routeTemplate;
-                        }
-                    }
-                    catch
-                    {
-                        // Ignore individual route failures
+                var templates = GetCachedRouteTemplates();
+                for (var i = 0; i < templates.Length; i++)
+                {
+                    var routeTemplate = templates[i];
+                    if (string.IsNullOrEmpty(routeTemplate))
                         continue;
+
+                    if (RouteMatcher.MatchesRouteTemplate(normalizedPath, routeTemplate))
+                    {
+                        _inferenceCache.TryAdd(normalizedPath, routeTemplate);
+                        return routeTemplate;
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // Ignore inference failures
+                TraceabilityDiagnostics.TryWriteException(
+                    "Traceability.RouteTemplateHelper.TryInferRouteTemplateFromPath.Exception",
+                    ex,
+                    new { Path = normalizedPath });
             }
 
+            _inferenceCache.TryAdd(normalizedPath, null);
             return null;
         }
 
