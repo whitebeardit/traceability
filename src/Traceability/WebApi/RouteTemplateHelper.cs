@@ -139,6 +139,13 @@ namespace Traceability.WebApi
             // Template sem leading slash
             var normalizedTemplate = template!.TrimStart('/');
 
+            // MVC conventional: Controller/Index => Controller/ (ex: Home/Index => Home/)
+            // This makes the root action display as "GET Home/" instead of "GET Home/Index".
+            if (normalizedTemplate.EndsWith("/Index", StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedTemplate = normalizedTemplate.Substring(0, normalizedTemplate.Length - "/Index".Length) + "/";
+            }
+
             return $"{normalizedMethod} {normalizedTemplate}";
         }
 
