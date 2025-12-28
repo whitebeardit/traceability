@@ -889,7 +889,7 @@ public static LoggerConfiguration WithTraceabilityJson(
 - Source is optional and can come from `TRACEABILITY_SERVICENAME` environment variable or `TraceabilityOptions.Source`
 - If no source is available (neither parameter, nor options, nor env var), an `InvalidOperationException` will be thrown
 - Priority: Parameter > Options.Source > Env Var > Error
-- Output always in JSON format to ensure uniformization
+- Output format depends on the configured Serilog sink/formatter. Use `Traceability.Logging.JsonFormatter` (or another JSON formatter) to emit JSON consistently.
 - Facilitates traceability configuration in a single call
 - `WithTraceabilityJson()` is optimized for use with default JSON template
 

@@ -47,7 +47,7 @@ namespace Traceability.Extensions
         /// Adiciona automaticamente os enrichers de traceability (Source e CorrelationId) ao Serilog.
         /// Configura automaticamente o nível mínimo de log a partir da variável de ambiente LOG_LEVEL
         /// ou usa Information como padrão.
-        /// O output é sempre em formato JSON para garantir uniformização de logs.
+        /// O formato de output depende do sink/formatter configurado (ex: use <c>Traceability.Logging.JsonFormatter</c> para JSON).
         /// </summary>
         /// <param name="config">A configuração do logger.</param>
         /// <param name="source">Nome da origem/serviço que está gerando os logs (opcional - pode vir de variável de ambiente TRACEABILITY_SERVICENAME).</param>
@@ -116,6 +116,7 @@ namespace Traceability.Extensions
                 .MinimumLevel.Is(minimumLevel)
                 .Enrich.With(new SourceEnricher(serviceName))
                 .Enrich.With<CorrelationIdEnricher>()
+                .Enrich.With<TraceContextEnricher>()
                 .Enrich.With<RouteNameEnricher>();
         }
 
@@ -124,7 +125,7 @@ namespace Traceability.Extensions
         /// Adiciona automaticamente Source, CorrelationId e DataEnricher para serialização de objetos.
         /// Configura automaticamente o nível mínimo de log a partir da variável de ambiente LOG_LEVEL
         /// ou usa Information como padrão.
-        /// O output é sempre em formato JSON para garantir uniformização de logs.
+        /// O formato de output depende do sink/formatter configurado (ex: use <c>Traceability.Logging.JsonFormatter</c> para JSON).
         /// </summary>
         /// <param name="config">A configuração do logger.</param>
         /// <param name="source">Nome da origem/serviço que está gerando os logs (opcional - pode vir de variável de ambiente TRACEABILITY_SERVICENAME).</param>
@@ -218,6 +219,7 @@ namespace Traceability.Extensions
                 .MinimumLevel.Is(minimumLevel)
                 .Enrich.With(new SourceEnricher(serviceName))
                 .Enrich.With<CorrelationIdEnricher>()
+                .Enrich.With<TraceContextEnricher>()
                 .Enrich.With<RouteNameEnricher>();
 
             // Adiciona DataEnricher se configurado para incluir dados
@@ -233,7 +235,7 @@ namespace Traceability.Extensions
         /// Configura Serilog com template JSON padrão usando as opções especificadas.
         /// Configura automaticamente o nível mínimo de log a partir da variável de ambiente LOG_LEVEL
         /// ou usa Information como padrão.
-        /// O output é sempre em formato JSON para garantir uniformização de logs.
+        /// O formato de output depende do sink/formatter configurado (ex: use <c>Traceability.Logging.JsonFormatter</c> para JSON).
         /// </summary>
         /// <param name="config">A configuração do logger.</param>
         /// <param name="options">Opções de configuração de traceability (Source pode vir de options.Source ou variável de ambiente TRACEABILITY_SERVICENAME).</param>
@@ -299,6 +301,7 @@ namespace Traceability.Extensions
                 .MinimumLevel.Is(minimumLevel)
                 .Enrich.With(new SourceEnricher(serviceName))
                 .Enrich.With<CorrelationIdEnricher>()
+                .Enrich.With<TraceContextEnricher>()
                 .Enrich.With<RouteNameEnricher>();
 
             // Adiciona DataEnricher se configurado para incluir dados

@@ -64,6 +64,24 @@ namespace Traceability.Logging
                 AppendProperty(sb, ref first, "CorrelationId", correlationIdValue.ToString().Trim('"'), _indent);
             }
 
+            // Trace context (OpenTelemetry)
+            if (logEvent.Properties.TryGetValue("TraceId", out var traceIdValue))
+            {
+                AppendProperty(sb, ref first, "TraceId", traceIdValue.ToString().Trim('"'), _indent);
+            }
+            if (logEvent.Properties.TryGetValue("SpanId", out var spanIdValue))
+            {
+                AppendProperty(sb, ref first, "SpanId", spanIdValue.ToString().Trim('"'), _indent);
+            }
+            if (logEvent.Properties.TryGetValue("ParentSpanId", out var parentSpanIdValue))
+            {
+                AppendProperty(sb, ref first, "ParentSpanId", parentSpanIdValue.ToString().Trim('"'), _indent);
+            }
+            if (logEvent.Properties.TryGetValue("RouteName", out var routeNameValue))
+            {
+                AppendProperty(sb, ref first, "RouteName", routeNameValue.ToString().Trim('"'), _indent);
+            }
+
             // Message
             if (_options.LogIncludeMessage)
             {
@@ -252,6 +270,10 @@ namespace Traceability.Logging
         {
             return propertyName == "Source" ||
                    propertyName == "CorrelationId" ||
+                   propertyName == "TraceId" ||
+                   propertyName == "SpanId" ||
+                   propertyName == "ParentSpanId" ||
+                   propertyName == "RouteName" ||
                    propertyName == "data" ||
                    propertyName.StartsWith("@") ||
                    propertyName == "Message" ||
