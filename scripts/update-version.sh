@@ -24,3 +24,7 @@ echo "Updated version to ${VERSION} in ${CSPROJ_FILE}"
 
 
 
+
+
+
+
