@@ -148,36 +148,7 @@ namespace Traceability.HttpClient
 
             try
             {
-                // Capturar Activity antes da continuação para garantir que está disponível
-                var capturedActivity = activity;
-                var responseTask = base.SendAsync(request, cancellationToken);
-
-                // Adicionar status code quando resposta estiver disponível
-                if (capturedActivity != null)
-                {
-                    // Usar ContinueWith com opções apropriadas e capturar Activity
-                    responseTask.ContinueWith(task =>
-                    {
-                        try
-                        {
-                            if (task.Status == TaskStatus.RanToCompletion && task.Result != null)
-                            {
-                                // Activity foi capturado antes da continuação, então está disponível
-#if NET8_0
-                                _tagProvider.AddResponseTags(capturedActivity, task.Result);
-#else
-                                capturedActivity.SetTag(Constants.ActivityTags.HttpStatusCode, (int)task.Result.StatusCode);
-#endif
-                            }
-                        }
-                        catch
-                        {
-                            // Ignora erros ao adicionar tag
-                        }
-                    }, TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously);
-                }
-
-                return responseTask;
+                return SendAsyncCore(request, cancellationToken, activity);
             }
             catch (Exception ex)
             {
@@ -197,6 +168,52 @@ namespace Traceability.HttpClient
         }
 
 #if NET8_0
+        private async Task<HttpResponseMessage> SendAsyncCore(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken,
+            Activity? activity)
+        {
+            var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+            if (activity != null && response != null)
+            {
+                try
+                {
+                    _tagProvider.AddResponseTags(activity, response);
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+
+            return response!;
+        }
+#else
+        private async Task<HttpResponseMessage> SendAsyncCore(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken,
+            Activity? activity)
+        {
+            var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+            if (activity != null && response != null)
+            {
+                try
+                {
+                    activity.SetTag(Constants.ActivityTags.HttpStatusCode, (int)response.StatusCode);
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+
+            return response!;
+        }
+#endif
+
+#if NET8_0
         /// <summary>
         /// Envia a requisição HTTP adicionando o correlation-id do contexto atual no header.
         /// Versão síncrona para .NET 8+.
@@ -207,7 +224,15 @@ namespace Traceability.HttpClient
         {
             var parentActivity = Activity.Current;
 
+            // Only propagate/create spans when we already have a correlation context (no implicit GUID creation).
+            var hasCorrelationContext = CorrelationContext.TryGetValue(out var correlationId) && !string.IsNullOrEmpty(correlationId);
+
             var createSpan = ShouldCreateHttpClientSpan();
+            if (!hasCorrelationContext)
+            {
+                createSpan = false;
+            }
+
             using var activity = createSpan
                 ? _activityFactory.StartActivity(Constants.ActivityNames.HttpClient, ActivityKind.Client, parentActivity)
                 : null;
@@ -224,7 +249,7 @@ namespace Traceability.HttpClient
             }
 
             // Adicionar X-Correlation-Id para compatibilidade
-            if (CorrelationContext.TryGetValue(out var correlationId) && !string.IsNullOrEmpty(correlationId))
+            if (hasCorrelationContext)
             {
                 var headerName = CorrelationIdHeader;
                 // Verifica se o header existe antes de remover (evita operação desnecessária)
