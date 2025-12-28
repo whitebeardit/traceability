@@ -1,3 +1,18 @@
+# [2.2.0](https://github.com/whitebeardit/traceability/compare/v2.1.2...v2.2.0) (2025-12-28)
+
+
+### Bug Fixes
+
+* ensure Activity is available in PreSendRequestHeaders for debug mode ([4f6aaea](https://github.com/whitebeardit/traceability/commit/4f6aaeaaca2f454a94353121fde551cdf5075dd1))
+* normalize Index action route name to 'Controller/' format ([f2f16d8](https://github.com/whitebeardit/traceability/commit/f2f16d8f9ac976f48cd8d5b309ed051dbd110640))
+
+
+### Features
+
+* Add MVC 5 Attribute Routing support ([a9391db](https://github.com/whitebeardit/traceability/commit/a9391db58aee617ed0dde291d50a3c19911f8a2b))
+* Add RouteNameEnricher to include route name in structured logs ([6b0916a](https://github.com/whitebeardit/traceability/commit/6b0916a04b5b84d43b2f0f0a4568daa869ac8cea))
+* **logging:** enrich trace context + promote fields in json ([5fa0b32](https://github.com/whitebeardit/traceability/commit/5fa0b32766c9f536d0a74527da780f30a95059a8))
+
 ## [2.1.2](https://github.com/whitebeardit/traceability/compare/v2.1.1...v2.1.2) (2025-12-28)
 
 
