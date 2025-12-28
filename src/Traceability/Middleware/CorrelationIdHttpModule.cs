@@ -215,7 +215,7 @@ namespace Traceability.Middleware
                         var actionName = rd?.Values["action"]?.ToString();
                         if (!string.IsNullOrEmpty(controllerName))
                         {
-                            var method = context.Request.HttpMethod?.ToUpperInvariant() ?? "GET";
+                            var method = context.Request?.HttpMethod?.ToUpperInvariant() ?? "GET";
                             string? forced = null;
                             if (string.Equals(actionName, "Index", StringComparison.OrdinalIgnoreCase))
                             {
@@ -476,7 +476,7 @@ namespace Traceability.Middleware
                     context.Items[Constants.HttpContextKeys.ActivityRenamed] = true;
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Ignore route naming failures
             }
