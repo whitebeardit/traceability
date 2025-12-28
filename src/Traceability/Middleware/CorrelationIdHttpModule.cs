@@ -39,8 +39,7 @@ namespace Traceability.Middleware
             {
                 // Thread-safe: ler options uma vez para evitar race condition
                 var options = _optionsProvider.GetOptions();
-                var headerName = options.HeaderName;
-                return string.IsNullOrWhiteSpace(headerName) ? Constants.HttpHeaders.CorrelationId : headerName;
+                return CorrelationPolicy.GetCorrelationIdHeaderName(options);
             }
         }
 
@@ -109,38 +108,32 @@ namespace Traceability.Middleware
             var headerName = CorrelationIdHeader;
 
             // Extrair correlation-id do header
-            var correlationId = _extractor.ExtractCorrelationId(request, headerName);
+            var correlationIdFromHeader = _extractor.ExtractCorrelationId(request, headerName);
 
-            // Valida formato se habilitado
             // Thread-safe: ler options uma vez para evitar race condition
             var options = _optionsProvider.GetOptions();
-            if (!string.IsNullOrEmpty(correlationId) && !_validator.Validate(correlationId, options))
-            {
-                // Se inválido, ignora o header e gera novo
-                correlationId = null;
-            }
 
             // Determine trace context inputs
             var traceparent = request.Headers[Constants.HttpHeaders.TraceParent];
             var tracestate = request.Headers[Constants.HttpHeaders.TraceState];
-            var parentFromTraceparent = TraceParentExtractor.Extract(traceparent, tracestate);
 
-            // Decide effective correlation-id for this request:
-            // Priority: AlwaysGenerateNew > correlation header > traceparent > generate
-            var effectiveCorrelationId = CorrelationIdResolver.Resolve(options, correlationId, parentFromTraceparent);
+            // Preserve existing context when module isn't the first component in the pipeline (rare, but safe).
+            var existingContextCorrelationId =
+                CorrelationContext.TryGetValue(out var existing) ? existing : null;
+
+            var decision = CorrelationPolicy.DecideInbound(
+                options,
+                _validator,
+                correlationIdFromHeader,
+                existingContextCorrelationId,
+                traceparent,
+                tracestate);
 
             // Always set fallback context (so invalid formats can still work when validation disabled)
-            CorrelationContext.Current = effectiveCorrelationId;
+            CorrelationContext.Current = decision.CorrelationId;
 
-            // Create server span for every request (NET48 does not reliably provide an ambient Activity for controllers).
-            // This keeps behavior consistent and ensures Activity.Current is available for WebApi actions.
-            // Build parent context:
-            // - If traceparent exists and no correlation header override, keep real parent
-            // - Else, create an artificial parent if correlation id is a W3C trace-id (32 hex)
-            var parentContext = ActivityContextBuilder.BuildParentContext(options, effectiveCorrelationId, correlationId, parentFromTraceparent);
-
-            var activity = parentContext != default
-                ? _activityFactory.StartActivity(Constants.ActivityNames.HttpRequest, ActivityKind.Server, parentContext)
+            var activity = decision.ParentContext != default
+                ? _activityFactory.StartActivity(Constants.ActivityNames.HttpRequest, ActivityKind.Server, decision.ParentContext)
                 : _activityFactory.StartActivity(Constants.ActivityNames.HttpRequest, ActivityKind.Server);
 
             if (activity != null)

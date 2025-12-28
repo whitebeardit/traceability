@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
+using Traceability.Utilities;
 
 namespace Traceability
 {
@@ -69,9 +70,11 @@ namespace Traceability
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Silenciosamente falha e retorna false
+                TraceabilityDiagnostics.TryWriteException(
+                    "Traceability.CorrelationContext.TryGetTraceIdFromActivity.Exception",
+                    ex);
             }
             
             return false;

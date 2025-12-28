@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Web;
 using System.Web.Mvc;
 using System.Web.Routing;
+using Traceability.Utilities;
 
 namespace Traceability.WebApi
 {
@@ -20,6 +21,11 @@ namespace Traceability.WebApi
         /// Cache estático de tipos de controllers para melhorar performance.
         /// </summary>
         private static readonly ConcurrentDictionary<string, Type?> _controllerTypeCache = new();
+
+        /// <summary>
+        /// Cache de métodos de action por (controllerType, actionName, httpMethod) para reduzir reflection.
+        /// </summary>
+        private static readonly ConcurrentDictionary<string, MethodInfo?> _actionMethodCache = new();
 
         /// <summary>
         /// Mapa de HTTP verbs para seus atributos correspondentes.
@@ -80,7 +86,7 @@ namespace Traceability.WebApi
                 }
 
                 // 5. Extrair RouteAttribute e fazer match com rota resolvida
-                var routeAttribute = MatchResolvedRoute(actionMethod, routeData);
+                var routeAttribute = MatchResolvedRoute(actionMethod, controllerType, area, httpContext);
                 if (routeAttribute == null)
                 {
                     // Se não tem RouteAttribute, usar rota convencional
@@ -92,9 +98,12 @@ namespace Traceability.WebApi
                 routeTemplate = BuildRouteTemplate(controllerType, routeAttribute, area);
                 return routeTemplate != null;
             }
-            catch
+            catch (Exception ex)
             {
                 // Em caso de erro, retornar false para usar fallback
+                TraceabilityDiagnostics.TryWriteException(
+                    "Traceability.MvcRouteExtractor.TryExtractMvcRouteTemplate.Exception",
+                    ex);
                 return false;
             }
         }
@@ -200,16 +209,23 @@ namespace Traceability.WebApi
                         if (controllerType != null)
                             return controllerType;
                     }
-                    catch
+                    catch (Exception ex)
                     {
                         // Ignorar erros ao iterar assemblies (alguns podem não ser carregáveis)
+                        TraceabilityDiagnostics.TryWriteException(
+                            "Traceability.MvcRouteExtractor.FindControllerTypeInAssemblies.AssemblyIteration.Exception",
+                            ex,
+                            new { Assembly = assembly.FullName });
                         continue;
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // Ignorar erros gerais
+                TraceabilityDiagnostics.TryWriteException(
+                    "Traceability.MvcRouteExtractor.FindControllerTypeInAssemblies.Exception",
+                    ex);
             }
 
             return null;
@@ -220,6 +236,12 @@ namespace Traceability.WebApi
         /// </summary>
         private static MethodInfo? FindActionMethod(Type controllerType, string actionName, string httpMethod)
         {
+            var cacheKey = $"{controllerType.AssemblyQualifiedName}:{actionName}:{httpMethod}".ToUpperInvariant();
+            if (_actionMethodCache.TryGetValue(cacheKey, out var cached))
+            {
+                return cached;
+            }
+
             try
             {
                 // Procurar métodos públicos que retornam ActionResult ou Task<ActionResult>
@@ -244,10 +266,17 @@ namespace Traceability.WebApi
                 }
 
                 // Retornar o primeiro método encontrado
-                return methods[0];
+                var resolved = methods[0];
+                _actionMethodCache.TryAdd(cacheKey, resolved);
+                return resolved;
             }
-            catch
+            catch (Exception ex)
             {
+                TraceabilityDiagnostics.TryWriteException(
+                    "Traceability.MvcRouteExtractor.FindActionMethod.Exception",
+                    ex,
+                    new { Controller = controllerType.FullName, Action = actionName, HttpMethod = httpMethod });
+                _actionMethodCache.TryAdd(cacheKey, null);
                 return null;
             }
         }
@@ -271,7 +300,11 @@ namespace Traceability.WebApi
         /// Faz match do RouteAttribute com a rota resolvida no RouteData.
         /// Se houver múltiplas rotas, tenta identificar qual foi usada.
         /// </summary>
-        private static RouteAttribute? MatchResolvedRoute(MethodInfo actionMethod, RouteData routeData)
+        private static RouteAttribute? MatchResolvedRoute(
+            MethodInfo actionMethod,
+            Type controllerType,
+            string? area,
+            HttpContext httpContext)
         {
             var routeAttributes = actionMethod
                 .GetCustomAttributes(typeof(RouteAttribute), false)
@@ -284,9 +317,30 @@ namespace Traceability.WebApi
             if (routeAttributes.Count == 1)
                 return routeAttributes[0];
 
-            // Múltiplas rotas: tentar identificar qual foi usada
-            // Por enquanto, retornar a primeira (pode ser melhorado no futuro)
-            // TODO: Melhorar matching usando RouteData.Route para identificar rota exata
+            // Múltiplas rotas: tentar identificar qual foi usada comparando com o path atual
+            // (best-effort: evita sempre retornar a primeira)
+            var requestPath = httpContext.Request.Url?.AbsolutePath ?? "/";
+            var normalizedPath = requestPath.TrimStart('/');
+
+            foreach (var attr in routeAttributes)
+            {
+                var built = BuildRouteTemplate(controllerType, attr, area) ?? "";
+                var normalizedTemplate = built.TrimStart('/');
+
+                // Special-case root
+                if (string.IsNullOrEmpty(normalizedPath) && string.IsNullOrEmpty(normalizedTemplate))
+                {
+                    return attr;
+                }
+
+                if (!string.IsNullOrEmpty(normalizedTemplate) &&
+                    RouteMatcher.MatchesRouteTemplate(normalizedPath, normalizedTemplate))
+                {
+                    return attr;
+                }
+            }
+
+            // Fallback: primeira rota
             return routeAttributes[0];
         }
     }
