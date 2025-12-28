@@ -71,10 +71,10 @@ await SomeAsyncMethod(); // Value preserved
 
 **Design Decisions**:
 
-1. **Always JSON Output**:
+1. **Prefer JSON Output**:
    - **Reason**: JSON format is structured, easily parseable, and supported by all log aggregation tools (ELK, Splunk, etc.)
-   - **Benefit**: Automatic uniformization across different applications and services
-   - **Implementation**: All `WithTraceability()` and `WithTraceabilityJson()` methods ensure JSON output
+   - **Benefit**: Consistent, machine-friendly logs across services
+   - **Implementation**: `WithTraceability()` and `WithTraceabilityJson()` configure enrichers/properties; the actual JSON output depends on configuring the Serilog sink with a JSON formatter (e.g., `Traceability.Logging.JsonFormatter`).
 
 2. **Environment Variables for Source and LogLevel**:
    - **Reason**: Reduce verbosity in configuration and allow changes without recompilation

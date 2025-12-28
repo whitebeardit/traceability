@@ -173,6 +173,34 @@ namespace Traceability.Tests
         }
 
         [Fact]
+        public void WithTraceability_ShouldAddTraceContextEnricher_WhenActivityCurrentExists()
+        {
+            // Arrange
+            var source = "TestService";
+            var testSink = new TestSink();
+
+            using var activity = new System.Diagnostics.Activity("TestRoot")
+                .SetIdFormat(System.Diagnostics.ActivityIdFormat.W3C)
+                .Start();
+
+            // Act
+            var logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WithTraceability(source)
+                .WriteTo.Sink(testSink)
+                .CreateLogger();
+
+            logger.Information("Test message");
+
+            // Assert
+            testSink.Events.Should().NotBeEmpty();
+            var logEvent = testSink.Events[0];
+            logEvent.Properties.Should().ContainKey("TraceId");
+            logEvent.Properties.Should().ContainKey("SpanId");
+            logEvent.Properties.Should().ContainKey("ParentSpanId");
+        }
+
+        [Fact]
         public void WithTraceabilityJson_ShouldAddDataEnricher()
         {
             // Arrange

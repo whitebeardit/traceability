@@ -24,6 +24,3 @@ namespace Traceability.Extensions
     }
 }
 #endif
-
-
-
