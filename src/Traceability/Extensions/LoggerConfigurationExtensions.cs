@@ -59,6 +59,7 @@ namespace Traceability.Extensions
         /// Este método adiciona automaticamente:
         /// - SourceEnricher: Adiciona o campo Source aos logs
         /// - CorrelationIdEnricher: Adiciona o campo CorrelationId aos logs (quando disponível no contexto)
+        /// - RouteNameEnricher: Adiciona o campo RouteName aos logs (quando disponível no Activity.DisplayName)
         /// - MinimumLevel: Configura o nível mínimo de log
         /// - JsonFormatter: Output sempre em formato JSON para uniformização
         /// </para>
@@ -114,7 +115,8 @@ namespace Traceability.Extensions
             return config
                 .MinimumLevel.Is(minimumLevel)
                 .Enrich.With(new SourceEnricher(serviceName))
-                .Enrich.With<CorrelationIdEnricher>();
+                .Enrich.With<CorrelationIdEnricher>()
+                .Enrich.With<RouteNameEnricher>();
         }
 
         /// <summary>
@@ -135,6 +137,7 @@ namespace Traceability.Extensions
         /// Este método configura automaticamente:
         /// - SourceEnricher: Adiciona o campo Source aos logs
         /// - CorrelationIdEnricher: Adiciona o campo CorrelationId aos logs (quando disponível no contexto)
+        /// - RouteNameEnricher: Adiciona o campo RouteName aos logs (quando disponível no Activity.DisplayName)
         /// - DataEnricher: Detecta e serializa objetos complexos no campo "data"
         /// - MinimumLevel: Configura o nível mínimo de log
         /// - Output sempre em formato JSON para uniformização
@@ -214,7 +217,8 @@ namespace Traceability.Extensions
             config = config
                 .MinimumLevel.Is(minimumLevel)
                 .Enrich.With(new SourceEnricher(serviceName))
-                .Enrich.With<CorrelationIdEnricher>();
+                .Enrich.With<CorrelationIdEnricher>()
+                .Enrich.With<RouteNameEnricher>();
 
             // Adiciona DataEnricher se configurado para incluir dados
             if (options.LogIncludeData)
@@ -294,7 +298,8 @@ namespace Traceability.Extensions
             config = config
                 .MinimumLevel.Is(minimumLevel)
                 .Enrich.With(new SourceEnricher(serviceName))
-                .Enrich.With<CorrelationIdEnricher>();
+                .Enrich.With<CorrelationIdEnricher>()
+                .Enrich.With<RouteNameEnricher>();
 
             // Adiciona DataEnricher se configurado para incluir dados
             if (options.LogIncludeData)
