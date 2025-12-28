@@ -29,10 +29,32 @@ namespace Traceability.WebApi
 
         /// <summary>
         /// Tenta extrair o route template de um HttpContext.
+        /// Tenta primeiro Web API, depois MVC, e por último inferência do path.
         /// </summary>
         public static string? TryGetRouteTemplate(HttpContext? context)
         {
-            return HttpRouteDataExtractor.ExtractFromHttpContext(context);
+            if (context == null)
+                return null;
+
+            // Tentativa 1: Extrair de Web API Attribute Routing (código existente - tem precedência)
+            var apiTemplate = HttpRouteDataExtractor.ExtractFromHttpContext(context);
+            if (!string.IsNullOrEmpty(apiTemplate))
+                return apiTemplate;
+
+            // Tentativa 2: Extrair de MVC 5 Attribute Routing (NOVO)
+            if (MvcRouteExtractor.TryExtractMvcRouteTemplate(context, out var mvcTemplate))
+                return mvcTemplate;
+
+            // Tentativa 3: Inferir do path via HttpConfiguration (código existente)
+            var path = context.Request.Url?.AbsolutePath;
+            if (!string.IsNullOrEmpty(path))
+            {
+                var inferred = TryInferRouteTemplateFromPath(path, context.Request.HttpMethod);
+                if (!string.IsNullOrEmpty(inferred))
+                    return inferred;
+            }
+
+            return null;
         }
 
         /// <summary>
