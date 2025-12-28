@@ -1,3 +1,10 @@
+## [2.1.2](https://github.com/whitebeardit/traceability/compare/v2.1.1...v2.1.2) (2025-12-28)
+
+
+### Bug Fixes
+
+* resolve compiler warnings + add Cursor AI rules ([#30](https://github.com/whitebeardit/traceability/issues/30)) ([9715738](https://github.com/whitebeardit/traceability/commit/971573846b870c4d565e1858f3ed94fcc2bd0900))
+
 ## [2.1.1](https://github.com/whitebeardit/traceability/compare/v2.1.0...v2.1.1) (2025-12-27)
 
 
