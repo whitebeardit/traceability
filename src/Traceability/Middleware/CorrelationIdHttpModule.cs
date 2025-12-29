@@ -11,6 +11,7 @@ using Traceability.Core.Interfaces;
 using Traceability.Core.Services;
 using Traceability.OpenTelemetry;
 using Traceability.WebApi;
+using Traceability.Utilities;
 #if NET48
 using StaticTraceabilityOptionsProvider = Traceability.Configuration.StaticTraceabilityOptionsProvider;
 #endif
@@ -226,9 +227,11 @@ namespace Traceability.Middleware
                             }
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // ignore
+                        TraceabilityDiagnostics.TryWriteException(
+                            "Traceability.CorrelationIdHttpModule.EarlyConventionalRename.Exception",
+                            ex);
                     }
                 }
             }
@@ -255,9 +258,11 @@ namespace Traceability.Middleware
                         Activity.Current = previous;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore
+                    TraceabilityDiagnostics.TryWriteException(
+                        "Traceability.CorrelationIdHttpModule.PostHandlerExecute.Exception",
+                        ex);
                 }
                 finally
                 {
@@ -310,9 +315,11 @@ namespace Traceability.Middleware
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // ignore
+                TraceabilityDiagnostics.TryWriteException(
+                    "Traceability.CorrelationIdHttpModule.ReadDebugFlag.Exception",
+                    ex);
             }
 
             // If we created the activity, attempt to rename it to the route template before headers are sent.
@@ -338,9 +345,11 @@ namespace Traceability.Middleware
                         response.AppendHeader(Constants.HttpHeaders.TraceabilitySpanId, a.SpanId.ToString());
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore
+                    TraceabilityDiagnostics.TryWriteException(
+                        "Traceability.CorrelationIdHttpModule.EmitDebugHeaders.Exception",
+                        ex);
                 }
             }
 
@@ -353,9 +362,13 @@ namespace Traceability.Middleware
                     // PreSendRequestHeaders é chamado antes de enviar headers, então ainda podemos modificá-los
                     response.Headers[headerName] = correlationId;
                 }
-                catch
+                catch (Exception ex)
                 {
                     // Ignora exceções ao adicionar header (pode ocorrer em casos raros)
+                    TraceabilityDiagnostics.TryWriteException(
+                        "Traceability.CorrelationIdHttpModule.SetResponseHeader.Exception",
+                        ex,
+                        new { HeaderName = headerName });
                 }
             }
 
@@ -469,9 +482,12 @@ namespace Traceability.Middleware
                     context.Items[Constants.HttpContextKeys.ActivityRenamed] = true;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // Ignore route naming failures
+                TraceabilityDiagnostics.TryWriteException(
+                    "Traceability.CorrelationIdHttpModule.TryRenameToRouteTemplate.Exception",
+                    ex);
             }
         }
     }

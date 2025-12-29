@@ -10,6 +10,7 @@ using Traceability.Configuration;
 using Traceability.Core;
 using Traceability.Core.Interfaces;
 using Traceability.Core.Services;
+using Traceability.Utilities;
 
 namespace Traceability.Middleware
 {
@@ -102,9 +103,13 @@ namespace Traceability.Middleware
                 {
                     context.Response.Headers[decision.HeaderName] = decision.CorrelationId;
                 }
-                catch
+                catch (Exception ex)
                 {
                     // Ignora exceções ao adicionar header (pode ocorrer se headers já foram enviados)
+                    TraceabilityDiagnostics.TryWriteException(
+                        "Traceability.CorrelationIdMiddleware.SetResponseHeader.Exception",
+                        ex,
+                        new { HeaderName = decision.HeaderName });
                 }
             }
 
