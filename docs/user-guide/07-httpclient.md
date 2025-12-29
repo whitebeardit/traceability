@@ -44,7 +44,7 @@ When you make an HTTP call, `CorrelationIdHandler` automatically:
 
 1. ✅ Gets the correlation-id/trace-id from the current context (without implicitly creating a new one)
 2. ✅ Adds the `X-Correlation-Id` header to the request (backward compatibility)
-3. ✅ Adds the `traceparent` header (W3C Trace Context) when trace context is available
+3. ✅ Adds the `traceparent` header (W3C Trace Context) when trace context is available (best-effort, W3C-valid only)
 4. ✅ Propagates the headers to the external service
 
 **HTTP request sent:**
@@ -55,7 +55,9 @@ X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 traceparent: 00-a1b2c3d4e5f6789012345678901234ab-0123456789abcdef-01
 ```
 
-**Note**: Traceability does not explicitly emit the `tracestate` header. If you need `tracestate` propagation, rely on OpenTelemetry SDK/instrumentation.
+**Notes**:
+- Traceability does not explicitly emit the `tracestate` header. If you need `tracestate` propagation, rely on OpenTelemetry SDK/instrumentation.
+- `traceparent` propagation is best-effort: Traceability only emits it when a valid W3C `traceparent` value is available. Legacy/hierarchical `Activity.Id` values are not valid `traceparent` and are not emitted.
 
 The `traceparent` header follows the W3C Trace Context standard and enables distributed tracing across services. The `X-Correlation-Id` header is maintained for backward compatibility with services not using OpenTelemetry.
 
