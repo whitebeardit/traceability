@@ -29,7 +29,7 @@ namespace Traceability.Core.Services
                 activity.SetTag(Constants.ActivityTags.HttpUserAgent, httpRequest.UserAgent);
 
                 // Placeholder so controllers can assert presence during request handling
-                activity.SetTag(Constants.ActivityTags.HttpStatusCode, "0");
+                activity.SetTag(Constants.ActivityTags.HttpStatusCode, 0);
 
                 if (httpRequest.ContentLength > 0)
                 {
@@ -49,7 +49,7 @@ namespace Traceability.Core.Services
                 activity.SetTag(Constants.ActivityTags.HttpHost, httpRequestMessage.RequestUri?.Host);
 
                 // Placeholder so controllers can assert presence during request handling
-                activity.SetTag(Constants.ActivityTags.HttpStatusCode, "0");
+                activity.SetTag(Constants.ActivityTags.HttpStatusCode, 0);
 
                 if (httpRequestMessage.Content != null && httpRequestMessage.Content.Headers.ContentLength.HasValue)
                 {
@@ -77,7 +77,7 @@ namespace Traceability.Core.Services
             // Suporta HttpResponse (System.Web) e HttpResponseMessage (System.Net.Http)
             if (response is System.Web.HttpResponse httpResponse)
             {
-                activity.SetTag(Constants.ActivityTags.HttpStatusCode, ((int)httpResponse.StatusCode).ToString());
+                activity.SetTag(Constants.ActivityTags.HttpStatusCode, (int)httpResponse.StatusCode);
 
                 var contentLength = httpResponse.Headers["Content-Length"];
                 if (!string.IsNullOrEmpty(contentLength))
@@ -87,7 +87,7 @@ namespace Traceability.Core.Services
             }
             else if (response is HttpResponseMessage httpResponseMessage)
             {
-                activity.SetTag(Constants.ActivityTags.HttpStatusCode, ((int)httpResponseMessage.StatusCode).ToString());
+                activity.SetTag(Constants.ActivityTags.HttpStatusCode, (int)httpResponseMessage.StatusCode);
 
                 if (httpResponseMessage.Content != null && httpResponseMessage.Content.Headers.ContentLength.HasValue)
                 {
@@ -103,7 +103,7 @@ namespace Traceability.Core.Services
         {
             if (activity == null || exception == null) return;
 
-            activity.SetTag(Constants.ActivityTags.Error, "true");
+            activity.SetTag(Constants.ActivityTags.Error, true);
             activity.SetTag(Constants.ActivityTags.ErrorType, exception.GetType().Name);
             activity.SetTag(Constants.ActivityTags.ErrorMessage, exception.Message);
             activity.SetStatus(ActivityStatusCode.Error, exception.Message);
