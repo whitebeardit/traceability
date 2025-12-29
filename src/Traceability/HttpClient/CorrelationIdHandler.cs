@@ -13,6 +13,9 @@ using Traceability.Core.Services;
 using Traceability;
 using Traceability.Core;
 #if NET48 || NET8_0
+using Traceability.Utilities;
+#endif
+#if NET48 || NET8_0
 using Traceability.OpenTelemetry;
 #endif
 
@@ -24,6 +27,34 @@ namespace Traceability.HttpClient
     /// </summary>
     public class CorrelationIdHandler : DelegatingHandler
     {
+#if NET48 || NET8_0
+        private static bool TryGetValidW3CTraceParent(Activity? activity, out string? traceParent)
+        {
+            traceParent = null;
+            if (activity == null)
+            {
+                return false;
+            }
+
+            var id = activity.Id;
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return false;
+            }
+
+            // Hardening: Activity.Id can be hierarchical (legacy) which is NOT a valid traceparent header.
+            // Only propagate when it parses as W3C traceparent.
+            // Use positional args for broad framework compatibility (parameter name differs across TFMs/versions).
+            if (!ActivityContext.TryParse(id, null, out var ctx) || ctx == default)
+            {
+                return false;
+            }
+
+            traceParent = id;
+            return true;
+        }
+#endif
+
 #if NET8_0
         private readonly TraceabilityOptions? _options;
         private readonly IActivityFactory _activityFactory;
@@ -115,10 +146,16 @@ namespace Traceability.HttpClient
 #endif
 
             // Propagate trace context even when not creating span
-            var traceParent = activity?.Id ?? parentActivity?.Id;
-            if (!string.IsNullOrEmpty(traceParent) && !request.Headers.Contains(Constants.HttpHeaders.TraceParent))
+            if (!request.Headers.Contains(Constants.HttpHeaders.TraceParent))
             {
-                request.Headers.Add(Constants.HttpHeaders.TraceParent, traceParent);
+#if NET48 || NET8_0
+                // Prefer the span we created; fallback to current parent activity.
+                if (TryGetValidW3CTraceParent(activity, out var traceParent) ||
+                    TryGetValidW3CTraceParent(parentActivity, out traceParent))
+                {
+                    request.Headers.Add(Constants.HttpHeaders.TraceParent, traceParent!);
+                }
+#endif
             }
 
             // Add standard tags if we created a span
@@ -181,9 +218,12 @@ namespace Traceability.HttpClient
                 {
                     _tagProvider.AddResponseTags(activity, response);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // ignore
+                    TraceabilityDiagnostics.TryWriteException(
+                        "Traceability.CorrelationIdHandler.AddResponseTags.Exception",
+                        ex,
+                        new { Target = "HttpResponseMessage", Mode = "NET8 async" });
                 }
             }
 
@@ -237,10 +277,13 @@ namespace Traceability.HttpClient
                 ? _activityFactory.StartActivity(Constants.ActivityNames.HttpClient, ActivityKind.Client, parentActivity)
                 : null;
 
-            var traceParent = activity?.Id ?? parentActivity?.Id;
-            if (!string.IsNullOrEmpty(traceParent) && !request.Headers.Contains(Constants.HttpHeaders.TraceParent))
+            if (!request.Headers.Contains(Constants.HttpHeaders.TraceParent))
             {
-                request.Headers.Add(Constants.HttpHeaders.TraceParent, traceParent);
+                if (TryGetValidW3CTraceParent(activity, out var traceParent) ||
+                    TryGetValidW3CTraceParent(parentActivity, out traceParent))
+                {
+                    request.Headers.Add(Constants.HttpHeaders.TraceParent, traceParent!);
+                }
             }
 
             if (activity != null)
@@ -266,7 +309,17 @@ namespace Traceability.HttpClient
 
                 if (activity != null && response != null)
                 {
-                    _tagProvider.AddResponseTags(activity, response);
+                    try
+                    {
+                        _tagProvider.AddResponseTags(activity, response);
+                    }
+                    catch (Exception ex)
+                    {
+                        TraceabilityDiagnostics.TryWriteException(
+                            "Traceability.CorrelationIdHandler.AddResponseTags.Exception",
+                            ex,
+                            new { Target = "HttpResponseMessage", Mode = "NET8 sync" });
+                    }
                 }
 
                 return response!;
