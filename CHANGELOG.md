@@ -1,3 +1,10 @@
+## [2.2.1](https://github.com/whitebeardit/traceability/compare/v2.2.0...v2.2.1) (2025-12-29)
+
+
+### Bug Fixes
+
+* documentation ([d8ff8ec](https://github.com/whitebeardit/traceability/commit/d8ff8eca531745ed5461dcf788458afb0120d741))
+
 # [2.2.0](https://github.com/whitebeardit/traceability/compare/v2.1.2...v2.2.0) (2025-12-28)
 
 
