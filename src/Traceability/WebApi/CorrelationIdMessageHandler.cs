@@ -12,6 +12,7 @@ using Traceability.Core;
 using Traceability.Core.Interfaces;
 using Traceability.Core.Services;
 using Traceability.OpenTelemetry;
+using Traceability.Utilities;
 #if NET48
 using StaticTraceabilityOptionsProvider = Traceability.Configuration.StaticTraceabilityOptionsProvider;
 #endif
@@ -189,9 +190,13 @@ namespace Traceability.WebApi
                         }
                         response.Headers.Add(headerName, decision.CorrelationId);
                     }
-                    catch
+                    catch (Exception ex)
                     {
                         // Ignora exceções ao adicionar header (pode ocorrer se headers já foram enviados)
+                        TraceabilityDiagnostics.TryWriteException(
+                            "Traceability.CorrelationIdMessageHandler.SetResponseHeader.Exception",
+                            ex,
+                            new { HeaderName = headerName });
                     }
                 }
 

@@ -195,7 +195,7 @@ graph TD
 - Each outgoing HTTP call propagates trace context. On .NET Framework, Traceability creates child HttpClient spans. On .NET 8, Traceability-created HttpClient spans are opt-in to avoid duplication with built-in instrumentation.
 - Activities maintain parent-child relationships for hierarchical tracing
 - All Activities share the same TraceId for correlation
-- W3C Trace Context: Traceability propagates `traceparent` when trace context is available. It reads `traceparent`/`tracestate` on inbound requests when present, but does not explicitly emit `tracestate`.
+- W3C Trace Context: Traceability propagates `traceparent` when trace context is available. It reads `traceparent`/`tracestate` on inbound requests when present, but does not explicitly emit `tracestate`. `traceparent` emission is best-effort and only happens when a valid W3C `traceparent` value is available (legacy/hierarchical `Activity.Id` values are not emitted as `traceparent`).
 
 ## Logging Integration
 
