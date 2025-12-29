@@ -46,7 +46,7 @@ When adding/modifying code, verify:
 - [ ] Correct conditional compilation (`#if NET8_0` / `#if NET48`)
 - [ ] Use of `Activity.TraceId` as primary source, `AsyncLocal` as fallback
 - [ ] Activities created when needed (via TraceabilityActivitySource)
-- [ ] W3C Trace Context headers propagated (traceparent, tracestate)
+- [ ] W3C Trace Context handled correctly (read inbound `traceparent`/`tracestate` when present; propagate `traceparent` when available)
 - [ ] Header `X-Correlation-Id` used consistently (for backward compatibility)
 - [ ] GUID generated without hyphens (`ToString("N")`) when Activity not available
 - [ ] Doesn't modify existing correlation-id
@@ -59,7 +59,7 @@ When adding/modifying code, verify:
 - [ ] Correct conditional compilation (`#if NET8_0` / `#if NET48`)
 - [ ] Use of `Activity.TraceId` as primary source, `AsyncLocal` as fallback
 - [ ] Activities created when needed (via TraceabilityActivitySource)
-- [ ] W3C Trace Context headers propagated (traceparent, tracestate)
+- [ ] W3C Trace Context handled correctly (read inbound `traceparent`/`tracestate` when present; propagate `traceparent` when available)
 - [ ] Header `X-Correlation-Id` used consistently (for backward compatibility)
 - [ ] GUID generated without hyphens (`ToString("N")`) when Activity not available
 - [ ] Doesn't modify existing correlation-id

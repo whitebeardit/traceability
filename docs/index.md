@@ -25,6 +25,7 @@ Welcome to the complete documentation for the Traceability package for automatic
 
 - [Troubleshooting](troubleshooting.md) - Common problem solutions
 - [FAQ](troubleshooting.md#faq) - Frequently asked questions
+- [DeepWiki (Devin) - Indexed repository documentation](https://deepwiki.com/whitebeardit/traceability)
 
 ## Technical Documentation
 

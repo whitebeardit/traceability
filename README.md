@@ -5,6 +5,8 @@
 NuGet package for automatic correlation-id management in .NET applications, with support for .NET 8 and .NET Framework 4.8.
 
 > 📖 **[Quick Start](#quick-start)** | [User Manual](docs/user-guide/index.md) | [Complete Documentation](docs/index.md) | [Examples](docs/examples/aspnet-core.md)
+>
+> **Indexed Documentation (Devin DeepWiki):** [DeepWiki for `whitebeardit/traceability`](https://deepwiki.com/whitebeardit/traceability)
 
 ## Motivation
 

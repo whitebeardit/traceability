@@ -65,7 +65,11 @@
 
 - [x] `docs/setup-nodejs.md` - Node.js setup guide
 
-## Total: 39 files
+## Total: 45 files
 
 ## ✅ ALL FILES TRANSLATED!
+
+### Notes
+
+- This checklist tracks translation status only. It does not guarantee that every statement is aligned with the current implementation.
 

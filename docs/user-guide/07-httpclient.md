@@ -42,12 +42,10 @@ public class ValuesController : ControllerBase
 
 When you make an HTTP call, `CorrelationIdHandler` automatically:
 
-1. ✅ Creates a child OpenTelemetry Activity (span) for the HTTP call
-2. ✅ Gets the correlation-id/trace-id from the current context
-3. ✅ Adds the `X-Correlation-Id` header to the request (for backward compatibility)
-4. ✅ Adds the `traceparent` header (W3C Trace Context standard)
-5. ✅ Adds the `tracestate` header if Activity has baggage
-6. ✅ Propagates all headers to the external service
+1. ✅ Gets the correlation-id/trace-id from the current context (without implicitly creating a new one)
+2. ✅ Adds the `X-Correlation-Id` header to the request (backward compatibility)
+3. ✅ Adds the `traceparent` header (W3C Trace Context) when trace context is available
+4. ✅ Propagates the headers to the external service
 
 **HTTP request sent:**
 ```http
@@ -57,7 +55,18 @@ X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 traceparent: 00-a1b2c3d4e5f6789012345678901234ab-0123456789abcdef-01
 ```
 
-**Note**: The `traceparent` header follows the W3C Trace Context standard and enables distributed tracing across services. The `X-Correlation-Id` header is maintained for backward compatibility with services not using OpenTelemetry.
+**Note**: Traceability does not explicitly emit the `tracestate` header. If you need `tracestate` propagation, rely on OpenTelemetry SDK/instrumentation.
+
+The `traceparent` header follows the W3C Trace Context standard and enables distributed tracing across services. The `X-Correlation-Id` header is maintained for backward compatibility with services not using OpenTelemetry.
+
+### .NET 8: HttpClient spans are opt-in (default: disabled)
+
+On **.NET 8**, Traceability does **not** create HttpClient child spans by default to avoid duplication with the built-in `System.Net.Http` / OpenTelemetry instrumentation.
+
+To enable Traceability-created HttpClient spans on .NET 8, use either:
+
+- `TraceabilityOptions.Net8HttpClientSpansEnabled = true`, or
+- `TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED=true`
 
 ## Propagation in Chain
 
@@ -166,7 +175,7 @@ public class ExternalApiService
 
 ## OpenTelemetry Integration
 
-Each HTTP call automatically creates a child Activity (span) that:
+Each HTTP call propagates trace context, and can create a child Activity (span) when enabled that:
 
 - **Maintains Trace Hierarchy**: Child spans are linked to parent spans
 - **Propagates Trace Context**: W3C Trace Context headers enable distributed tracing

@@ -92,7 +92,11 @@ curl -X GET http://localhost:5000/api/users/123
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 ```
 
-**Note**: An OpenTelemetry Activity (span) is automatically created for each request. When making HTTP calls, W3C Trace Context headers (`traceparent`, `tracestate`) are automatically propagated along with `X-Correlation-Id` for backward compatibility.
+**Note**: An OpenTelemetry Activity (span) is created for each request when Traceability (or your OpenTelemetry instrumentation) creates/owns the server Activity.
+
+When making HTTP calls, Traceability propagates `X-Correlation-Id` and `traceparent` (when trace context is available). Traceability does not explicitly emit `tracestate`.
+
+On .NET 8, Traceability-created HttpClient spans are opt-in (see Lesson 7).
 
 ## Example 2: Console Application
 

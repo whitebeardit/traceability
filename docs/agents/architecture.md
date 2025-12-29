@@ -167,11 +167,6 @@ graph LR
     A[Service A] -->|"X-Correlation-Id: abc123<br/>traceparent: 00-..."| B[Service B]
     B -->|"X-Correlation-Id: abc123<br/>traceparent: 00-..."| C[Service C]
     C -->|"X-Correlation-Id: abc123<br/>traceparent: 00-..."| D[Service D]
-    
-    style A fill:#e1f5ff
-    style B fill:#e1f5ff
-    style C fill:#e1f5ff
-    style D fill:#e1f5ff
 ```
 
 **Behavior**:
@@ -193,19 +188,14 @@ graph TD
     Root[Root Activity<br/>HTTP Request<br/>Service A] --> Child1[Child Activity<br/>HTTP Client Call<br/>Service A → B]
     Child1 --> Child2[Child Activity<br/>HTTP Client Call<br/>Service B → C]
     Child2 --> Child3[Child Activity<br/>HTTP Client Call<br/>Service C → D]
-    
-    style Root fill:#e1f5ff
-    style Child1 fill:#fff4e1
-    style Child2 fill:#fff4e1
-    style Child3 fill:#fff4e1
 ```
 
 **Behavior**:
 - Each HTTP request creates a root Activity (span)
-- Each outgoing HTTP call creates a child Activity (span)
+- Each outgoing HTTP call propagates trace context. On .NET Framework, Traceability creates child HttpClient spans. On .NET 8, Traceability-created HttpClient spans are opt-in to avoid duplication with built-in instrumentation.
 - Activities maintain parent-child relationships for hierarchical tracing
 - All Activities share the same TraceId for correlation
-- W3C Trace Context headers (`traceparent`, `tracestate`) propagate across services
+- W3C Trace Context: Traceability propagates `traceparent` when trace context is available. It reads `traceparent`/`tracestate` on inbound requests when present, but does not explicitly emit `tracestate`.
 
 ## Logging Integration
 

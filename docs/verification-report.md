@@ -5,7 +5,7 @@
 
 ## Executive Summary
 
-The documentation is **mostly correct**, but some **minor discrepancies** were found that should be corrected to maintain accuracy.
+The documentation is **mostly correct**, but some **discrepancies** were found that should be corrected to maintain accuracy.
 
 ## Discrepancies Found
 
@@ -41,6 +41,18 @@ public static IServiceCollection AddTraceability(
 **Recommendation**: Update the documentation to reflect that there is only one overload with optional parameters, or add the missing overload to the code.
 
 ---
+
+### 2. ✅ DISCREPANCY: OpenTelemetry propagation and span defaults
+
+Some documentation pages previously stated that Traceability propagates both `traceparent` and `tracestate`, and that HttpClient spans are always created on .NET 8.
+
+**Implemented behavior**:
+
+- Traceability **propagates `traceparent`** when trace context is available.
+- Traceability **does not explicitly emit `tracestate`**.
+- On **.NET 8**, Traceability-created HttpClient spans are **opt-in** via `TraceabilityOptions.Net8HttpClientSpansEnabled` or `TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED=true`.
+
+**Recommendation**: Keep documentation consistent with the current implementation and clearly distinguish Traceability behavior from OpenTelemetry SDK/instrumentation behavior.
 
 ### 2. ✅ VERIFIED: `MinimumLogLevel` exists
 

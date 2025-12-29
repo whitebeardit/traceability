@@ -94,10 +94,11 @@ public class MyController : ControllerBase
     public async Task<IActionResult> Get()
     {
         // HttpClient automatically:
-        // 1. Creates a child Activity (span) for the HTTP call
-        // 2. Adds X-Correlation-Id header (backward compatibility)
-        // 3. Adds traceparent header (W3C Trace Context)
-        // 4. Adds tracestate header if Activity has baggage
+        // 1. Adds X-Correlation-Id header (backward compatibility)
+        // 2. Adds traceparent header (W3C Trace Context) when trace context is available
+        // 3. Optionally creates a child Activity (span) for the HTTP call on .NET 8
+        //    when enabled via TraceabilityOptions.Net8HttpClientSpansEnabled or
+        //    TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED=true
         var client = _httpClientFactory.CreateClient("ExternalApi");
         var response = await client.GetAsync("endpoint");
         return Ok(await response.Content.ReadAsStringAsync());
