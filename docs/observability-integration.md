@@ -55,7 +55,7 @@ Each span contains:
 
 #### **W3C Trace Context**
 - `traceparent`: Header propagated automatically
-- `tracestate`: Header propagated when there's baggage
+- `tracestate`: May be propagated by OpenTelemetry instrumentation when configured. Traceability itself does not explicitly emit `tracestate`.
 
 ## How It Works with Grafana Tempo
 

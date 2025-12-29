@@ -10,8 +10,6 @@ The project uses `semantic-release` to completely automate the versioning and pu
 
 ### Flow for Staging Branch
 
-### Fluxo para Branch Staging
-
 ```mermaid
 flowchart TD
     A[Push/Merge to staging] --> B[Trigger CI]
@@ -28,12 +26,6 @@ flowchart TD
     K --> L[Auto merge to main]
     L --> M[Trigger CI on main]
     M --> N[Release to NuGet]
-    
-    style A fill:#e1f5ff
-    style J fill:#fff4e1
-    style K fill:#e8f5e9
-    style L fill:#e8f5e9
-    style N fill:#c8e6c9
 ```
 
 ### Flow for Main Branch
@@ -271,22 +263,6 @@ To ensure security and quality, configure the following protection rules for the
 3. **Require conversation resolution before merging**: ✅
 
 4. **Do not allow bypassing the above settings**: ✅ (including admins)
-
-## Branch Protection Rules
-
-Para garantir segurança e qualidade, configure as seguintes regras de proteção para a branch `main` no GitHub:
-
-1. **Require pull request reviews before merging**: ✅
-   - Required number of approvals: 1
-   - Dismiss stale reviews: ✅
-
-2. **Require status checks to pass before merging**: ✅
-   - Require branches to be up to date: ✅
-   - Status checks: `build-and-test-net8`, `build-and-test-net48`
-
-3. **Require conversation resolution before merging**: ✅
-
-4. **Do not allow bypassing the above settings**: ✅ (incluindo admins)
 
 ## Troubleshooting
 

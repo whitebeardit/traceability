@@ -6,7 +6,7 @@ This project uses `semantic-release` which requires Node.js and npm installed lo
 
 ### Option 1: Direct installation (simplest)
 
-1. Go to [https://nodejs.org](https://nodejs.org)
+1. Go to [nodejs.org](https://nodejs.org)
 2. Download the **LTS** version (recommended)
 3. Run the `.msi` installer
 4. Follow the instructions, keeping default options
@@ -14,7 +14,7 @@ This project uses `semantic-release` which requires Node.js and npm installed lo
 
 ### Option 2: Using nvm-windows (recommended for developers)
 
-1. Download nvm-windows from: [https://github.com/coreybutler/nvm-windows/releases](https://github.com/coreybutler/nvm-windows/releases)
+1. Download nvm-windows from: [nvm-windows releases](https://github.com/coreybutler/nvm-windows/releases)
 2. Install the `nvm-setup.exe` file
 3. Open a new terminal and run:
    ```powershell

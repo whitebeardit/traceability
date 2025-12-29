@@ -43,6 +43,8 @@ builder.Services.AddTraceability("UserService", options =>
 
 Choose the log output format:
 
+**Note:** This option currently exists in the API surface, but it is **not wired** into the built-in formatters/sinks. To control output format, configure your logger (for example, for Serilog use `Traceability.Logging.JsonFormatter` with `indent: true` to get indented JSON).
+
 ```csharp
 builder.Services.AddTraceability("UserService", options =>
 {

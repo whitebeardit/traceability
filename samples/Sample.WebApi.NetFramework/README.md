@@ -4,7 +4,31 @@ This is an example of using the Traceability package in an ASP.NET Web API appli
 
 ## Configuration
 
-### 1. Add MessageHandler in Global.asax.cs
+### Recommended (zero-code): no Traceability registration needed
+
+After installing the package, Traceability auto-registers `CorrelationIdHttpModule` via `PreApplicationStartMethod`.
+
+In most cases, you only need to configure your Web API routes in `Global.asax.cs`:
+
+```csharp
+using System.Web;
+using System.Web.Http;
+
+public class WebApiApplication : HttpApplication
+{
+    protected void Application_Start()
+    {
+        GlobalConfiguration.Configure(config =>
+        {
+            config.MapHttpAttributeRoutes();
+        });
+    }
+}
+```
+
+### Advanced (manual): add MessageHandler in Global.asax.cs
+
+You can manually register the handler for edge cases (not recommended in normal usage):
 
 ```csharp
 using System.Web.Http;

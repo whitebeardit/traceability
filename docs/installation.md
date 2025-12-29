@@ -25,7 +25,8 @@ Install-Package WhiteBeard.Traceability
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="WhiteBeard.Traceability" Version="1.1.0" />
+  <!-- Prefer omitting an explicit version and letting NuGet resolve the latest stable version -->
+  <PackageReference Include="WhiteBeard.Traceability" />
 </ItemGroup>
 ```
 
@@ -44,6 +45,7 @@ The Traceability package includes the following dependencies:
 
 ### .NET 8.0
 - `Microsoft.AspNetCore.Http.Abstractions` (2.2.0)
+- `Microsoft.AspNetCore.Hosting.Abstractions` (2.2.0)
 - `Microsoft.Extensions.Http` (8.0.0)
 - `Microsoft.Extensions.Logging.Abstractions` (8.0.0)
 - `Polly` (8.3.1)
@@ -51,6 +53,9 @@ The Traceability package includes the following dependencies:
 ### .NET Framework 4.8
 - `Polly` (7.2.3)
 - `Microsoft.AspNet.WebApi.Client` (5.2.9)
+- `Microsoft.AspNet.WebApi.Core` (5.2.9)
+- `Microsoft.AspNet.Mvc` (5.2.9)
+- `Microsoft.Web.Infrastructure` (2.0.1)
 - `Microsoft.Extensions.Logging.Abstractions` (2.1.1)
 - `Microsoft.Extensions.DependencyInjection.Abstractions` (2.1.1)
 

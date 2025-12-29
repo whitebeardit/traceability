@@ -186,8 +186,8 @@ app.Run();
 Traceability automatically creates OpenTelemetry Activities (spans) for distributed tracing:
 
 - **Automatic Activity Creation**: If OpenTelemetry SDK is not configured, Traceability creates Activities automatically
-- **Hierarchical Spans**: Each HTTP call creates a child span, maintaining trace hierarchy
-- **W3C Trace Context**: Automatically propagates `traceparent` and `tracestate` headers
+- **Hierarchical Spans**: Outgoing HTTP calls propagate trace context. On .NET 8, Traceability-created HttpClient child spans are opt-in to avoid duplication with built-in instrumentation.
+- **W3C Trace Context**: Traceability propagates `traceparent` when trace context is available. It reads `traceparent`/`tracestate` on inbound requests when present, but does not explicitly emit `tracestate`.
 - **Observability Tools**: Compatible with Jaeger, Zipkin, Application Insights, and other OpenTelemetry-compatible tools
 
 **When OpenTelemetry SDK is configured**: Traceability uses existing Activities created by the SDK.

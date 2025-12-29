@@ -38,7 +38,7 @@ await SomeAsyncMethod(); // Value preserved
 - Provides `TraceId` that is automatically propagated across services
 - Enables hierarchical spans (parent/child relationships)
 - Compatible with all OpenTelemetry-compatible observability tools (Jaeger, Zipkin, Application Insights, etc.)
-- W3C Trace Context standard support (`traceparent`, `tracestate` headers)
+- W3C Trace Context standard support (`traceparent`/`tracestate` are supported on inbound). Traceability propagates `traceparent` when trace context is available, but does not explicitly emit `tracestate`.
 - Automatic integration with existing OpenTelemetry instrumentation
 
 **Implementation Strategy**:
