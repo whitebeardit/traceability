@@ -1,3 +1,16 @@
+# [2.3.0](https://github.com/whitebeardit/traceability/compare/v2.2.0...v2.3.0) (2026-01-21)
+
+
+### Bug Fixes
+
+* documentation ([6cd5cf9](https://github.com/whitebeardit/traceability/commit/6cd5cf929c79bed2089826d4cc41021674d99fda))
+* **http:** harden traceparent propagation ([#32](https://github.com/whitebeardit/traceability/issues/32)) ([1c86da1](https://github.com/whitebeardit/traceability/commit/1c86da1f2f2cbeefe3e1e8f46b481835779f4d59))
+
+
+### Features
+
+* **core:** refactor correlation-id independence from trace ID ([#33](https://github.com/whitebeardit/traceability/issues/33)) ([29024fc](https://github.com/whitebeardit/traceability/commit/29024fcdd48ea0a843ee74c9f82337395c5bdad6))
+
 ## [2.2.2](https://github.com/whitebeardit/traceability/compare/v2.2.1...v2.2.2) (2025-12-29)
 
 
