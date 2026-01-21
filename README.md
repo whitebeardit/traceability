@@ -24,8 +24,9 @@ Use **Traceability** when you need:
 ## Features
 
 - ✅ **Zero-code/Zero-config**: Works automatically - just install the package!
-- ✅ Automatic correlation-id management using OpenTelemetry `Activity.TraceId` (with `AsyncLocal` fallback)
+- ✅ Automatic correlation-id management using `AsyncLocal<string>` (independent from OpenTelemetry TraceId)
 - ✅ OpenTelemetry integration with automatic Activity (span) creation
+- ✅ Adds `correlation.id` tag to spans (search by correlation-ID in Grafana Tempo)
 - ✅ Automatic span naming using route templates (e.g., `GET api/values/{id}`)
 - ✅ W3C Trace Context propagation (`traceparent`, `tracestate` headers)
 - ✅ Support for .NET 8.0 and .NET Framework 4.8
@@ -99,7 +100,7 @@ public class ValuesController : ControllerBase
 ```
 
 **Result:**
-- ✅ Correlation-id/trace-id automatically generated on each request
+- ✅ Correlation-id automatically generated on each request (if not provided via `X-Correlation-Id`)
 - ✅ OpenTelemetry Activity (span) automatically created
 - ✅ Span automatically named using route template (e.g., `GET api/values`)
 - ✅ Automatically propagated in HTTP calls (with W3C Trace Context)
