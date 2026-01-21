@@ -199,10 +199,12 @@ namespace Traceability.Extensions
 
             // Safety: if caller explicitly disabled assembly fallback, ensure we enforce the contract
             // even if some runtime quirks would otherwise produce a fallback value.
-            if (!options.UseAssemblyNameAsFallback &&
-                string.IsNullOrWhiteSpace(source) &&
-                string.IsNullOrWhiteSpace(options.Source) &&
-                string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME")))
+            // Verifica se não há source disponível antes de chamar GetServiceName
+            var hasSource = !string.IsNullOrWhiteSpace(source) ||
+                           !string.IsNullOrWhiteSpace(options.Source) ||
+                           !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TRACEABILITY_SERVICENAME"));
+
+            if (!options.UseAssemblyNameAsFallback && !hasSource)
             {
                 throw new InvalidOperationException(
                     "Source (ServiceName) must be provided either as a parameter, in TraceabilityOptions.Source, or via the TRACEABILITY_SERVICENAME environment variable.");
