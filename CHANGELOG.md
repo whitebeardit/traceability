@@ -1,3 +1,10 @@
+## [2.2.2](https://github.com/whitebeardit/traceability/compare/v2.2.1...v2.2.2) (2025-12-29)
+
+
+### Bug Fixes
+
+* **http:** harden traceparent propagation ([#32](https://github.com/whitebeardit/traceability/issues/32)) ([ff4f9b8](https://github.com/whitebeardit/traceability/commit/ff4f9b8a2063fca7827d9d64309d387228ce1884))
+
 ## [2.2.1](https://github.com/whitebeardit/traceability/compare/v2.2.0...v2.2.1) (2025-12-29)
 
 
