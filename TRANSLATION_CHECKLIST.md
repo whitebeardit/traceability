@@ -72,4 +72,3 @@
 ### Notes
 
 - This checklist tracks translation status only. It does not guarantee that every statement is aligned with the current implementation.
-
