@@ -95,7 +95,8 @@ public class CorrelationIdMiddleware
 **Behavior**:
 1. **Creates Activity automatically**: If `Activity.Current` is null (OpenTelemetry not configured), creates a new Activity (span) using `TraceabilityActivitySource`
 2. **Adds HTTP tags**: Automatically adds standard HTTP tags to Activity (method, url, scheme, host, status_code, etc.)
-3. Reads `X-Correlation-Id` header from request (or custom header via `HeaderName`)
+3. **Adds correlation-ID tag**: Automatically adds `correlation.id` tag to Activity when correlation-ID is available in context
+4. Reads `X-Correlation-Id` header from request (or custom header via `HeaderName`)
 4. If it exists, validates format (if `ValidateCorrelationIdFormat = true`) and uses the value
 5. If it doesn't exist or is invalid, generates new one via `CorrelationContext.GetOrCreate()`
 6. Adds correlation-id to response header
@@ -258,6 +259,7 @@ public class CorrelationIdHandler : DelegatingHandler
   - **.NET Framework (net48)**: enabled by default
   - **.NET 8 (net8.0)**: opt-in via `TraceabilityOptions.Net8HttpClientSpansEnabled` or `TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED=true`
 - **Adds HTTP tags**: Automatically adds standard HTTP tags to Activity (method, url, scheme, host, status_code)
+- **Adds correlation-ID tag**: Automatically adds `correlation.id` tag to Activity when correlation-ID is available in context
 - **W3C Trace Context propagation**: Automatically propagates `traceparent` header (W3C Trace Context standard) when trace context is available. Traceability does not explicitly emit `tracestate`.
 - Uses `CorrelationContext.TryGetValue()` to get correlation-id without creating a new one if it doesn't exist
 - Removes existing header (if any)
@@ -764,6 +766,9 @@ internal static class Constants
 - `HttpRequestMessageCorrelationIdExtractor`: Extracts correlation ID from HttpRequestMessage (implements `ICorrelationIdExtractor`)
 - `TraceabilityActivityFactory`: Factory for creating Activities (implements `IActivityFactory`)
 - `HttpActivityTagProvider`: Adds HTTP tags to Activities (implements `IActivityTagProvider`)
+  - Automatically adds `correlation.id` tag to all spans when correlation-ID is available in context
+  - Adds standard HTTP tags (method, url, scheme, host, status_code, etc.)
+  - Supports both server spans (HttpContext/HttpRequest) and client spans (HttpRequestMessage)
 - `CorrelationIdResolver`: Resolves effective correlation ID based on priority (AlwaysGenerateNew > header > traceparent > generate)
 - `ActivityContextBuilder`: Builds parent ActivityContext from correlation ID or traceparent
 - `TraceParentExtractor`: Extracts ActivityContext from traceparent/tracestate headers
