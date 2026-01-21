@@ -239,7 +239,7 @@ Shows the temporal order of calls between services.
 
 ```json
 {
-  "traceId": "a1b2c3d4e5f6789012345678901234ab",
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
   "spanId": "0123456789abcdef",
   "parentSpanId": "fedcba9876543210",
   "name": "HTTP Request",

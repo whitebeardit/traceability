@@ -46,6 +46,8 @@ Trace: abc123... (same trace-id in all spans)
 
 **Result:** All spans share the same trace-id (`abc123...`), but each has its own unique span-id, creating a complete execution flow hierarchy.
 
+**Note:** Correlation-ID is independent from trace ID. All spans also have a `correlation.id` tag that contains the correlation-ID value, enabling searching by correlation-ID in Grafana Tempo.
+
 ## How It Works
 
 ### 1. Service Receives Request (Server Span)
@@ -99,7 +101,7 @@ traceparent: 00-{trace-id}-{span-id}-{flags}
 
 **Example:**
 ```
-traceparent: 00-a1b2c3d4e5f6789012345678901234ab-0123456789abcdef-01
+traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
              │  │                              │ │                │
              │  │                              │                └─ Flags
              │  │                              └─ Span-ID (unique)
@@ -208,13 +210,38 @@ Trace: abc123...
 │              │ Parent: span-4
 ```
 
+## Correlation-ID Tag in Spans
+
+All spans automatically include a `correlation.id` tag when correlation-ID is available in context. This tag is **independent** from the OpenTelemetry trace ID and enables searching for spans by correlation-ID in Grafana Tempo.
+
+**Example span tags:**
+```
+Span: HTTP Request (Server)
+├─ Trace-ID: abc123... (OpenTelemetry)
+├─ Span-ID: span-1
+├─ correlation.id: xyz789... (Correlation-ID - independent)
+├─ http.method: GET
+├─ http.url: /api/process
+└─ http.status_code: 200
+```
+
+**Searching in Grafana Tempo:**
+- Query: `{correlation.id="xyz789..."}` - Find all spans for a specific correlation-ID
+- Query: `{correlation.id="xyz789..."} && {http.method="GET"}` - Filter by correlation-ID and HTTP method
+
+This enables:
+- **Log-to-Trace correlation**: Find all spans related to a log entry that contains a correlation-ID
+- **Request tracking**: Track a request across multiple services using the correlation-ID
+- **Debugging**: Quickly find all operations related to a specific request
+
 ## Benefits
 
 1. **Complete Tracking**: Each operation has its own span, allowing complete flow tracking
 2. **Preserved Hierarchy**: Parent-child relationship is maintained across services
 3. **Same Trace-ID**: All spans share the same trace-id for correlation
-4. **W3C Standard**: Uses W3C Trace Context standard, compatible with observability tools
-5. **Compatibility**: Works between .NET 4.8 and .NET 8.0
+4. **Correlation-ID Tag**: All spans include `correlation.id` tag for independent request tracking
+5. **W3C Standard**: Uses W3C Trace Context standard, compatible with observability tools
+6. **Compatibility**: Works between .NET 4.8 and .NET 8.0
 
 ## Integration with Observability Tools
 
@@ -227,7 +254,7 @@ Spans are automatically exported to observability tools that support OpenTelemet
 - **New Relic**
 - **Grafana Tempo**
 
-These tools can visualize the complete span hierarchy and correlate logs using the trace-id.
+These tools can visualize the complete span hierarchy and correlate logs using both the trace-id and the correlation-ID (via `correlation.id` tag).
 
 ## Verification
 
@@ -253,6 +280,7 @@ To verify if spans are being created correctly:
    - Should show complete span hierarchy
    - All should have the same trace-id
    - Each span should have its own span-id
+   - All spans should have `correlation.id` tag with the same correlation-ID value
 
 ## Conclusion
 
@@ -261,7 +289,8 @@ The library ensures that:
 1. ✅ **Spans are created** for each operation (Server and Client)
 2. ✅ **Hierarchy is preserved** across services
 3. ✅ **Trace-ID is shared** among all spans
-4. ✅ **W3C Trace Context is propagated** via `traceparent` header
-5. ✅ **Compatibility** between .NET 4.8 and .NET 8.0
+4. ✅ **Correlation-ID tag** is added to all spans (`correlation.id`) for independent tracking
+5. ✅ **W3C Trace Context is propagated** via `traceparent` header
+6. ✅ **Compatibility** between .NET 4.8 and .NET 8.0
 
 **Result**: Complete distributed tracing with span hierarchy preserved throughout the call chain! 🎉
