@@ -50,14 +50,15 @@ src/Traceability/
 
 ## Fundamental Principles
 
-1. **OpenTelemetry Integration**: Use `Activity.TraceId` (OpenTelemetry) as primary source, with `AsyncLocal<string>` as fallback
+1. **Correlation-ID Independence**: Correlation-ID is managed via `AsyncLocal<string>` and is **independent** from OpenTelemetry `Activity.TraceId`
 2. **Conditional Compilation**: Framework-specific code should use `#if NET8_0` or `#if NET48`
 3. **Default Header**: Always use `X-Correlation-Id` as default header (for backward compatibility)
 4. **W3C Trace Context**: Read inbound `traceparent`/`tracestate` when present, and propagate `traceparent` when trace context is available. Traceability does not explicitly emit `tracestate`.
-5. **GUID without Hyphens**: Generate correlation-id as 32-character GUID (without hyphens) when Activity not available
+5. **GUID without Hyphens**: Generate correlation-id as 32-character GUID (without hyphens) when correlation-ID needs to be created
 6. **Don't Modify Existing**: Never overwrite existing correlation-id in context
 7. **Zero Configuration**: Works without configuration, but allows customization
 8. **Automatic Activity Creation**: Creates OpenTelemetry Activities automatically when OpenTelemetry SDK is not configured
+9. **Span Searchability**: Add `correlation.id` tag to spans when correlation-ID is available (enables Grafana Tempo search)
 
 ## Quick References
 

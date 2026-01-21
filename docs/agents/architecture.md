@@ -12,7 +12,7 @@ graph TB
     end
 
     subgraph "Core Layer"
-        CorrelationContext[CorrelationContext<br/>Activity.TraceId / AsyncLocal]
+        CorrelationContext[CorrelationContext<br/>AsyncLocal (independent)]
         ActivitySource[TraceabilityActivitySource<br/>OpenTelemetry Activities]
     end
 
@@ -67,15 +67,17 @@ sequenceDiagram
     alt Header exists
         Context->>Context: Use header value
     else Header doesn't exist
-        Context->>Context: GetOrCreate (Activity.TraceId or new GUID)
+        Context->>Context: GetOrCreate (generate new GUID)
     end
-    Context-->>Middleware: CorrelationId/TraceId
+    Context-->>Middleware: CorrelationId
+    Middleware->>ActivitySource: Add correlation.id tag to Activity
     Middleware->>App: Process request
-    App->>Logger: Log with CorrelationId
+    App->>Logger: Log with CorrelationId and TraceId
     App->>HttpClient: External HTTP call
     HttpClient->>ActivitySource: Create child Activity
     ActivitySource-->>HttpClient: Child Activity
-    HttpClient->>Context: Get CorrelationId/TraceId
+    HttpClient->>Context: Get CorrelationId
+    HttpClient->>ActivitySource: Add correlation.id tag to Activity
     HttpClient->>External: Request with X-Correlation-Id + traceparent
     External-->>HttpClient: Response
     HttpClient->>ActivitySource: Stop Activity
@@ -107,22 +109,22 @@ sequenceDiagram
         Middleware->>Context: Current = headerValue
     else Header doesn't exist
         Middleware->>Context: GetOrCreate()
-        Context->>Context: Use Activity.TraceId or Generate GUID
+        Context->>Context: Generate new GUID
     end
-    Context-->>Middleware: correlationId/traceId
+    Context-->>Middleware: correlationId
     Middleware->>Middleware: Add response header
-    Middleware->>Middleware: Add HTTP tags to Activity
+    Middleware->>Middleware: Add HTTP tags + correlation.id tag to Activity
     Middleware->>Controller: Invoke next()
     Controller->>Context: Current (get ID)
-    Context-->>Controller: correlationId/traceId
-    Controller->>Logger: Log with CorrelationId
+    Context-->>Controller: correlationId
+    Controller->>Logger: Log with CorrelationId and TraceId
     Controller->>HttpClient: SendAsync()
     HttpClient->>ActivitySource: Create child Activity
     ActivitySource-->>HttpClient: Child Activity
-    HttpClient->>Context: Current (Activity.TraceId)
-    Context-->>HttpClient: traceId
+    HttpClient->>Context: Current (get correlation-ID)
+    Context-->>HttpClient: correlationId
     HttpClient->>HttpClient: Add X-Correlation-Id + traceparent headers
-    HttpClient->>HttpClient: Add HTTP tags to Activity
+    HttpClient->>HttpClient: Add HTTP tags + correlation.id tag to Activity
     HttpClient->>External: HTTP Request (with trace context)
     External-->>HttpClient: HTTP Response
     HttpClient->>ActivitySource: Stop child Activity
@@ -170,11 +172,11 @@ graph LR
 ```
 
 **Behavior**:
-1. Service A receives request without header → creates Activity with TraceId `abc123`
+1. Service A receives request without header → creates Activity with TraceId `4bf92f...` and generates correlation-ID `abc123...`
 2. Service A calls Service B with headers:
-   - `X-Correlation-Id: abc123` (backward compatibility)
-   - `traceparent: 00-abc123...` (W3C Trace Context)
-3. Service B reads headers and uses `abc123` (doesn't generate new one)
+   - `X-Correlation-Id: abc123...` (correlation-ID)
+   - `traceparent: 00-4bf92f...` (W3C Trace Context / trace ID)
+3. Service B reads headers and uses correlation-ID `abc123...` (doesn't generate new one)
 4. Service B creates child Activity (span) maintaining trace hierarchy
 5. Service B calls Service C with same headers
 6. Process continues until the end of the chain
@@ -194,7 +196,8 @@ graph TD
 - Each HTTP request creates a root Activity (span)
 - Each outgoing HTTP call propagates trace context. On .NET Framework, Traceability creates child HttpClient spans. On .NET 8, Traceability-created HttpClient spans are opt-in to avoid duplication with built-in instrumentation.
 - Activities maintain parent-child relationships for hierarchical tracing
-- All Activities share the same TraceId for correlation
+- All Activities share the same TraceId for distributed tracing correlation
+- Correlation-ID is added as `correlation.id` tag to spans for searching (e.g., Grafana Tempo)
 - W3C Trace Context: Traceability propagates `traceparent` when trace context is available. It reads `traceparent`/`tracestate` on inbound requests when present, but does not explicitly emit `tracestate`. `traceparent` emission is best-effort and only happens when a valid W3C `traceparent` value is available (legacy/hierarchical `Activity.Id` values are not emitted as `traceparent`).
 
 ## Logging Integration
