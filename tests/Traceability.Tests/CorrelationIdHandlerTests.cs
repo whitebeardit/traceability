@@ -150,8 +150,9 @@ namespace Traceability.Tests
             using var parent = new Activity("parent");
             parent.SetIdFormat(ActivityIdFormat.W3C);
             parent.Start();
-            // CorrelationContext prioritizes Activity.TraceId; keep expectations aligned with that contract.
-            var correlationId = parent.TraceId.ToString();
+            // Correlation-ID é independente do trace ID, então precisamos setar explicitamente
+            var correlationId = Guid.NewGuid().ToString("N");
+            CorrelationContext.Current = correlationId;
 
             HttpRequestMessage? capturedRequest = null;
 
@@ -198,8 +199,9 @@ namespace Traceability.Tests
             parent.SetIdFormat(ActivityIdFormat.W3C);
             parent.Start();
 
-            // CorrelationContext prioritizes Activity.TraceId; keep expectations aligned with that contract.
-            var correlationId = parent.TraceId.ToString();
+            // Correlation-ID é independente do trace ID, então precisamos setar explicitamente
+            var correlationId = Guid.NewGuid().ToString("N");
+            CorrelationContext.Current = correlationId;
 
             HttpRequestMessage? capturedRequest = null;
 
