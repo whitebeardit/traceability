@@ -3,6 +3,7 @@ using System;
 using System.Diagnostics;
 using System.Net.Http;
 using Microsoft.AspNetCore.Http;
+using Traceability;
 using Traceability.Core;
 
 namespace Traceability.Core.Services
@@ -19,6 +20,12 @@ namespace Traceability.Core.Services
         public void AddRequestTags(Activity activity, object request)
         {
             if (activity == null || request == null) return;
+
+            // Adicionar correlation-ID como tag (já existe no contexto neste ponto)
+            if (CorrelationContext.TryGetValue(out var correlationId) && !string.IsNullOrEmpty(correlationId))
+            {
+                activity.SetTag(Constants.ActivityTags.CorrelationId, correlationId);
+            }
 
             // Suporta HttpContext (ASP.NET Core) e HttpRequestMessage (HttpClient)
             if (request is HttpContext httpContext)

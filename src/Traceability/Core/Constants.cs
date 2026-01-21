@@ -45,6 +45,7 @@ namespace Traceability.Core
             public const string HttpRequestContentLength = "http.request_content_length";
             public const string HttpRequestContentType = "http.request_content_type";
             public const string HttpResponseContentLength = "http.response_content_length";
+            public const string CorrelationId = "correlation.id";
             public const string Error = "error";
             public const string ErrorType = "error.type";
             public const string ErrorMessage = "error.message";

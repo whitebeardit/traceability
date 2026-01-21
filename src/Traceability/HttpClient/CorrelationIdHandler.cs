@@ -168,6 +168,12 @@ namespace Traceability.HttpClient
                 activity.SetTag(Constants.ActivityTags.HttpUrl, request.RequestUri?.ToString());
                 activity.SetTag(Constants.ActivityTags.HttpScheme, request.RequestUri?.Scheme);
                 activity.SetTag(Constants.ActivityTags.HttpHost, request.RequestUri?.Host);
+                
+                // Adicionar correlation-ID (reutiliza variável já declarada acima)
+                if (hasCorrelationContext && !string.IsNullOrEmpty(correlationId))
+                {
+                    activity.SetTag(Constants.ActivityTags.CorrelationId, correlationId);
+                }
 #endif
             }
 
