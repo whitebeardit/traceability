@@ -27,22 +27,10 @@ namespace Traceability.Core.Services
         {
             // Build parent context:
             // - If traceparent exists and no correlation header override, keep real parent
-            // - Else, create an artificial parent if correlation id is a W3C trace-id (32 hex)
+            // - Correlation-ID is independent from OpenTelemetry trace ID, so we don't create artificial ActivityContext
             if (!options.AlwaysGenerateNew && string.IsNullOrEmpty(correlationIdFromHeader) && parentFromTraceparent != default)
             {
                 return parentFromTraceparent;
-            }
-            else if (correlationId.Length == 32)
-            {
-                try
-                {
-                    var traceId = ActivityTraceId.CreateFromString(correlationId.AsSpan());
-                    return new ActivityContext(traceId, ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded);
-                }
-                catch
-                {
-                    return default;
-                }
             }
 
             return default;

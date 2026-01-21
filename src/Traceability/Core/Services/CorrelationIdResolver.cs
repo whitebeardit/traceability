@@ -23,7 +23,8 @@ namespace Traceability.Core.Services
         public static string Resolve(TraceabilityOptions options, string? headerValue, ActivityContext parentFromTraceparent)
         {
             // Decide effective correlation-id for this request:
-            // Priority: AlwaysGenerateNew > correlation header > traceparent > generate
+            // Priority: AlwaysGenerateNew > correlation header > generate
+            // Correlation-ID is independent from OpenTelemetry trace ID
             if (options.AlwaysGenerateNew)
             {
                 return Guid.NewGuid().ToString("N");
@@ -31,10 +32,6 @@ namespace Traceability.Core.Services
             else if (!string.IsNullOrEmpty(headerValue))
             {
                 return headerValue!;
-            }
-            else if (parentFromTraceparent != default)
-            {
-                return parentFromTraceparent.TraceId.ToString();
             }
             else
             {
