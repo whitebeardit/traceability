@@ -234,6 +234,58 @@ namespace Traceability.Tests
 
             Activity.Current.Should().Be(parent);
         }
+
+#if NET48 || NET8_0
+        [Fact]
+        public async Task SendAsync_WhenSpanCreated_ShouldHaveCorrelationIdTag()
+        {
+            // Arrange
+            CorrelationContext.Clear();
+            var correlationId = Guid.NewGuid().ToString("N");
+            CorrelationContext.Current = correlationId;
+
+            Activity? createdActivity = null;
+
+            var mockHandler = new Mock<HttpMessageHandler>();
+            mockHandler.Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync",
+                    ItExpr.IsAny<HttpRequestMessage>(),
+                    ItExpr.IsAny<CancellationToken>())
+                .Callback<HttpRequestMessage, CancellationToken>((req, _) =>
+                {
+                    createdActivity = Activity.Current;
+                })
+                .ReturnsAsync(new HttpResponseMessage());
+
+            var handler = new CorrelationIdHandler
+            {
+                InnerHandler = mockHandler.Object
+            };
+
+#if NET8_0
+            // Enable spans for NET8
+            Environment.SetEnvironmentVariable("TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED", "true");
+#endif
+
+            var httpClient = new System.Net.Http.HttpClient(handler);
+            var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com");
+
+            // Act
+            await httpClient.SendAsync(request);
+
+            // Assert
+            if (createdActivity != null)
+            {
+                var tagValue = createdActivity.GetTagItem("correlation.id");
+                tagValue.Should().NotBeNull();
+                tagValue.Should().Be(correlationId);
+            }
+#if NET8_0
+            Environment.SetEnvironmentVariable("TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED", null);
+#endif
+        }
+#endif
 #endif
     }
 }

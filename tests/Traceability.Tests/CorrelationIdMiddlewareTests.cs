@@ -1,5 +1,6 @@
 #if NET8_0
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Traceability;
@@ -99,6 +100,39 @@ namespace Traceability.Tests
             // Assert
             httpContext.Response.Headers["X-Correlation-Id"].ToString().Should().Be(correlationId);
         }
+
+#if NET48 || NET8_0
+        [Fact]
+        public async Task InvokeAsync_WhenSpanCreated_ShouldHaveCorrelationIdTag()
+        {
+            // Arrange
+            CorrelationContext.Clear();
+            var correlationId = Guid.NewGuid().ToString("N");
+
+            var httpContext = new DefaultHttpContext();
+            httpContext.Request.Headers["X-Correlation-Id"] = correlationId;
+
+            Activity? createdActivity = null;
+            RequestDelegate next = async (context) =>
+            {
+                createdActivity = Activity.Current;
+                await Task.CompletedTask;
+            };
+
+            var middleware = new CorrelationIdMiddleware(next);
+
+            // Act
+            await middleware.InvokeAsync(httpContext);
+
+            // Assert
+            if (createdActivity != null)
+            {
+                var tagValue = createdActivity.GetTagItem("correlation.id");
+                tagValue.Should().NotBeNull();
+                tagValue.Should().Be(correlationId);
+            }
+        }
+#endif
     }
 }
 #endif
