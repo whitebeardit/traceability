@@ -50,6 +50,8 @@ public class ValuesController : ControllerBase
 [14:23:45 INF] UserService a1b2c3d4e5f6789012345678901234ab Processing request
 ```
 
+**Note:** Both `CorrelationId` and `TraceId` appear in logs independently. Correlation-ID is managed by Traceability and is independent from OpenTelemetry's trace ID.
+
 ### JSON Template
 
 For JSON output:
@@ -70,8 +72,10 @@ builder.Host.UseSerilog();
 
 **Expected output (JSON):**
 ```json
-{"Timestamp":"2024-01-15T14:23:45.123Z","Level":"Information","Source":"UserService","CorrelationId":"a1b2c3d4e5f6789012345678901234ab","Message":"Processing request"}
+{"Timestamp":"2024-01-15T14:23:45.123Z","Level":"Information","Source":"UserService","CorrelationId":"a1b2c3d4e5f6789012345678901234ab","TraceId":"xyz7890123456789012345678901234ab","Message":"Processing request"}
 ```
+
+**Note:** Both `CorrelationId` and `TraceId` appear in logs independently. Correlation-ID is managed by Traceability and is independent from OpenTelemetry's trace ID.
 
 ## Microsoft.Extensions.Logging
 
@@ -110,8 +114,11 @@ public class ValuesController : ControllerBase
 ```
 info: MyApp.ValuesController[0]
       => CorrelationId: a1b2c3d4e5f6789012345678901234ab
+      => TraceId: xyz7890123456789012345678901234ab
       Processing request
 ```
+
+**Note:** Both `CorrelationId` and `TraceId` appear in logs independently. Correlation-ID is managed by Traceability and is independent from OpenTelemetry's trace ID.
 
 ## Source Field
 
@@ -155,6 +162,8 @@ When you have a call chain (Service A → Service B → Service C), all logs wil
 ```
 
 **Benefit:** You can search for `a1b2c3d4e5f6789012345678901234ab` across all logs and track the entire execution chain!
+
+**Note:** All logs also include `TraceId` (OpenTelemetry's trace ID) independently. Both IDs appear in logs, enabling dual tracking for business (CorrelationId) and technical (TraceId) purposes.
 
 ## Next Steps
 

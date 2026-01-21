@@ -197,7 +197,7 @@ public class OrderController : ControllerBase
 GET /orders/process HTTP/1.1
 Host: order-service.example.com
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
-traceparent: 00-a1b2c3d4e5f6789012345678901234ab-0123456789abcdef-01
+traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 ```
 
 **Benefits:**
