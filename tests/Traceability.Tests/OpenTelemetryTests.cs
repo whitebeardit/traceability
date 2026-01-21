@@ -15,7 +15,7 @@ namespace Traceability.Tests
         // a integração com CorrelationContext e uso de tags.
 
         [Fact]
-        public void CorrelationContext_ShouldUseActivityTraceId()
+        public void CorrelationContext_ShouldBeIndependentFromActivityTraceId()
         {
             // Arrange
             CorrelationContext.Clear();
@@ -27,12 +27,16 @@ namespace Traceability.Tests
                 return;
             }
 
+            var traceId = activity.TraceId.ToString();
+
             // Act
             var correlationId = CorrelationContext.Current;
 
             // Assert
-            correlationId.Should().Be(activity.TraceId.ToString());
+            // Correlation-ID deve ser independente do trace ID
             correlationId.Should().NotBeNullOrEmpty();
+            correlationId.Should().NotBe(traceId); // Devem ser diferentes
+            correlationId.Length.Should().Be(32); // GUID sem hífens
         }
 
         [Fact]

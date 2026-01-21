@@ -201,6 +201,118 @@ namespace Traceability.Tests
         }
 
         [Fact]
+        public void WithTraceability_ShouldIncludeBothCorrelationIdAndTraceId_WhenBothExist()
+        {
+            // Arrange
+            var source = "TestService";
+            var testSink = new TestSink();
+            var correlationId = Guid.NewGuid().ToString("N");
+            CorrelationContext.Current = correlationId;
+
+            using var activity = new System.Diagnostics.Activity("TestRoot")
+                .SetIdFormat(System.Diagnostics.ActivityIdFormat.W3C)
+                .Start();
+
+            var traceId = activity.TraceId.ToString();
+
+            // Act
+            var logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WithTraceability(source)
+                .WriteTo.Sink(testSink)
+                .CreateLogger();
+
+            logger.Information("Test message");
+
+            // Assert
+            testSink.Events.Should().NotBeEmpty();
+            var logEvent = testSink.Events[0];
+            
+            // Deve conter CorrelationId
+            logEvent.Properties.Should().ContainKey("CorrelationId");
+            logEvent.Properties["CorrelationId"].ToString().Should().Contain(correlationId);
+            
+            // Deve conter TraceId (do OpenTelemetry)
+            logEvent.Properties.Should().ContainKey("TraceId");
+            logEvent.Properties["TraceId"].ToString().Should().Contain(traceId);
+            
+            // Devem ser diferentes (independentes)
+            logEvent.Properties["CorrelationId"].ToString().Should().NotBe(logEvent.Properties["TraceId"].ToString());
+        }
+
+        [Fact]
+        public void WithTraceability_ShouldIncludeCorrelationId_WhenNoActivity()
+        {
+            // Arrange
+            var source = "TestService";
+            var testSink = new TestSink();
+            var correlationId = Guid.NewGuid().ToString("N");
+            CorrelationContext.Current = correlationId;
+
+            // Garantir que não há Activity
+            var previousActivity = System.Diagnostics.Activity.Current;
+            if (previousActivity != null)
+            {
+                previousActivity.Stop();
+            }
+
+            // Act
+            var logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WithTraceability(source)
+                .WriteTo.Sink(testSink)
+                .CreateLogger();
+
+            logger.Information("Test message");
+
+            // Assert
+            testSink.Events.Should().NotBeEmpty();
+            var logEvent = testSink.Events[0];
+            
+            // Deve conter CorrelationId
+            logEvent.Properties.Should().ContainKey("CorrelationId");
+            logEvent.Properties["CorrelationId"].ToString().Should().Contain(correlationId);
+            
+            // Não deve conter TraceId (sem Activity)
+            logEvent.Properties.Should().NotContainKey("TraceId");
+        }
+
+        [Fact]
+        public void WithTraceability_ShouldIncludeTraceId_WhenActivityExistsButNoCorrelationId()
+        {
+            // Arrange
+            var source = "TestService";
+            var testSink = new TestSink();
+            CorrelationContext.Clear();
+
+            using var activity = new System.Diagnostics.Activity("TestRoot")
+                .SetIdFormat(System.Diagnostics.ActivityIdFormat.W3C)
+                .Start();
+
+            var traceId = activity.TraceId.ToString();
+
+            // Act
+            var logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WithTraceability(source)
+                .WriteTo.Sink(testSink)
+                .CreateLogger();
+
+            logger.Information("Test message");
+
+            // Assert
+            testSink.Events.Should().NotBeEmpty();
+            var logEvent = testSink.Events[0];
+            
+            // Não deve conter CorrelationId (não foi setado)
+            logEvent.Properties.Should().NotContainKey("CorrelationId");
+            
+            // Deve conter TraceId (do OpenTelemetry)
+            logEvent.Properties.Should().ContainKey("TraceId");
+            logEvent.Properties["TraceId"].ToString().Should().Contain(traceId);
+        }
+
+        [Fact]
         public void WithTraceabilityJson_ShouldAddDataEnricher()
         {
             // Arrange

@@ -42,10 +42,11 @@ await SomeAsyncMethod(); // Value preserved
 - Automatic integration with existing OpenTelemetry instrumentation
 
 **Implementation Strategy**:
-- **Priority 1**: Use `Activity.TraceId` when available (OpenTelemetry standard)
-- **Priority 2**: Fallback to `AsyncLocal<string>` when Activity is not available
+- **Correlation-ID Independence**: Correlation-ID is managed independently via `AsyncLocal<string>`, separate from OpenTelemetry's trace ID
+- **Dual Tracking**: Both correlation-ID and trace ID appear in logs and spans independently
 - **Automatic Creation**: Creates Activities automatically when OpenTelemetry is not configured
 - **Backward Compatibility**: Maintains `X-Correlation-Id` header for services not using OpenTelemetry
+- **Span Tags**: Adds `correlation.id` tag to all spans for searching in Grafana Tempo
 
 **Benefits**:
 - ✅ Industry-standard distributed tracing
@@ -54,15 +55,19 @@ await SomeAsyncMethod(); // Value preserved
 - ✅ Compatible with all major observability platforms
 - ✅ Works with or without OpenTelemetry SDK configured
 - ✅ Maintains backward compatibility with existing correlation-id systems
+- ✅ Independent correlation-ID tracking (business-level) separate from technical trace ID
+- ✅ Search spans by correlation-ID in Grafana Tempo using `correlation.id` tag
 
 **When OpenTelemetry is configured**:
 - Uses existing Activities created by OpenTelemetry SDK
 - Automatically integrates with OpenTelemetry instrumentation
+- Correlation-ID is added as `correlation.id` tag to all spans
 - No additional configuration needed
 
 **When OpenTelemetry is not configured**:
 - Automatically creates Activities via `TraceabilityActivitySource`
 - Provides same functionality without requiring OpenTelemetry SDK
+- Correlation-ID is still added as `correlation.id` tag to all spans
 - Can be upgraded to full OpenTelemetry later without code changes
 
 ## Why JSON Log Uniformization and Environment Variables?

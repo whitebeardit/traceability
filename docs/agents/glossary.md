@@ -1,13 +1,13 @@
 # Glossary of Terms
 
-- **Correlation-ID**: Unique identifier used to track a request across multiple services. In Traceability, this is typically the OpenTelemetry TraceId.
+- **Correlation-ID**: Unique identifier used to track a request across multiple services. In Traceability, correlation-ID is **independent** from OpenTelemetry's trace ID and is managed via `AsyncLocal<string>`. Both correlation-ID and trace ID appear in logs and spans independently.
 - **Activity**: .NET class that represents a span in distributed tracing (OpenTelemetry standard). Contains TraceId, SpanId, and trace context.
 - **TraceId**: Unique identifier for a trace (distributed request flow). Part of OpenTelemetry Activity, automatically propagated across services.
 - **Span**: A single operation within a trace. In Traceability, each HTTP request and HTTP call creates a span (Activity).
 - **W3C Trace Context**: Industry standard for distributed tracing, defined by W3C. Uses `traceparent` and `tracestate` headers.
 - **traceparent**: W3C Trace Context header that carries trace context (TraceId, SpanId, flags) across service boundaries.
 - **tracestate**: W3C Trace Context header that carries additional trace context (baggage) as key-value pairs.
-- **AsyncLocal**: .NET class that stores values specific to an asynchronous context. Used as fallback when Activity is not available.
+- **AsyncLocal**: .NET class that stores values specific to an asynchronous context. Used exclusively for correlation-ID management in Traceability (independent from OpenTelemetry Activity).
 - **DelegatingHandler**: Base class for HTTP handlers that can be chained
 - **Enricher**: Serilog component that adds properties to log events
 - **ScopeProvider**: Microsoft.Extensions.Logging component that manages logging scopes
@@ -16,7 +16,7 @@
 - **MessageHandler**: Handler in ASP.NET Web API pipeline
 - **HttpModule**: Module in traditional ASP.NET pipeline
 - **Source**: Field that identifies the origin/service that is generating the logs
-- **Traceability**: Ability to track a request across multiple services using correlation-id/trace-id
+- **Traceability**: Ability to track a request across multiple services using correlation-ID (business correlation) and trace ID (distributed tracing)
 - **Socket Exhaustion**: Problem that occurs when many HTTP connections are created without reuse, exhausting available sockets
 - **IHttpClientFactory**: .NET factory that manages HTTP connection pool, preventing socket exhaustion
 - **OpenTelemetry**: Industry standard for observability (tracing, metrics, logs). Traceability integrates with OpenTelemetry Activities.

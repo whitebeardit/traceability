@@ -30,8 +30,8 @@ public class ValuesController : ControllerBase
     [HttpGet]
     public IActionResult Get()
     {
-        // Correlation-id/trace-id is automatically available
-        // Uses Activity.TraceId if OpenTelemetry is configured, otherwise uses AsyncLocal
+        // Correlation-ID is automatically available
+        // Correlation-ID is independent from OpenTelemetry TraceId (Activity.TraceId)
         var correlationId = CorrelationContext.Current;
         return Ok(new { CorrelationId = correlationId });
     }
@@ -111,7 +111,7 @@ public class MyController : ControllerBase
 GET /endpoint HTTP/1.1
 Host: api.example.com
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
-traceparent: 00-a1b2c3d4e5f6789012345678901234ab-0123456789abcdef-01
+traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 ```
 
 ## Complete Example

@@ -22,8 +22,9 @@ app.Run();
 - ✅ Middleware is automatically registered via `IStartupFilter`
 - ✅ OpenTelemetry Activity (span) is automatically created for each request
 - ✅ HttpClient is automatically configured with `CorrelationIdHandler`
-- ✅ Correlation-id/trace-id is automatically generated for each request
+- ✅ Correlation-id is automatically generated for each request (if not provided via `X-Correlation-Id`)
 - ✅ W3C Trace Context headers are automatically propagated in HTTP calls
+- ✅ Spans include `correlation.id` tag when correlation-ID is available (enables Grafana Tempo search)
 
 ## Using in a Controller
 
@@ -159,7 +160,7 @@ public class ValuesController : ControllerBase
 The external HTTP request automatically includes the headers:
 ```
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
-traceparent: 00-a1b2c3d4e5f6789012345678901234ab-...
+traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-...
 ```
 
 **Note**: The `traceparent` header is the W3C Trace Context standard for distributed tracing. It's automatically added along with `X-Correlation-Id` for backward compatibility.

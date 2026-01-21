@@ -42,6 +42,12 @@ Each span contains:
 - `http.host`: Host
 - `http.status_code`: HTTP response status
 
+**Correlation-ID Tag:**
+- `correlation.id`: The correlation-ID from `X-Correlation-Id` header or generated GUID
+  - Automatically added to all spans (server and client)
+  - Allows searching for all spans related to a specific request in Grafana Tempo
+  - Independent from OpenTelemetry trace ID
+
 **Error Tags (when exception occurs):**
 - `error`: `true`
 - `error.type`: Exception type
@@ -138,6 +144,20 @@ In Grafana, create a Trace panel:
 - Query: `{service_name="YourService"}`
 - Visualization: Timeline or Flamegraph
 
+### 4. Search by Correlation-ID
+
+The library automatically adds `correlation.id` tag to all spans, allowing you to search for all spans related to a specific request:
+
+**Query examples in Grafana Tempo:**
+- `{correlation.id="abc123..."}` - Find all spans for a specific correlation-ID
+- `{correlation.id="abc123..."} && {http.method="GET"}` - Filter by correlation-ID and HTTP method
+- `{correlation.id=~".*abc.*"}` - Search using regex
+
+This enables:
+- **Log-to-Trace correlation**: Find all spans related to a log entry that contains a correlation-ID
+- **Request tracking**: Track a request across multiple services using the correlation-ID
+- **Debugging**: Quickly find all operations related to a specific request
+
 ## What You'll See in Grafana
 
 ### 1. Timeline Stack
@@ -219,7 +239,7 @@ Shows the temporal order of calls between services.
 
 ```json
 {
-  "traceId": "a1b2c3d4e5f6789012345678901234ab",
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
   "spanId": "0123456789abcdef",
   "parentSpanId": "fedcba9876543210",
   "name": "HTTP Request",
@@ -237,7 +257,8 @@ Shows the temporal order of calls between services.
     "http.host": "service-a.example.com",
     "http.status_code": 200,
     "http.user_agent": "Mozilla/5.0...",
-    "http.request_content_length": 1024
+    "http.request_content_length": 1024,
+    "correlation.id": "a1b2c3d4e5f6789012345678901234ab"
   }
 }
 ```

@@ -208,20 +208,23 @@ namespace Traceability.Tests
         }
 
         [Fact]
-        public void Current_WhenActivityAvailable_ShouldUseTraceId()
+        public void Current_WhenActivityAvailable_ShouldBeIndependentFromTraceId()
         {
             // Arrange
             CorrelationContext.Clear();
             using var activity = new Activity("Test");
             activity.SetIdFormat(ActivityIdFormat.W3C);
             activity.Start();
+            var traceId = activity.TraceId.ToString();
 
             // Act
             var correlationId = CorrelationContext.Current;
 
             // Assert
-            correlationId.Should().Be(activity.TraceId.ToString());
+            // Correlation-ID deve ser independente do trace ID
             correlationId.Should().NotBeNullOrEmpty();
+            correlationId.Should().NotBe(traceId); // Devem ser diferentes
+            correlationId.Length.Should().Be(32); // GUID sem hífens
         }
 
         [Fact]
@@ -245,9 +248,10 @@ namespace Traceability.Tests
         }
 
         [Fact]
-        public void HasValue_WhenActivityAvailable_ShouldReturnTrue()
+        public void HasValue_WhenActivityAvailable_ShouldReturnFalseIfNoCorrelationIdSet()
         {
             // Arrange
+            CorrelationContext.Clear();
             using var activity = new Activity("Test");
             activity.SetIdFormat(ActivityIdFormat.W3C);
             activity.Start();
@@ -256,7 +260,8 @@ namespace Traceability.Tests
             var hasValue = CorrelationContext.HasValue;
 
             // Assert
-            hasValue.Should().BeTrue();
+            // Correlation-ID é independente do Activity, então se não foi setado, deve ser false
+            hasValue.Should().BeFalse();
         }
 
         [Fact]
@@ -279,9 +284,10 @@ namespace Traceability.Tests
         }
 
         [Fact]
-        public void TryGetValue_WhenActivityAvailable_ShouldReturnTraceId()
+        public void TryGetValue_WhenActivityAvailable_ShouldReturnFalseIfNoCorrelationIdSet()
         {
             // Arrange
+            CorrelationContext.Clear();
             using var activity = new Activity("Test");
             activity.SetIdFormat(ActivityIdFormat.W3C);
             activity.Start();
@@ -290,8 +296,9 @@ namespace Traceability.Tests
             var result = CorrelationContext.TryGetValue(out var value);
 
             // Assert
-            result.Should().BeTrue();
-            value.Should().Be(activity.TraceId.ToString());
+            // Correlation-ID é independente do Activity, então se não foi setado, deve retornar false
+            result.Should().BeFalse();
+            value.Should().BeNull();
         }
 
         [Fact]
@@ -315,14 +322,14 @@ namespace Traceability.Tests
         }
 
         [Fact]
-        public void Current_ShouldPrioritizeActivityOverFallback()
+        public void Current_ShouldPrioritizeExplicitCorrelationIdOverActivity()
         {
             // Arrange
             CorrelationContext.Clear();
-            var fallbackId = Guid.NewGuid().ToString("N");
-            CorrelationContext.Current = fallbackId;
+            var explicitCorrelationId = Guid.NewGuid().ToString("N");
+            CorrelationContext.Current = explicitCorrelationId;
 
-            // Criar Activity (deve ter prioridade)
+            // Criar Activity (não deve afetar correlation-ID)
             using var activity = new Activity("Test");
             activity.SetIdFormat(ActivityIdFormat.W3C);
             activity.Start();
@@ -331,13 +338,14 @@ namespace Traceability.Tests
             var correlationId = CorrelationContext.Current;
 
             // Assert
-            correlationId.Should().Be(activity.TraceId.ToString());
-            correlationId.Should().NotBe(fallbackId);
+            // Correlation-ID explícito deve ter prioridade sobre qualquer Activity
+            correlationId.Should().Be(explicitCorrelationId);
+            correlationId.Should().NotBe(activity.TraceId.ToString());
         }
 
 #if NET48 || NET8_0
         [Fact]
-        public void Current_WhenActivityWithHierarchicalFormat_ShouldExtractTraceId()
+        public void Current_WhenActivityWithHierarchicalFormat_ShouldBeIndependent()
         {
             // Arrange
             CorrelationContext.Clear();
@@ -345,71 +353,36 @@ namespace Traceability.Tests
             using var activity = new Activity("Test");
             // Não definir W3C format - usa formato hierárquico por padrão
             activity.Start();
-            
-            // Simular formato hierárquico: |{trace-id}.{span-id}.{parent-id}|
-            // Como não podemos forçar formato hierárquico diretamente, testamos o fallback
-            // Se o Activity não tiver W3C format, deve tentar extrair do formato hierárquico ou usar fallback
-            var hasW3C = activity.IdFormat == ActivityIdFormat.W3C;
 
             // Act
             var correlationId = CorrelationContext.Current;
 
             // Assert
+            // Correlation-ID deve ser independente do Activity, sempre gerado como GUID
             correlationId.Should().NotBeNullOrEmpty();
-            // Se não for W3C, pode extrair do formato hierárquico (pode ter tamanho variável) ou usar fallback (GUID de 32 chars)
-            if (!hasW3C)
-            {
-                // Pode ser trace-id extraído do formato hierárquico (tamanho variável) ou GUID (32 chars)
-                correlationId.Length.Should().BeGreaterThan(0);
-                correlationId.Length.Should().BeLessThanOrEqualTo(128);
-            }
-            else
-            {
-                // Se for W3C, deve ter 32 caracteres (hex sem hífens)
-                correlationId.Length.Should().Be(32);
-            }
+            correlationId.Length.Should().Be(32); // GUID sem hífens
+            correlationId.Should().NotBe(activity.TraceId.ToString()); // Devem ser diferentes
         }
 
         [Fact]
-        public void TryGetValue_WhenActivityWithHierarchicalFormat_ShouldWork()
+        public void TryGetValue_WhenActivityWithHierarchicalFormat_ShouldReturnFalseIfNoCorrelationIdSet()
         {
             // Arrange
             CorrelationContext.Clear();
             using var activity = new Activity("Test");
             activity.Start();
-            var hasW3C = activity.IdFormat == ActivityIdFormat.W3C;
 
             // Act
             var result = CorrelationContext.TryGetValue(out var value);
 
             // Assert
-            if (hasW3C)
-            {
-                // Se for W3C, deve conseguir extrair o trace-id
-                result.Should().BeTrue();
-                value.Should().NotBeNullOrEmpty();
-                value.Should().Be(activity.TraceId.ToString());
-            }
-            else
-            {
-                // Se não for W3C, pode conseguir extrair do formato hierárquico ou retornar false
-                // O comportamento depende se o Activity.Id está no formato hierárquico esperado
-                // Se conseguir extrair, retorna true; caso contrário, retorna false
-                if (result)
-                {
-                    value.Should().NotBeNullOrEmpty();
-                    value!.Length.Should().BeGreaterThan(0);
-                    value.Length.Should().BeLessThanOrEqualTo(128);
-                }
-                else
-                {
-                    value.Should().BeNull();
-                }
-            }
+            // Correlation-ID é independente do Activity, então se não foi setado, deve retornar false
+            result.Should().BeFalse();
+            value.Should().BeNull();
         }
 
         [Fact]
-        public void Current_ShouldHandleActivityIdFormatChanges()
+        public void Current_ShouldBeIndependentFromActivity()
         {
             // Arrange
             CorrelationContext.Clear();
@@ -420,11 +393,14 @@ namespace Traceability.Tests
             activity1.Start();
             
             var correlationId1 = CorrelationContext.Current;
+            var traceId1 = activity1.TraceId.ToString();
             correlationId1.Should().NotBeNullOrEmpty();
+            correlationId1.Should().NotBe(traceId1); // Devem ser diferentes
+            correlationId1.Length.Should().Be(32); // GUID sem hífens
             
             activity1.Stop();
             
-            // Teste 2: Sem Activity (fallback)
+            // Teste 2: Sem Activity (mas correlation-ID já foi gerado no teste 1)
             var previousActivity = Activity.Current;
             if (previousActivity != null)
             {
@@ -434,15 +410,19 @@ namespace Traceability.Tests
             var correlationId2 = CorrelationContext.Current;
             correlationId2.Should().NotBeNullOrEmpty();
             correlationId2.Length.Should().Be(32); // GUID sem hífens
+            correlationId2.Should().Be(correlationId1); // Retorna o mesmo valor já gerado (armazenado no AsyncLocal)
             
-            // Teste 3: Novo Activity com W3C
+            // Teste 3: Novo Activity com W3C (mas correlation-ID continua o mesmo)
             using var activity3 = new Activity("Test3");
             activity3.SetIdFormat(ActivityIdFormat.W3C);
             activity3.Start();
             
             var correlationId3 = CorrelationContext.Current;
+            var traceId3 = activity3.TraceId.ToString();
             correlationId3.Should().NotBeNullOrEmpty();
-            correlationId3.Should().Be(activity3.TraceId.ToString());
+            correlationId3.Should().NotBe(traceId3); // Devem ser diferentes
+            correlationId3.Length.Should().Be(32); // GUID sem hífens
+            correlationId3.Should().Be(correlationId1); // Continua o mesmo correlation-ID (independente do Activity)
         }
 #endif
     }

@@ -54,7 +54,50 @@ namespace Traceability.Tests
             json.IndexOf("\"ParentSpanId\"", StringComparison.Ordinal).Should().BeLessThan(json.IndexOf("\"Message\"", StringComparison.Ordinal));
             json.IndexOf("\"RouteName\"", StringComparison.Ordinal).Should().BeLessThan(json.IndexOf("\"Message\"", StringComparison.Ordinal));
         }
+
+        [Fact]
+        public void JsonFormatter_ShouldIncludeBothCorrelationIdAndTraceId_WhenBothPresent()
+        {
+            // Arrange
+            var formatter = new JsonFormatter();
+            var template = new MessageTemplateParser().Parse("Test message");
+            var correlationId = "corr-123";
+            var traceId = "trace-abc";
+
+            var properties = new List<LogEventProperty>
+            {
+                new LogEventProperty("Source", new ScalarValue("TestService")),
+                new LogEventProperty("CorrelationId", new ScalarValue(correlationId)),
+                new LogEventProperty("TraceId", new ScalarValue(traceId)),
+                new LogEventProperty("SpanId", new ScalarValue("span-def")),
+            };
+
+            var logEvent = new LogEvent(
+                DateTimeOffset.UtcNow,
+                LogEventLevel.Information,
+                exception: null,
+                template,
+                properties);
+
+            using var writer = new StringWriter();
+
+            // Act
+            formatter.Format(logEvent, writer);
+            var json = writer.ToString();
+
+            // Assert - Deve conter ambos
+            json.Should().Contain("\"CorrelationId\"");
+            json.Should().Contain("\"TraceId\"");
+            json.Should().Contain(correlationId);
+            json.Should().Contain(traceId);
+
+            // Devem ser diferentes no JSON
+            var correlationIdIndex = json.IndexOf(correlationId, StringComparison.Ordinal);
+            var traceIdIndex = json.IndexOf(traceId, StringComparison.Ordinal);
+            correlationIdIndex.Should().NotBe(traceIdIndex);
+        }
     }
 }
+
 
 

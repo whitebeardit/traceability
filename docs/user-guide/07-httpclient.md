@@ -42,17 +42,18 @@ public class ValuesController : ControllerBase
 
 When you make an HTTP call, `CorrelationIdHandler` automatically:
 
-1. ✅ Gets the correlation-id/trace-id from the current context (without implicitly creating a new one)
-2. ✅ Adds the `X-Correlation-Id` header to the request (backward compatibility)
+1. ✅ Gets the correlation-id from the current context (without implicitly creating a new one)
+2. ✅ Adds the `X-Correlation-Id` header to the request
 3. ✅ Adds the `traceparent` header (W3C Trace Context) when trace context is available (best-effort, W3C-valid only)
-4. ✅ Propagates the headers to the external service
+4. ✅ Adds `correlation.id` tag to the span (enables searching in Grafana Tempo)
+5. ✅ Propagates the headers to the external service
 
 **HTTP request sent:**
 ```http
 GET /endpoint HTTP/1.1
 Host: api.example.com
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
-traceparent: 00-a1b2c3d4e5f6789012345678901234ab-0123456789abcdef-01
+traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 ```
 
 **Notes**:
@@ -72,19 +73,19 @@ To enable Traceability-created HttpClient spans on .NET 8, use either:
 
 ## Propagation in Chain
 
-The correlation-id/trace-id is automatically propagated in chained HTTP calls with W3C Trace Context:
+The correlation-id is automatically propagated in chained HTTP calls, and W3C Trace Context (`traceparent`) is propagated for distributed tracing:
 
 **Scenario:** Service A → Service B → Service C
 
-1. **Service A** receives request without header → creates Activity with TraceId `abc123`
+1. **Service A** receives request without header → generates correlation-ID `abc123` and creates Activity with TraceId `xyz789`
 2. **Service A** calls **Service B** with headers:
-   - `X-Correlation-Id: abc123` (backward compatibility)
-   - `traceparent: 00-abc123...` (W3C Trace Context)
-3. **Service B** reads headers and uses `abc123` (doesn't generate new one)
-4. **Service B** creates child Activity (span) maintaining trace hierarchy
+   - `X-Correlation-Id: abc123` (correlation-ID)
+   - `traceparent: 00-xyz789...` (W3C Trace Context with trace ID)
+3. **Service B** reads headers and uses correlation-ID `abc123` (doesn't generate new one)
+4. **Service B** creates child Activity (span) maintaining trace hierarchy and adds `correlation.id` tag with value `abc123`
 5. **Service B** calls **Service C** with same headers
 
-**Result:** All services in the chain use the same trace-id and maintain hierarchical span relationships for complete distributed tracing!
+**Result:** All services in the chain use the same correlation-ID and maintain hierarchical span relationships for complete distributed tracing! All spans include the `correlation.id` tag, enabling searching by correlation-ID in Grafana Tempo.
 
 ## Using AddTraceableHttpClient (Recommended)
 
@@ -182,6 +183,7 @@ Each HTTP call propagates trace context, and can create a child Activity (span) 
 - **Maintains Trace Hierarchy**: Child spans are linked to parent spans
 - **Propagates Trace Context**: W3C Trace Context headers enable distributed tracing
 - **Adds HTTP Tags**: Automatically adds HTTP method, URL, status code, etc. to spans
+- **Adds Correlation-ID Tag**: Automatically adds `correlation.id` tag to spans (enables searching in Grafana Tempo)
 - **Tracks Errors**: Automatically marks spans with error information if request fails
 
 **Compatible with**:
