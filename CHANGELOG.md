@@ -1,3 +1,10 @@
+## [2.3.1](https://github.com/whitebeardit/traceability/compare/v2.3.0...v2.3.1) (2026-01-22)
+
+
+### Bug Fixes
+
+* docs - adding deepweek AI and buy-me-a-coffee ([b6f6788](https://github.com/whitebeardit/traceability/commit/b6f678890ea325e96820a2c9631d82c0ef56de38))
+
 # [2.3.0](https://github.com/whitebeardit/traceability/compare/v2.2.0...v2.3.0) (2026-01-21)
 
 
