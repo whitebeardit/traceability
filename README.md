@@ -1,6 +1,26 @@
 # Traceability
 
 ![NuGet Version](https://img.shields.io/nuget/v/WhiteBeard.Traceability.svg?style=flat-square&label=version)
+![Build Status](https://img.shields.io/github/actions/workflow/status/whitebeardit/traceability/.github/workflows/ci.yml?branch=main&label=build&style=flat-square)
+![License](https://img.shields.io/github/license/whitebeardit/traceability?style=flat-square)
+![NuGet Downloads](https://img.shields.io/nuget/dt/WhiteBeard.Traceability?style=flat-square&label=downloads)
+![.NET Version](https://img.shields.io/badge/.NET-8.0%20%7C%20.NET%20Framework%204.8-512BD4?style=flat-square&logo=dotnet)
+![GitHub Stars](https://img.shields.io/github/stars/whitebeardit/traceability?style=flat-square&logo=github)
+![GitHub Forks](https://img.shields.io/github/forks/whitebeardit/traceability?style=flat-square&logo=github)
+
+## 💝 Support this project
+
+If you find this project useful, consider supporting its development:
+
+<a href="https://www.buymeacoffee.com/almerindo" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
+## 🤖 Get help with AI
+
+Have questions about the API, implementation, or documentation? Ask DeepWiki, an AI agent that can help you understand and use Traceability.
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/whitebeardit/traceability)
+
+---
 
 NuGet package for automatic correlation-id management in .NET applications, with support for .NET 8 and .NET Framework 4.8.
 
