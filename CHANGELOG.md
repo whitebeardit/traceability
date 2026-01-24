@@ -1,3 +1,16 @@
+# [2.4.0](https://github.com/whitebeardit/traceability/compare/v2.3.1...v2.4.0) (2026-01-24)
+
+
+### Bug Fixes
+
+* Merge branch 'main' of github.com:whitebeardit/traceability ([34a74b0](https://github.com/whitebeardit/traceability/commit/34a74b01b1b290c0d9678c380fb0378284cc8832))
+* samples fixes ([dab92e5](https://github.com/whitebeardit/traceability/commit/dab92e58d4b4bb3cddca6a86ba6276a54b1dca79))
+
+
+### Features
+
+* **build:** add netstandard2.0 target framework support ([#34](https://github.com/whitebeardit/traceability/issues/34)) ([4ad1c73](https://github.com/whitebeardit/traceability/commit/4ad1c735e3002b866959c13a4684d28224f64c48))
+
 ## [2.3.1](https://github.com/whitebeardit/traceability/compare/v2.3.0...v2.3.1) (2026-01-22)
 
 
