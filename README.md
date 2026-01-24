@@ -4,7 +4,7 @@
 ![Build Status](https://img.shields.io/github/actions/workflow/status/whitebeardit/traceability/.github/workflows/ci.yml?branch=main&label=build&style=flat-square)
 ![License](https://img.shields.io/github/license/whitebeardit/traceability?style=flat-square)
 ![NuGet Downloads](https://img.shields.io/nuget/dt/WhiteBeard.Traceability?style=flat-square&label=downloads)
-![.NET Version](https://img.shields.io/badge/.NET-8.0%20%7C%20.NET%20Framework%204.8-512BD4?style=flat-square&logo=dotnet)
+![.NET Version](https://img.shields.io/badge/.NET-Standard%202.0%20%7C%208.0%20%7C%20Framework%204.8-512BD4?style=flat-square&logo=dotnet)
 ![GitHub Stars](https://img.shields.io/github/stars/whitebeardit/traceability?style=flat-square&logo=github)
 ![GitHub Forks](https://img.shields.io/github/forks/whitebeardit/traceability?style=flat-square&logo=github)
 
@@ -22,7 +22,7 @@ Have questions about the API, implementation, or documentation? Ask DeepWiki, an
 
 ---
 
-NuGet package for automatic correlation-id management in .NET applications, with support for .NET 8 and .NET Framework 4.8.
+NuGet package for automatic correlation-id management in .NET applications, with support for .NET Standard 2.0+ (core), .NET 8 (ASP.NET Core), and .NET Framework 4.8+ (ASP.NET Framework).
 
 > 📖 **[Quick Start](#quick-start)** | [User Manual](docs/user-guide/index.md) | [Complete Documentation](docs/index.md) | [Examples](docs/examples/aspnet-core.md)
 >
@@ -49,7 +49,9 @@ Use **Traceability** when you need:
 - ✅ Adds `correlation.id` tag to spans (search by correlation-ID in Grafana Tempo)
 - ✅ Automatic span naming using route templates (e.g., `GET api/values/{id}`)
 - ✅ W3C Trace Context propagation (`traceparent`, `tracestate` headers)
-- ✅ Support for .NET 8.0 and .NET Framework 4.8
+- ✅ **Portable core** via .NET Standard 2.0 (works with .NET 6, 7, 8, and compatible frameworks)
+- ✅ **Full support for .NET 8.0** (ASP.NET Core with automatic middleware registration)
+- ✅ **Full support for .NET Framework 4.8+** (ASP.NET Web API and Traditional ASP.NET with automatic HttpModule registration)
 - ✅ **Zero-code for .NET Framework 4.8**: Automatic registration via `PreApplicationStartMethod`
 - ✅ **Zero-config for .NET 8.0**: Automatic middleware and HttpClient registration
 - ✅ Middleware for ASP.NET Core (.NET 8)
@@ -273,8 +275,21 @@ var client = _httpClientFactory.CreateClient("ExternalApi");
 
 ## Supported Frameworks
 
-- **.NET 8.0**: Full support for ASP.NET Core
-- **.NET Framework 4.8**: Support for ASP.NET Web API and Traditional ASP.NET
+The package uses **multi-targeting** to provide the best experience for each platform:
+
+- **.NET Standard 2.0**: Portable core library (CorrelationContext, HttpClient integration, Logging enrichers, Configuration)
+  - Compatible with .NET 6, 7, 8, .NET Framework 4.6.1+, and other .NET Standard 2.0 implementations
+  - Provides core functionality without framework-specific dependencies
+- **.NET 8.0**: Full ASP.NET Core integration
+  - Automatic middleware registration
+  - Dependency injection extensions
+  - HttpContext integration
+- **.NET Framework 4.8+**: Full ASP.NET Framework integration
+  - Automatic HttpModule registration via `PreApplicationStartMethod`
+  - Web API and MVC support
+  - System.Web integration
+
+**Note**: The package automatically selects the appropriate implementation based on your target framework. Core functionality (correlation-id management, HttpClient propagation, logging) is available on all platforms via the .NET Standard 2.0 target.
 
 ## Contributing
 

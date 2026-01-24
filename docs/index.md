@@ -42,7 +42,9 @@ Traceability is a NuGet package that automatically manages correlation-id in .NE
 
 - ✅ **Zero-code/Zero-config**: Works automatically - just install the package!
 - ✅ Automatic correlation-id management using `AsyncLocal`
-- ✅ Support for .NET 8.0 and .NET Framework 4.8
+- ✅ **Portable core** via .NET Standard 2.0 (works with .NET 6, 7, 8, and compatible frameworks)
+- ✅ **Full support for .NET 8.0** (ASP.NET Core with automatic middleware registration)
+- ✅ **Full support for .NET Framework 4.8+** (ASP.NET Web API and Traditional ASP.NET with automatic HttpModule registration)
 - ✅ **Zero-code for .NET Framework 4.8**: Automatic registration via `PreApplicationStartMethod`
 - ✅ **Zero-config for .NET 8.0**: Automatic middleware and HttpClient registration
 - ✅ Automatic OpenTelemetry Activities (spans) creation
@@ -65,8 +67,14 @@ Use Traceability when you need:
 
 ## Supported Frameworks
 
-- **.NET 8.0**: Full support for ASP.NET Core
-- **.NET Framework 4.8**: Support for ASP.NET Web API and Traditional ASP.NET
+The package uses **multi-targeting** to provide optimal support for each platform:
+
+- **.NET Standard 2.0**: Portable core library (CorrelationContext, HttpClient, Logging, Configuration)
+  - Compatible with .NET 6, 7, 8, .NET Framework 4.6.1+, and other .NET Standard 2.0 implementations
+- **.NET 8.0**: Full ASP.NET Core integration with automatic middleware registration
+- **.NET Framework 4.8+**: Full ASP.NET Framework integration with automatic HttpModule registration
+
+The package automatically selects the appropriate implementation based on your target framework.
 
 ## Quick Installation
 
