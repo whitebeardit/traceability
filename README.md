@@ -44,11 +44,9 @@ Use **Traceability** when you need:
 ## Features
 
 - ✅ **Zero-code/Zero-config**: Works automatically - just install the package!
-- ✅ Automatic correlation-id management using `AsyncLocal<string>` (independent from OpenTelemetry TraceId)
-- ✅ OpenTelemetry integration with automatic Activity (span) creation
-- ✅ Adds `correlation.id` tag to spans (search by correlation-ID in Grafana Tempo)
-- ✅ Automatic span naming using route templates (e.g., `GET api/values/{id}`)
-- ✅ W3C Trace Context propagation (`traceparent`, `tracestate` headers)
+- ✅ Automatic correlation-id management using `AsyncLocal<string>`
+- ✅ Log correlation with distributed tracing via `Activity.Current` (when OpenTelemetry is configured externally)
+- ✅ W3C Trace Context propagation (`traceparent` header) when trace context is available (best-effort)
 - ✅ **Portable core** via .NET Standard 2.0 (works with .NET 6, 7, 8, and compatible frameworks)
 - ✅ **Full support for .NET 8.0** (ASP.NET Core with automatic middleware registration)
 - ✅ **Full support for .NET Framework 4.8+** (ASP.NET Web API and Traditional ASP.NET with automatic HttpModule registration)
@@ -123,12 +121,10 @@ public class ValuesController : ControllerBase
 
 **Result:**
 - ✅ Correlation-id automatically generated on each request (if not provided via `X-Correlation-Id`)
-- ✅ OpenTelemetry Activity (span) automatically created
-- ✅ Span automatically named using route template (e.g., `GET api/values`)
-- ✅ Automatically propagated in HTTP calls (with W3C Trace Context)
+- ✅ Trace context can be propagated in HTTP calls (via `traceparent`) when OpenTelemetry is configured externally
 - ✅ Automatically included in logs
 - ✅ Returned in the `X-Correlation-Id` response header
-- ✅ Compatible with all OpenTelemetry-compatible observability tools
+- ✅ Compatible with OpenTelemetry-compatible observability tools (when OpenTelemetry is configured in the application)
 
 ### ASP.NET Framework 4.8 - Zero Code
 
@@ -141,9 +137,6 @@ Install-Package WhiteBeard.Traceability
 
 The library automatically:
 - ✅ Registers `CorrelationIdHttpModule` via `PreApplicationStartMethod`
-- ✅ Initializes `ActivityListener` for OpenTelemetry spans
-- ✅ Creates Activities (spans) for each HTTP request
-- ✅ Names spans using route templates (e.g., `GET api/values/{id}`)
 - ✅ Manages correlation-id automatically
 
 **Optional: Configure Serilog**
@@ -179,7 +172,6 @@ public class ValuesController : ApiController
     public IHttpActionResult Get()
     {
         // Correlation-id is automatically available
-        // Activity (span) is automatically created with name "GET api/values"
         var correlationId = CorrelationContext.Current;
         return Ok(new { CorrelationId = correlationId });
     }
@@ -188,27 +180,9 @@ public class ValuesController : ApiController
 
 **Result:**
 - ✅ Correlation-id automatically generated for each request
-- ✅ OpenTelemetry Activity (span) automatically created
-- ✅ Span automatically named using route template
-- ✅ Automatically propagated in HTTP calls
+- ✅ Trace context can be propagated in HTTP calls (via `traceparent`) when OpenTelemetry is configured externally
 - ✅ Automatically included in logs (if Serilog is configured)
 - ✅ Returned in the `X-Correlation-Id` response header
-
-**Opt-out: Disable Automatic Spans**
-
-If you need to disable automatic span creation:
-
-**Option 1: appSettings in Web.config**
-```xml
-<appSettings>
-  <add key="Traceability:SpansEnabled" value="false" />
-</appSettings>
-```
-
-**Option 2: Environment Variable**
-```powershell
-$env:TRACEABILITY_SPANS_ENABLED="false"
-```
 
 ## Environment Variables
 

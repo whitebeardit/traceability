@@ -63,12 +63,11 @@ The package uses **multi-targeting** with three target frameworks:
 1. **Correlation-ID Independence**: Correlation-ID is managed via `AsyncLocal<string>` and is **independent** from OpenTelemetry `Activity.TraceId`
 2. **Conditional Compilation**: Framework-specific code should use `#if NET8_0`, `#if NET48`, or `#if NETSTANDARD2_0` as appropriate
 3. **Default Header**: Always use `X-Correlation-Id` as default header (for backward compatibility)
-4. **W3C Trace Context**: Read inbound `traceparent`/`tracestate` when present, and propagate `traceparent` when trace context is available. Traceability does not explicitly emit `tracestate`.
+4. **W3C Trace Context**: Propagate `traceparent` when trace context is available (i.e., `Activity.Current` exists). Traceability does not emit `tracestate`.
 5. **GUID without Hyphens**: Generate correlation-id as 32-character GUID (without hyphens) when correlation-ID needs to be created
 6. **Don't Modify Existing**: Never overwrite existing correlation-id in context
 7. **Zero Configuration**: Works without configuration, but allows customization
-8. **Automatic Activity Creation**: Creates OpenTelemetry Activities automatically when OpenTelemetry SDK is not configured
-9. **Span Searchability**: Add `correlation.id` tag to spans when correlation-ID is available (enables Grafana Tempo search)
+8. **No Span Creation**: Traceability does not create spans; configure OpenTelemetry in the application if you need tracing
 
 ## Quick References
 

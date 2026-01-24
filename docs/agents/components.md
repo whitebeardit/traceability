@@ -87,22 +87,18 @@ public class CorrelationIdMiddleware
 **Dependencies**:
 - `Microsoft.AspNetCore.Http`
 - `Traceability.CorrelationContext`
-- `Traceability.Core.Interfaces` (ICorrelationIdValidator, ICorrelationIdExtractor, IActivityFactory, IActivityTagProvider)
+- `Traceability.Core.Interfaces` (ICorrelationIdValidator, ICorrelationIdExtractor)
 - `Traceability.Core.Services` (implementations)
-- `Traceability.OpenTelemetry.TraceabilityActivitySource`
 
 **Behavior**:
-1. **Creates Activity automatically**: If `Activity.Current` is null (OpenTelemetry not configured), creates a new Activity (span) using `TraceabilityActivitySource`
-2. **Adds HTTP tags**: Automatically adds standard HTTP tags to Activity (method, url, scheme, host, status_code, etc.)
-3. **Adds correlation-ID tag**: Automatically adds `correlation.id` tag to Activity when correlation-ID is available in context (enables searching by correlation-ID in Grafana Tempo)
+1. **No span creation**: Traceability does not create spans. OpenTelemetry instrumentation must be configured externally.
+2. **Log correlation**: Adds `CorrelationId` to logs and can enrich `TraceId/SpanId` from `Activity.Current` when OpenTelemetry is configured externally
 4. Reads `X-Correlation-Id` header from request (or custom header via `HeaderName`)
 4. If it exists, validates format (if `ValidateCorrelationIdFormat = true`) and uses the value
 5. If it doesn't exist or is invalid, generates new one via `CorrelationContext.GetOrCreate()`
 6. Adds correlation-id to response header
-7. **Error tracking**: Marks Activity with error tags if exception occurs
 - **HeaderName Validation**: If `HeaderName` is null or empty, uses "X-Correlation-Id" as default
 - **CorrelationId Validation**: If enabled, validates maximum size (128 characters)
-- **Activity Lifecycle**: Activity is automatically stopped when request completes
 
 **Default Header**: `X-Correlation-Id`
 
@@ -247,24 +243,16 @@ public class CorrelationIdHandler : DelegatingHandler
 **Dependencies**:
 - `System.Net.Http`
 - `Traceability.CorrelationContext`
-- `Traceability.OpenTelemetry.TraceabilityActivitySource`
 - `.NET 8`: `Microsoft.Extensions.Options`, `Traceability.Configuration`
-- `.NET 8`: `Traceability.Core.Interfaces` (IActivityFactory, IActivityTagProvider)
-- `.NET 8`: `Traceability.Core.Services` (implementations)
 
 **Behavior**:
-- **Creates child Activity (optional)**: Can create a child Activity (span) for outgoing HTTP calls to maintain hierarchical trace structure.
-
-  - **.NET Framework (net48)**: enabled by default
-  - **.NET 8 (net8.0)**: opt-in via `TraceabilityOptions.Net8HttpClientSpansEnabled` or `TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED=true`
-- **Adds HTTP tags**: Automatically adds standard HTTP tags to Activity (method, url, scheme, host, status_code)
-- **Adds correlation-ID tag**: Automatically adds `correlation.id` tag to Activity when correlation-ID is available in context (enables searching by correlation-ID in Grafana Tempo)
+- **No span creation**: Traceability does not create spans (no child Activities)
+- **Correlation-ID**: Propagates `X-Correlation-Id` and enriches logs via `CorrelationIdEnricher`
 - **W3C Trace Context propagation**: Automatically propagates `traceparent` header (W3C Trace Context standard) when trace context is available. Traceability does not explicitly emit `tracestate`.
 - Uses `CorrelationContext.TryGetValue()` to get correlation-id without creating a new one if it doesn't exist
 - Removes existing header (if any)
 - Adds `X-Correlation-Id` to request header only if correlation-id exists in context (for backward compatibility)
 - **HeaderName Validation**: If `HeaderName` is null or empty, uses "X-Correlation-Id" as default
-- **Error tracking**: Marks Activity with error tags if exception occurs
 
 **Usage Example**:
 ```csharp
@@ -276,52 +264,6 @@ services.AddHttpClient("MyClient")
 var handler = new CorrelationIdHandler();
 var client = new HttpClient(handler);
 ```
-
-## 6. TraceabilityActivitySource
-
-**Location**: `src/Traceability/OpenTelemetry/TraceabilityActivitySource.cs`
-
-**Compilation Condition**: `#if NET48 || NET8_0`
-
-**Responsibility**: Centralized ActivitySource for creating OpenTelemetry Activities (spans). Provides functionality that OpenTelemetry does automatically in .NET 8, but needs to be implemented manually in .NET Framework 4.8.
-
-**Public API**:
-```csharp
-public static class TraceabilityActivitySource
-{
-    public static ActivitySource Source { get; }
-    public static Activity? StartActivity(string name, ActivityKind kind = ActivityKind.Server);
-    public static Activity? StartActivity(string name, ActivityKind kind, Activity? parent);
-}
-```
-
-**Dependencies**:
-- `System.Diagnostics` (for Activity and ActivitySource)
-
-**Behavior**:
-- Creates Activities (spans) for distributed tracing
-- Supports hierarchical spans (parent/child relationships)
-- Used automatically by `CorrelationIdMiddleware` when OpenTelemetry is not configured
-- Used automatically by `CorrelationIdHandler` to create child spans for HTTP calls
-- **ActivityKind**: 
-  - `ActivityKind.Server` for incoming HTTP requests (middleware)
-  - `ActivityKind.Client` for outgoing HTTP requests (handler)
-
-**Usage Example**:
-```csharp
-// Create a root Activity (span)
-using var activity = TraceabilityActivitySource.StartActivity("HTTP Request", ActivityKind.Server);
-
-// Create a child Activity (span)
-var parentActivity = Activity.Current;
-using var childActivity = TraceabilityActivitySource.StartActivity("HTTP Client", ActivityKind.Client, parentActivity);
-```
-
-**Design Decisions**:
-- Centralized ActivitySource ensures consistent naming and behavior
-- Supports both .NET 8 and .NET Framework 4.8
-- Automatically creates Activities when OpenTelemetry is not configured
-- Maintains compatibility with OpenTelemetry when it is configured
 
 ## 7. TraceableHttpClientFactory
 
@@ -765,7 +707,7 @@ internal static class Constants
 - `HttpRequestMessageCorrelationIdExtractor`: Extracts correlation ID from HttpRequestMessage (implements `ICorrelationIdExtractor`)
 - `TraceabilityActivityFactory`: Factory for creating Activities (implements `IActivityFactory`)
 - `HttpActivityTagProvider`: Adds HTTP tags to Activities (implements `IActivityTagProvider`)
-  - Automatically adds `correlation.id` tag to all spans when correlation-ID is available in context
+  - Does not create spans; correlation between logs and traces comes from `Activity.Current` when available
   - Adds standard HTTP tags (method, url, scheme, host, status_code, etc.)
   - Supports both server spans (HttpContext/HttpRequest) and client spans (HttpRequestMessage)
 - `CorrelationIdResolver`: Resolves effective correlation ID based on priority (AlwaysGenerateNew > header > traceparent > generate)

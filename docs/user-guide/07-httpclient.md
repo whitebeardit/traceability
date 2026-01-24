@@ -44,9 +44,8 @@ When you make an HTTP call, `CorrelationIdHandler` automatically:
 
 1. ✅ Gets the correlation-id from the current context (without implicitly creating a new one)
 2. ✅ Adds the `X-Correlation-Id` header to the request
-3. ✅ Adds the `traceparent` header (W3C Trace Context) when trace context is available (best-effort, W3C-valid only)
-4. ✅ Adds `correlation.id` tag to the span (enables searching in Grafana Tempo)
-5. ✅ Propagates the headers to the external service
+3. ✅ Adds the `traceparent` header (W3C Trace Context) **when `Activity.Current` is available** (best-effort, W3C-valid only)
+4. ✅ Propagates the headers to the external service
 
 **HTTP request sent:**
 ```http
@@ -57,35 +56,25 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 ```
 
 **Notes**:
-- Traceability does not explicitly emit the `tracestate` header. If you need `tracestate` propagation, rely on OpenTelemetry SDK/instrumentation.
+- Traceability does not emit the `tracestate` header. If you need `tracestate` propagation, rely on OpenTelemetry SDK/instrumentation.
 - `traceparent` propagation is best-effort: Traceability only emits it when a valid W3C `traceparent` value is available. Legacy/hierarchical `Activity.Id` values are not valid `traceparent` and are not emitted.
 
-The `traceparent` header follows the W3C Trace Context standard and enables distributed tracing across services. The `X-Correlation-Id` header is maintained for backward compatibility with services not using OpenTelemetry.
-
-### .NET 8: HttpClient spans are opt-in (default: disabled)
-
-On **.NET 8**, Traceability does **not** create HttpClient child spans by default to avoid duplication with the built-in `System.Net.Http` / OpenTelemetry instrumentation.
-
-To enable Traceability-created HttpClient spans on .NET 8, use either:
-
-- `TraceabilityOptions.Net8HttpClientSpansEnabled = true`, or
-- `TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED=true`
+The `traceparent` header follows the W3C Trace Context standard and enables distributed tracing across services. The `X-Correlation-Id` header is maintained for correlation-id tracking.
 
 ## Propagation in Chain
 
-The correlation-id is automatically propagated in chained HTTP calls, and W3C Trace Context (`traceparent`) is propagated for distributed tracing:
+The correlation-id is automatically propagated in chained HTTP calls, and W3C Trace Context (`traceparent`) is propagated **when the application is instrumented externally** (i.e., `Activity.Current` exists):
 
 **Scenario:** Service A → Service B → Service C
 
-1. **Service A** receives request without header → generates correlation-ID `abc123` and creates Activity with TraceId `xyz789`
+1. **Service A** receives request without header → generates correlation-ID `abc123`
 2. **Service A** calls **Service B** with headers:
    - `X-Correlation-Id: abc123` (correlation-ID)
    - `traceparent: 00-xyz789...` (W3C Trace Context with trace ID)
 3. **Service B** reads headers and uses correlation-ID `abc123` (doesn't generate new one)
-4. **Service B** creates child Activity (span) maintaining trace hierarchy and adds `correlation.id` tag with value `abc123`
-5. **Service B** calls **Service C** with same headers
+4. **Service B** calls **Service C** with same headers (if tracing is configured externally, `traceparent` continues to be propagated)
 
-**Result:** All services in the chain use the same correlation-ID and maintain hierarchical span relationships for complete distributed tracing! All spans include the `correlation.id` tag, enabling searching by correlation-ID in Grafana Tempo.
+**Result:** All services in the chain use the same correlation-ID. If OpenTelemetry is configured externally, the same trace continues across services via `traceparent`.
 
 ## Using AddTraceableHttpClient (Recommended)
 
@@ -176,21 +165,12 @@ public class ExternalApiService
 }
 ```
 
-## OpenTelemetry Integration
+## OpenTelemetry Integration (External)
 
-Each HTTP call propagates trace context, and can create a child Activity (span) when enabled that:
-
-- **Maintains Trace Hierarchy**: Child spans are linked to parent spans
-- **Propagates Trace Context**: W3C Trace Context headers enable distributed tracing
-- **Adds HTTP Tags**: Automatically adds HTTP method, URL, status code, etc. to spans
-- **Adds Correlation-ID Tag**: Automatically adds `correlation.id` tag to spans (enables searching in Grafana Tempo)
-- **Tracks Errors**: Automatically marks spans with error information if request fails
-
-**Compatible with**:
-- Jaeger
-- Zipkin
-- Application Insights
-- Any OpenTelemetry-compatible observability tool
+Traceability **does not create spans**. To get full distributed tracing (spans, tags, exporters), configure OpenTelemetry in your application. Traceability will:
+- keep correlation-id consistent (`X-Correlation-Id`)
+- help propagate `traceparent` when `Activity.Current` exists
+- enrich logs with `TraceId/SpanId` via `TraceContextEnricher`
 
 ## Next Steps
 

@@ -12,9 +12,6 @@ Install-Package WhiteBeard.Traceability
 
 The library automatically:
 - ✅ Registers `CorrelationIdHttpModule` via `PreApplicationStartMethod`
-- ✅ Initializes `ActivityListener` for OpenTelemetry spans
-- ✅ Creates Activities (spans) for each HTTP request
-- ✅ Names spans using route templates (e.g., `GET api/values/{id}`)
 - ✅ Manages correlation-id automatically
 
 **No code needed!** No `web.config` changes needed! Everything works automatically.
@@ -184,24 +181,6 @@ GET /endpoint HTTP/1.1
 Host: api.example.com
 X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
-```
-
-## Opt-out: Disable Automatic Spans
-
-If you need to disable automatic span creation:
-
-**Option 1: appSettings in Web.config**
-```xml
-<configuration>
-  <appSettings>
-    <add key="Traceability:SpansEnabled" value="false" />
-  </appSettings>
-</configuration>
-```
-
-**Option 2: Environment Variable**
-```powershell
-$env:TRACEABILITY_SPANS_ENABLED="false"
 ```
 
 ## Advanced: Manual Configuration (Optional)

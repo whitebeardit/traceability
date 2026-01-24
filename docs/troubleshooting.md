@@ -58,9 +58,8 @@ builder.Logging.AddConsole(options => options.IncludeScopes = true);
 **The library works automatically!** Just install the package - no configuration needed.
 
 - ✅ `CorrelationIdHttpModule` is automatically registered via `PreApplicationStartMethod`
-- ✅ `ActivityListener` is automatically initialized
-- ✅ OpenTelemetry Activities (spans) are automatically created
-- ✅ Spans are automatically named using route templates
+ 
+> Observação: Traceability **não cria spans**. Para tracing distribuído, configure OpenTelemetry na aplicação.\n> Quando `Activity.Current` existir (instrumentação externa), `TraceContextEnricher` pode adicionar `TraceId/SpanId` aos logs.
 
 ### If Zero-Code Doesn't Work
 
@@ -69,11 +68,7 @@ builder.Logging.AddConsole(options => options.IncludeScopes = true);
    Install-Package WhiteBeard.Traceability
    ```
 
-2. **Check if spans are disabled**
-   - Verify `appSettings['Traceability:SpansEnabled']` is not set to `false` in `Web.config`
-   - Verify `TRACEABILITY_SPANS_ENABLED` environment variable is not set to `false`
-
-3. **Check if PreApplicationStartMethod is working**
+2. **Check if PreApplicationStartMethod is working**
    - The library uses `PreApplicationStartMethod` to auto-register
    - This should work automatically - no manual setup needed
    - If it doesn't work, check application startup logs for errors
@@ -179,21 +174,11 @@ A: Yes, use `TraceabilityOptions.HeaderName` to define a custom name.
 
 A: **For .NET 8**: Set `AutoRegisterMiddleware = false` in options and register manually with `app.UseCorrelationId()`.
 
-**For .NET Framework 4.8**: The `CorrelationIdHttpModule` is automatically registered via `PreApplicationStartMethod`. To disable spans, set `Traceability:SpansEnabled=false` in `appSettings` or `TRACEABILITY_SPANS_ENABLED=false` environment variable.
+**For .NET Framework 4.8**: The `CorrelationIdHttpModule` is automatically registered via `PreApplicationStartMethod` for correlation-id management.
 
 ### Q: How to disable automatic spans in .NET Framework 4.8?
 
-A: Set `Traceability:SpansEnabled=false` in `Web.config`:
-```xml
-<appSettings>
-  <add key="Traceability:SpansEnabled" value="false" />
-</appSettings>
-```
-
-Or set environment variable:
-```powershell
-$env:TRACEABILITY_SPANS_ENABLED="false"
-```
+A: Traceability does not create spans. If you need tracing/spans, configure OpenTelemetry in the application. This FAQ exists only for users coming from older versions/documentation.
 
 ### Q: Are logs always in JSON?
 

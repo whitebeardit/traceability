@@ -198,55 +198,9 @@ export LOG_LEVEL="Information"
 $env:LOG_LEVEL="Information"
 ```
 
-### TRACEABILITY_SPANS_ENABLED (.NET Framework 4.8)
+### OpenTelemetry / Spans
 
-Controls whether OpenTelemetry Activities (spans) are automatically created in .NET Framework 4.8.
-
-**Default:** `true` (spans are enabled by default)
-
-**Configuration Priority:**
-1. `Traceability:SpansEnabled` in `appSettings` (Web.config)
-2. `TRACEABILITY_SPANS_ENABLED` environment variable
-3. `true` (default - spans enabled)
-
-**Disable spans via appSettings (Web.config):**
-```xml
-<configuration>
-  <appSettings>
-    <add key="Traceability:SpansEnabled" value="false" />
-  </appSettings>
-</configuration>
-```
-
-**Disable spans via environment variable:**
-
-**Linux/Mac:**
-```bash
-export TRACEABILITY_SPANS_ENABLED="false"
-```
-
-**Windows PowerShell:**
-```powershell
-$env:TRACEABILITY_SPANS_ENABLED="false"
-```
-
-**Windows CMD:**
-```cmd
-set TRACEABILITY_SPANS_ENABLED=false
-```
-
-**Note:** This option only applies to .NET Framework 4.8. In .NET 8.0, spans are controlled by OpenTelemetry SDK configuration.
-
-### TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED (.NET 8)
-
-Controls whether Traceability creates **HttpClient child spans** (Activities) for outgoing HTTP calls on .NET 8.
-
-**Default:** `false` (disabled by default to avoid duplication with `System.Net.Http` / OpenTelemetry instrumentation)
-
-**How to enable:**
-
-- Set `TraceabilityOptions.Net8HttpClientSpansEnabled = true`, or
-- Set environment variable `TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED=true`
+Traceability **does not create spans**. If you want distributed tracing, configure OpenTelemetry in your application.\n\nWhen OpenTelemetry is configured externally, Traceability can:\n- enrich logs with `TraceId/SpanId` via `Activity.Current`\n- propagate `traceparent` best-effort on outgoing HTTP calls when a valid W3C context is available
 
 ## Configuration Examples
 

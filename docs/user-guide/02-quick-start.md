@@ -52,9 +52,8 @@ Install-Package WhiteBeard.Traceability
 
 The library automatically:
 - ✅ Registers `CorrelationIdHttpModule` via `PreApplicationStartMethod`
-- ✅ Initializes `ActivityListener` for OpenTelemetry spans
-- ✅ Creates Activities (spans) for each HTTP request
-- ✅ Names spans using route templates
+ 
+> Observação: Traceability **não cria spans**. Para tracing distribuído, configure OpenTelemetry na aplicação. Traceability enriquece logs via `Activity.Current` quando disponível.
 
 **Global.asax.cs** (only if you want to configure Serilog):
 ```csharp
@@ -128,11 +127,10 @@ X-Correlation-Id: a1b2c3d4e5f6789012345678901234ab
 ## What Happened?
 
 1. ✅ The middleware was automatically registered
-2. ✅ An OpenTelemetry Activity (span) was automatically created
 3. ✅ A correlation-id was automatically generated (32-character GUID) if it wasn't provided via `X-Correlation-Id`
 4. ✅ The correlation-id was added to the asynchronous context
 5. ✅ The correlation-id was returned in the response header
-6. ✅ Ready for distributed tracing with OpenTelemetry-compatible tools (TraceId is managed by OpenTelemetry and is independent from CorrelationId)
+6. ✅ Ready for distributed tracing when OpenTelemetry is configured externally (TraceId is managed by OpenTelemetry and is independent from CorrelationId)
 
 ## With Explicit Source (Optional)
 

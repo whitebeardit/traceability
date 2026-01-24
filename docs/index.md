@@ -47,8 +47,6 @@ Traceability is a NuGet package that automatically manages correlation-id in .NE
 - ✅ **Full support for .NET Framework 4.8+** (ASP.NET Web API and Traditional ASP.NET with automatic HttpModule registration)
 - ✅ **Zero-code for .NET Framework 4.8**: Automatic registration via `PreApplicationStartMethod`
 - ✅ **Zero-config for .NET 8.0**: Automatic middleware and HttpClient registration
-- ✅ Automatic OpenTelemetry Activities (spans) creation
-- ✅ Automatic span naming using route templates (e.g., `GET api/values/{id}`)
 - ✅ Middleware for ASP.NET Core (.NET 8)
 - ✅ HttpModule and MessageHandler for ASP.NET (.NET Framework 4.8)
 - ✅ Automatic integration with HttpClient
@@ -112,9 +110,8 @@ Install-Package WhiteBeard.Traceability
 
 No code needed! The library automatically:
 - ✅ Registers `CorrelationIdHttpModule` via `PreApplicationStartMethod`
-- ✅ Initializes `ActivityListener` for OpenTelemetry spans
-- ✅ Creates Activities (spans) for each HTTP request
-- ✅ Names spans using route templates
+ 
+> Observação: Traceability **não cria spans**. Para tracing distribuído, configure OpenTelemetry na aplicação. Traceability enriquece logs via `Activity.Current` quando disponível.
 
 **Optional: Configure Serilog**
 ```csharp

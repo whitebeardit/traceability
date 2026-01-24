@@ -45,12 +45,12 @@
 When adding/modifying code, verify:
 - [ ] Correct conditional compilation (`#if NET8_0` / `#if NET48`)
 - [ ] Correlation-ID is managed via `AsyncLocal<string>` (independent from `Activity.TraceId`)
-- [ ] Activities created when needed (via TraceabilityActivitySource)
-- [ ] W3C Trace Context handled correctly (read inbound `traceparent`/`tracestate` when present; propagate `traceparent` when available)
+- [ ] Traceability does not create spans; tracing is configured externally
+- [ ] W3C Trace Context propagated correctly (propagate `traceparent` when `Activity.Current` is available)
 - [ ] Header `X-Correlation-Id` used consistently (for backward compatibility)
 - [ ] GUID generated without hyphens (`ToString("N")`) when correlation-ID needs to be created
 - [ ] Doesn't modify existing correlation-id
-- [ ] `correlation.id` span tag is set when correlation-ID is available (enables Tempo search)
+- [ ] Traceability does not create spans; log correlation with trace ids happens via `Activity.Current` when OpenTelemetry is configured externally
 - [ ] Thread-safe and async-safe
 - [ ] XML comments added/updated
 
@@ -59,12 +59,12 @@ When adding/modifying code, verify:
 ### Code
 - [ ] Correct conditional compilation (`#if NET8_0` / `#if NET48`)
 - [ ] Correlation-ID is managed via `AsyncLocal<string>` (independent from `Activity.TraceId`)
-- [ ] Activities created when needed (via TraceabilityActivitySource)
-- [ ] W3C Trace Context handled correctly (read inbound `traceparent`/`tracestate` when present; propagate `traceparent` when available)
+- [ ] Traceability does not create spans; tracing is configured externally
+- [ ] W3C Trace Context propagated correctly (propagate `traceparent` when `Activity.Current` is available)
 - [ ] Header `X-Correlation-Id` used consistently (for backward compatibility)
 - [ ] GUID generated without hyphens (`ToString("N")`) when correlation-ID needs to be created
 - [ ] Doesn't modify existing correlation-id
-- [ ] `correlation.id` span tag is set when correlation-ID is available (enables Tempo search)
+- [ ] Traceability does not create spans; ensure OpenTelemetry is configured in the app if tracing is required
 - [ ] Thread-safe and async-safe
 - [ ] XML comments added/updated
 
