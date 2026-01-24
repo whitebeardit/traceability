@@ -14,9 +14,6 @@ Install-Package WhiteBeard.Traceability
 
 The library automatically:
 - ✅ Registers `CorrelationIdHttpModule` via `PreApplicationStartMethod`
-- ✅ Initializes `ActivityListener` for OpenTelemetry spans
-- ✅ Creates Activities (spans) for each HTTP request
-- ✅ Names spans using route templates (e.g., `GET api/values/{id}`)
 - ✅ Manages correlation-id automatically
 
 **No code needed!** No `web.config` changes needed! Everything works automatically.
@@ -27,7 +24,6 @@ The library uses ASP.NET's `PreApplicationStartMethod` feature to automatically 
 
 - No manual registration in `Global.asax.cs`
 - No manual registration in `web.config`
-- No manual `ActivityListener` setup
 - Everything happens automatically
 
 ## ASP.NET Web API
@@ -64,7 +60,6 @@ public class ValuesController : ApiController
     public IHttpActionResult Get()
     {
         // Correlation-id is automatically available
-        // Activity (span) is automatically created with name "GET api/values"
         var correlationId = CorrelationContext.Current;
         return Ok(new { CorrelationId = correlationId });
     }
@@ -94,8 +89,6 @@ X-Correlation-Id: f1e2d3c4b5a6978012345678901234cd
 
 **What happened automatically:**
 - ✅ `CorrelationIdHttpModule` intercepted the request
-- ✅ OpenTelemetry Activity (span) was created
-- ✅ Span was named: `GET api/values`
 - ✅ Correlation-id was generated
 - ✅ Correlation-id was returned in response header
 
@@ -114,7 +107,6 @@ public class MyPage : System.Web.UI.Page
     protected void Page_Load(object sender, EventArgs e)
     {
         // Correlation-id is automatically available
-        // Activity (span) is automatically created
         var correlationId = CorrelationContext.Current;
         // Use correlation-id
     }
@@ -183,24 +175,6 @@ public class ValuesController : ApiController
 [14:23:45 INF] MyService a1b2c3d4e5f6789012345678901234ab Processing request
 ```
 
-## Opt-out: Disable Automatic Spans
-
-If you need to disable automatic span creation:
-
-**Option 1: appSettings in Web.config**
-```xml
-<configuration>
-  <appSettings>
-    <add key="Traceability:SpansEnabled" value="false" />
-  </appSettings>
-</configuration>
-```
-
-**Option 2: Environment Variable**
-```powershell
-$env:TRACEABILITY_SPANS_ENABLED="false"
-```
-
 ## Advanced: Manual Configuration (Optional)
 
 If you need manual control, you can configure manually. However, **this is not needed** for most scenarios.
@@ -257,8 +231,7 @@ In .NET Framework 4.8:
 - ❌ There's no native DI, so use static `Configure()` methods for options (if needed)
 - ❌ There's no `IHttpClientFactory`, so manage HttpClient manually
 - ✅ Correlation-id functionality is identical
-- ✅ OpenTelemetry Activities (spans) are automatically created
-- ✅ Spans are automatically named using route templates
+- ✅ If OpenTelemetry is configured externally, logs can include `TraceId/SpanId` via `Activity.Current`
 
 ## Next Steps
 

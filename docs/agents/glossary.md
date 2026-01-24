@@ -20,4 +20,4 @@
 - **Socket Exhaustion**: Problem that occurs when many HTTP connections are created without reuse, exhausting available sockets
 - **IHttpClientFactory**: .NET factory that manages HTTP connection pool, preventing socket exhaustion
 - **OpenTelemetry**: Industry standard for observability (tracing, metrics, logs). Traceability integrates with OpenTelemetry Activities.
-- **ActivitySource**: .NET class that creates Activities (spans). Traceability uses `TraceabilityActivitySource` for centralized Activity creation.
+- **ActivitySource**: .NET class that creates Activities (spans). Traceability does not create spans; tracing is expected to be configured externally (OpenTelemetry SDK/instrumentation).

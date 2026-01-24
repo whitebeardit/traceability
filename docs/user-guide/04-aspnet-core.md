@@ -20,11 +20,9 @@ app.Run();
 
 **What happens automatically:**
 - ✅ Middleware is automatically registered via `IStartupFilter`
-- ✅ OpenTelemetry Activity (span) is automatically created for each request
 - ✅ HttpClient is automatically configured with `CorrelationIdHandler`
 - ✅ Correlation-id is automatically generated for each request (if not provided via `X-Correlation-Id`)
-- ✅ W3C Trace Context headers are automatically propagated in HTTP calls
-- ✅ Spans include `correlation.id` tag when correlation-ID is available (enables Grafana Tempo search)
+- ✅ W3C Trace Context (`traceparent`) is propagated in HTTP calls when `Activity.Current` exists (external OpenTelemetry instrumentation)
 
 ## Using in a Controller
 
@@ -184,16 +182,7 @@ app.Run();
 
 ## OpenTelemetry Integration
 
-Traceability automatically creates OpenTelemetry Activities (spans) for distributed tracing:
-
-- **Automatic Activity Creation**: If OpenTelemetry SDK is not configured, Traceability creates Activities automatically
-- **Hierarchical Spans**: Outgoing HTTP calls propagate trace context. On .NET 8, Traceability-created HttpClient child spans are opt-in to avoid duplication with built-in instrumentation.
-- **W3C Trace Context**: Traceability propagates `traceparent` when trace context is available. It reads `traceparent`/`tracestate` on inbound requests when present, but does not explicitly emit `tracestate`.
-- **Observability Tools**: Compatible with Jaeger, Zipkin, Application Insights, and other OpenTelemetry-compatible tools
-
-**When OpenTelemetry SDK is configured**: Traceability uses existing Activities created by the SDK.
-
-**When OpenTelemetry SDK is not configured**: Traceability creates Activities automatically, ready for future OpenTelemetry integration.
+Traceability **does not create spans**. To get distributed tracing (spans, exporters, instrumentation), configure OpenTelemetry in your application.\n\nWhen OpenTelemetry is configured externally:\n- `Activity.Current` is available during requests\n- Traceability can enrich logs with `TraceId/SpanId` via `TraceContextEnricher`\n- `CorrelationIdHandler` propagates `traceparent` best-effort (W3C-valid only)
 
 ## Next Steps
 

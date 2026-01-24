@@ -1,7 +1,6 @@
 using Traceability;
 using Traceability.HttpClient;
 using Traceability.Logging;
-using Traceability.OpenTelemetry;
 
 namespace Traceability.NetStandard2.Compile
 {
@@ -23,9 +22,6 @@ namespace Traceability.NetStandard2.Compile
             // Logging integration compiles
             var enricher = new CorrelationIdEnricher();
 
-            // OpenTelemetry surface compiles (ActivitySource creates activities only when listeners exist)
-            using var activity = TraceabilityActivitySource.StartActivity("Smoke");
-            
             // Suppress unused warnings
             _ = handler;
             _ = enricher;

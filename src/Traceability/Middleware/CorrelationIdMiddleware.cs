@@ -1,6 +1,5 @@
 #if NET8_0
 using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -16,7 +15,7 @@ namespace Traceability.Middleware
 {
     /// <summary>
     /// Middleware para ASP.NET Core que gerencia correlation-id automaticamente
-    /// e cria Activities (spans) do OpenTelemetry quando OpenTelemetry não está configurado.
+    /// (sem criar spans). O tracing deve ser instrumentado externamente (OpenTelemetry por fora).
     /// </summary>
     public class CorrelationIdMiddleware
     {
@@ -24,8 +23,6 @@ namespace Traceability.Middleware
         private readonly TraceabilityOptions _options;
         private readonly ICorrelationIdValidator _validator;
         private readonly ICorrelationIdExtractor _extractor;
-        private readonly IActivityFactory _activityFactory;
-        private readonly IActivityTagProvider _tagProvider;
 
         /// <summary>
         /// Cria uma nova instância do CorrelationIdMiddleware.
@@ -40,16 +37,12 @@ namespace Traceability.Middleware
             RequestDelegate next,
             IOptions<TraceabilityOptions>? options = null,
             ICorrelationIdValidator? validator = null,
-            ICorrelationIdExtractor? extractor = null,
-            IActivityFactory? activityFactory = null,
-            IActivityTagProvider? tagProvider = null)
+            ICorrelationIdExtractor? extractor = null)
         {
             _next = next;
             _options = options?.Value ?? new TraceabilityOptions();
             _validator = validator ?? new CorrelationIdValidator();
             _extractor = extractor ?? new HttpContextCorrelationIdExtractor();
-            _activityFactory = activityFactory ?? new TraceabilityActivityFactory();
-            _tagProvider = tagProvider ?? new HttpActivityTagProvider();
         }
 
         /// <summary>
@@ -66,34 +59,14 @@ namespace Traceability.Middleware
             var existingContextCorrelationId =
                 CorrelationContext.TryGetValue(out var existing) ? existing : null;
 
-            // If OpenTelemetry isn't configured (no Activity.Current), respect inbound traceparent/tracestate as well.
-            var traceparent = context.Request.Headers[Constants.HttpHeaders.TraceParent].FirstOrDefault();
-            var tracestate = context.Request.Headers[Constants.HttpHeaders.TraceState].FirstOrDefault();
-
             var decision = CorrelationPolicy.DecideInbound(
                 options,
                 _validator,
                 correlationIdFromHeader,
-                existingContextCorrelationId,
-                traceparent,
-                tracestate);
+                existingContextCorrelationId);
 
             // Always set fallback context; Activity.TraceId may not be overridable when OTel is configured.
             CorrelationContext.Current = decision.CorrelationId;
-
-            // Create Activity only when none exists (avoid duplication with OpenTelemetry automatic instrumentation)
-            Activity? activity = null;
-            if (Activity.Current == null)
-            {
-                activity = decision.ParentContext != default
-                    ? _activityFactory.StartActivity(Constants.ActivityNames.HttpRequest, ActivityKind.Server, decision.ParentContext)
-                    : _activityFactory.StartActivity(Constants.ActivityNames.HttpRequest, ActivityKind.Server);
-
-                if (activity != null)
-                {
-                    _tagProvider.AddRequestTags(activity, context);
-                }
-            }
 
             // Adiciona o correlation-id no header da resposta (antes de chamar o próximo middleware)
             // Verifica se ainda é possível modificar headers
@@ -117,28 +90,10 @@ namespace Traceability.Middleware
             {
                 // Continua o pipeline
                 await _next(context);
-
-                // Adicionar status code ao Activity
-                var currentActivity = Activity.Current ?? activity;
-                if (currentActivity != null)
-                {
-                    _tagProvider.AddResponseTags(currentActivity, context);
-                }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                // Adicionar exceção ao Activity
-                var currentActivity = Activity.Current ?? activity;
-                if (currentActivity != null)
-                {
-                    _tagProvider.AddErrorTags(currentActivity, ex);
-                }
                 throw;
-            }
-            finally
-            {
-                // Parar Activity se foi criado por nós
-                activity?.Stop();
             }
         }
     }

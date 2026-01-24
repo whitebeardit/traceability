@@ -11,7 +11,10 @@ Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .Enrich.With<CorrelationIdEnricher>()
-    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId} {Message:lj}{NewLine}{Exception}")
+    // When OpenTelemetry is configured externally, Activity.Current exists and these enrichers enable log-to-trace correlation.
+    .Enrich.With<TraceContextEnricher>()
+    .Enrich.With<RouteNameEnricher>()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {CorrelationId} {TraceId} {SpanId} {RouteName} {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 
 builder.Host.UseSerilog();

@@ -161,7 +161,7 @@ telemetryClient.Context.Properties["CorrelationId"] = correlationId;
 1. **.NET Framework 4.8**: 
    - ✅ **Zero-code**: `CorrelationIdHttpModule` is automatically registered via `PreApplicationStartMethod` - no manual configuration needed
    - ❌ Doesn't have native DI, so `TraceabilityOptions` must be configured via static `Configure()` methods (only if you need custom options)
-   - ✅ Automatic span creation is enabled by default (can be disabled via `Traceability:SpansEnabled` in appSettings)
+   - ✅ For distributed tracing, configure OpenTelemetry externally (Traceability does not create spans)
 
 2. **Format Validation**: Correlation-id format validation is optional and must be enabled via `TraceabilityOptions.ValidateCorrelationIdFormat`.
 

@@ -125,7 +125,8 @@ public class MyService
 - ✅ Automatically propagated in HTTP calls
 - ✅ Automatically included in logs
 - ✅ Returned in the `X-Correlation-Id` response header
-- ✅ OpenTelemetry Activities (spans) automatically created with route template naming
+ 
+> Observação: para tracing distribuído (spans, exporters), configure OpenTelemetry na aplicação. Traceability enriquece logs via `Activity.Current` quando disponível.
 
 ## ASP.NET Framework 4.8 - Zero Code
 
@@ -144,9 +145,6 @@ Install-Package WhiteBeard.Traceability
 
 **No code needed!** The library automatically:
 - ✅ Registers `CorrelationIdHttpModule` via `PreApplicationStartMethod`
-- ✅ Initializes `ActivityListener` for OpenTelemetry spans
-- ✅ Creates Activities (spans) for each HTTP request
-- ✅ Names spans using route templates (e.g., `GET api/values/{id}`)
 - ✅ Manages correlation-id automatically
 - ✅ Propagates correlation-id in response headers
 
@@ -198,7 +196,6 @@ public class ValuesController : ApiController
     public IHttpActionResult Get()
     {
         // Correlation-id is automatically available
-        // Activity (span) is automatically created with name "GET api/values"
         var correlationId = CorrelationContext.Current;
         return Ok(new { CorrelationId = correlationId });
     }
@@ -251,26 +248,8 @@ public class MyService
 - ✅ Automatically propagated in HTTP calls
 - ✅ Automatically included in logs (if Serilog is configured)
 - ✅ Returned in the `X-Correlation-Id` response header
-- ✅ OpenTelemetry Activities (spans) automatically created
-- ✅ Spans automatically named using route templates
-
-### Opt-out: Disable Automatic Spans
-
-If you need to disable automatic span creation:
-
-**Option 1: appSettings in Web.config**
-```xml
-<configuration>
-  <appSettings>
-    <add key="Traceability:SpansEnabled" value="false" />
-  </appSettings>
-</configuration>
-```
-
-**Option 2: Environment Variable**
-```powershell
-$env:TRACEABILITY_SPANS_ENABLED="false"
-```
+ 
+> Observação: Traceability **não cria spans**. Para tracing distribuído, configure OpenTelemetry na aplicação. Traceability enriquece logs via `Activity.Current` quando disponível.
 
 ### Advanced: Manual Configuration (Optional)
 

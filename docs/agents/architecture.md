@@ -13,7 +13,7 @@ graph TB
 
     subgraph "Core Layer"
         CorrelationContext[CorrelationContext<br/>AsyncLocal (independent)]
-        ActivitySource[TraceabilityActivitySource<br/>OpenTelemetry Activities]
+        ActivityCurrent[Activity.Current (External)<br/>Trace Context]
     end
 
     subgraph "HTTP Integration"
@@ -35,8 +35,8 @@ graph TB
     ASPNETTraditional --> CorrelationContext
     ConsoleApp --> CorrelationContext
 
-    ASPNETCore --> ActivitySource
-    HttpClientHandler --> ActivitySource
+    ASPNETCore -.-> ActivityCurrent
+    HttpClientHandler -.-> ActivityCurrent
 
     CorrelationContext --> HttpClientHandler
     CorrelationContext --> SerilogEnricher
@@ -53,7 +53,7 @@ graph TB
 sequenceDiagram
     participant Client as HTTP Client
     participant Middleware as Middleware/Handler
-    participant ActivitySource as TraceabilityActivitySource
+    participant ActivityCurrent as Activity.Current (External)
     participant Context as CorrelationContext
     participant App as Application
     participant HttpClient as HttpClient
@@ -61,8 +61,7 @@ sequenceDiagram
     participant External as External Service
 
     Client->>Middleware: HTTP Request
-    Middleware->>ActivitySource: Create Activity (if not exists)
-    ActivitySource-->>Middleware: Activity with TraceId
+    Note over Middleware: Traceability does not create spans.\nWhen OpenTelemetry is configured externally, Activity.Current may exist.
     Middleware->>Context: Read X-Correlation-Id header
     alt Header exists
         Context->>Context: Use header value
@@ -70,21 +69,17 @@ sequenceDiagram
         Context->>Context: GetOrCreate (generate new GUID)
     end
     Context-->>Middleware: CorrelationId
-    Middleware->>ActivitySource: Add correlation.id tag to Activity
+    Note over Middleware: CorrelationId is set in CorrelationContext and returned in response header.
     Middleware->>App: Process request
     App->>Logger: Log with CorrelationId and TraceId
     App->>HttpClient: External HTTP call
-    HttpClient->>ActivitySource: Create child Activity
-    ActivitySource-->>HttpClient: Child Activity
+    Note over HttpClient: No span is created by Traceability.
     HttpClient->>Context: Get CorrelationId
-    HttpClient->>ActivitySource: Add correlation.id tag to Activity
     HttpClient->>External: Request with X-Correlation-Id + traceparent
     External-->>HttpClient: Response
-    HttpClient->>ActivitySource: Stop Activity
     HttpClient-->>App: Response
     App-->>Middleware: Response
     Middleware->>Context: Get CorrelationId
-    Middleware->>ActivitySource: Stop Activity
     Middleware->>Client: Response with X-Correlation-Id header
 ```
 
@@ -94,7 +89,7 @@ sequenceDiagram
 sequenceDiagram
     participant Client
     participant Middleware as CorrelationIdMiddleware
-    participant ActivitySource as TraceabilityActivitySource
+    participant ActivityCurrent as Activity.Current (External)
     participant Context as CorrelationContext
     participant Controller
     participant Logger
@@ -102,8 +97,7 @@ sequenceDiagram
     participant External
 
     Client->>Middleware: HTTP Request
-    Middleware->>ActivitySource: Create Activity (if Activity.Current == null)
-    ActivitySource-->>Middleware: Activity with TraceId
+    Note over Middleware: Traceability does not create spans.\nIf OpenTelemetry is configured, Activity.Current exists.
     Middleware->>Middleware: Read X-Correlation-Id header
     alt Header exists
         Middleware->>Context: Current = headerValue
@@ -113,24 +107,21 @@ sequenceDiagram
     end
     Context-->>Middleware: correlationId
     Middleware->>Middleware: Add response header
-    Middleware->>Middleware: Add HTTP tags + correlation.id tag to Activity
+    Note over Middleware: No span tags are added by Traceability.
     Middleware->>Controller: Invoke next()
     Controller->>Context: Current (get ID)
     Context-->>Controller: correlationId
     Controller->>Logger: Log with CorrelationId and TraceId
     Controller->>HttpClient: SendAsync()
-    HttpClient->>ActivitySource: Create child Activity
-    ActivitySource-->>HttpClient: Child Activity
+    Note over HttpClient: No child span is created by Traceability.
     HttpClient->>Context: Current (get correlation-ID)
     Context-->>HttpClient: correlationId
     HttpClient->>HttpClient: Add X-Correlation-Id + traceparent headers
-    HttpClient->>HttpClient: Add HTTP tags + correlation.id tag to Activity
+    Note over HttpClient: Traceability adds X-Correlation-Id and propagates traceparent best-effort.
     HttpClient->>External: HTTP Request (with trace context)
     External-->>HttpClient: HTTP Response
-    HttpClient->>ActivitySource: Stop child Activity
     HttpClient-->>Controller: Response
     Controller-->>Middleware: Response
-    Middleware->>ActivitySource: Stop Activity
     Middleware->>Client: HTTP Response with X-Correlation-Id
 ```
 
@@ -193,12 +184,8 @@ graph TD
 ```
 
 **Behavior**:
-- Each HTTP request creates a root Activity (span)
-- Each outgoing HTTP call propagates trace context. On .NET Framework, Traceability creates child HttpClient spans. On .NET 8, Traceability-created HttpClient spans are opt-in to avoid duplication with built-in instrumentation.
-- Activities maintain parent-child relationships for hierarchical tracing
-- All Activities share the same TraceId for distributed tracing correlation
-- Correlation-ID is added as `correlation.id` tag to spans for searching (e.g., Grafana Tempo)
-- W3C Trace Context: Traceability propagates `traceparent` when trace context is available. It reads `traceparent`/`tracestate` on inbound requests when present, but does not explicitly emit `tracestate`. `traceparent` emission is best-effort and only happens when a valid W3C `traceparent` value is available (legacy/hierarchical `Activity.Id` values are not emitted as `traceparent`).
+- Traceability does not create spans. Activity hierarchy is owned by OpenTelemetry SDK/instrumentation.
+- W3C Trace Context: Traceability propagates `traceparent` when trace context is available via `Activity.Current` (best-effort W3C-valid only). Traceability does not emit `tracestate`.
 
 ## Logging Integration
 

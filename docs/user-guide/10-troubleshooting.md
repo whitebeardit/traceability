@@ -85,8 +85,8 @@ builder.Services.AddTraceability(options =>
 **The library works automatically!** Just install the package - no configuration needed.
 
 - ✅ `CorrelationIdHttpModule` is automatically registered via `PreApplicationStartMethod`
-- ✅ `ActivityListener` is automatically initialized
-- ✅ OpenTelemetry Activities (spans) are automatically created
+ 
+> Observação: Traceability **não cria spans**. Para tracing distribuído, configure OpenTelemetry na aplicação.\n> Quando `Activity.Current` existir (instrumentação externa), `TraceContextEnricher` pode adicionar `TraceId/SpanId` aos logs.
 
 ### If Zero-Code Doesn't Work
 
@@ -95,11 +95,7 @@ builder.Services.AddTraceability(options =>
    Install-Package WhiteBeard.Traceability
    ```
 
-2. **Check if spans are disabled**
-   - Verify `appSettings['Traceability:SpansEnabled']` is not set to `false` in `Web.config`
-   - Verify `TRACEABILITY_SPANS_ENABLED` environment variable is not set to `false`
-
-3. **Check application startup logs** for any errors
+2. **Check application startup logs** for any errors
 
 ### Manual Configuration (Advanced - Not Recommended)
 

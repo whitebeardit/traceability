@@ -50,7 +50,7 @@ Some documentation pages previously stated that Traceability propagates both `tr
 
 - Traceability **propagates `traceparent`** when trace context is available.
 - Traceability **does not explicitly emit `tracestate`**.
-- On **.NET 8**, Traceability-created HttpClient spans are **opt-in** via `TraceabilityOptions.Net8HttpClientSpansEnabled` or `TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED=true`.
+- Traceability **does not create spans**; OpenTelemetry instrumentation/exporters must be configured in the application.
 
 **Recommendation**: Keep documentation consistent with the current implementation and clearly distinguish Traceability behavior from OpenTelemetry SDK/instrumentation behavior.
 
