@@ -58,7 +58,10 @@ Use **Traceability** when you need:
 - ✅ Support for Serilog and Microsoft.Extensions.Logging
 - ✅ Integration with Polly for resilience policies
 - ✅ Automatic propagation in chained HTTP calls
-- ✅ Hierarchical span relationships for distributed tracing
+
+## Migration
+
+- **v3 migration** (breaking): see [`docs/migration.md`](docs/migration.md)
 
 ## Installation
 
