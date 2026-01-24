@@ -26,7 +26,7 @@ Use **Traceability** when you need:
 
 4. **Monitoring and Observability**: Correlate metrics, traces, and logs from different services using the same identifier, improving system visibility.
 
-5. **Multi-Framework Support**: Work with .NET 8.0 (ASP.NET Core) and .NET Framework 4.8 (ASP.NET Web API and Traditional ASP.NET) applications using the same library.
+5. **Multi-Framework Support**: Portable core via .NET Standard 2.0 (works with .NET 6, 7, 8, and compatible frameworks), with full integrations for .NET 8.0 (ASP.NET Core) and .NET Framework 4.8+ (ASP.NET Web API and Traditional ASP.NET).
 
 6. **Automatic Integration**: Have correlation-id automatically propagated in HTTP calls, added to logs (Serilog and Microsoft.Extensions.Logging), and managed without boilerplate code.
 

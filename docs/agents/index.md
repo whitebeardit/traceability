@@ -45,13 +45,23 @@ src/Traceability/
 
 ## Supported Frameworks
 
-- **.NET 8.0**: Full support for ASP.NET Core
-- **.NET Framework 4.8**: Support for ASP.NET Web API and Traditional ASP.NET
+The package uses **multi-targeting** with three target frameworks:
+
+- **.NET Standard 2.0**: Portable core library (CorrelationContext, HttpClient, Logging, Configuration)
+  - Compatible with .NET 6, 7, 8, .NET Framework 4.6.1+, and other .NET Standard 2.0 implementations
+- **.NET 8.0**: Full ASP.NET Core integration
+  - Automatic middleware registration
+  - Dependency injection extensions
+  - HttpContext integration
+- **.NET Framework 4.8+**: Full ASP.NET Framework integration
+  - Automatic HttpModule registration via `PreApplicationStartMethod`
+  - Web API and MVC support
+  - System.Web integration
 
 ## Fundamental Principles
 
 1. **Correlation-ID Independence**: Correlation-ID is managed via `AsyncLocal<string>` and is **independent** from OpenTelemetry `Activity.TraceId`
-2. **Conditional Compilation**: Framework-specific code should use `#if NET8_0` or `#if NET48`
+2. **Conditional Compilation**: Framework-specific code should use `#if NET8_0`, `#if NET48`, or `#if NETSTANDARD2_0` as appropriate
 3. **Default Header**: Always use `X-Correlation-Id` as default header (for backward compatibility)
 4. **W3C Trace Context**: Read inbound `traceparent`/`tracestate` when present, and propagate `traceparent` when trace context is available. Traceability does not explicitly emit `tracestate`.
 5. **GUID without Hyphens**: Generate correlation-id as 32-character GUID (without hyphens) when correlation-ID needs to be created
