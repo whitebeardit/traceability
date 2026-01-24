@@ -1,3 +1,13 @@
+# [3.0.0](https://github.com/whitebeardit/traceability/compare/v2.4.0...v3.0.0) (2026-01-24)
+
+
+* refactor(traceability)!: remove internal OpenTelemetry and span creation (#35) ([02caaff](https://github.com/whitebeardit/traceability/commit/02caaff71f07919cb62b9f345c0d685a619d4f32)), closes [#35](https://github.com/whitebeardit/traceability/issues/35)
+
+
+### BREAKING CHANGES
+
+* Traceability no longer provides internal OpenTelemetry auto-instrumentation or automatic span (Activity) creation; tracing must be configured externally.
+
 # [2.4.0](https://github.com/whitebeardit/traceability/compare/v2.3.1...v2.4.0) (2026-01-24)
 
 
