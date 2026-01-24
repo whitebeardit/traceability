@@ -95,4 +95,4 @@ var response = await httpClient.GetAsync("endpoint");
 
 - The CorrelationIdMessageHandler must be added first in the MessageHandlers chain
 - The correlation-id is automatically propagated for HTTP calls made with TraceableHttpClientFactory
-- For logging, use Serilog with CorrelationIdEnricher or Microsoft.Extensions.Logging with CorrelationIdScopeProvider
+- For logging, use Serilog with CorrelationIdEnricher. If OpenTelemetry is configured externally, also add TraceContextEnricher/RouteNameEnricher to correlate logs with TraceId/SpanId via Activity.Current.
