@@ -1,13 +1,12 @@
-using System.Diagnostics;
 using Traceability.Configuration;
 using Traceability.Core.Interfaces;
 
 namespace Traceability.Core.Services
 {
     /// <summary>
-    /// Centraliza a política de resolução do correlation-id e construção do parent ActivityContext.
-    /// Mantém a regra de prioridade:
-    /// AlwaysGenerateNew > CorrelationId (header/override) > traceparent > generate
+    /// Centraliza a política de resolução do correlation-id.
+    /// Regra de prioridade:
+    /// AlwaysGenerateNew > CorrelationId (header/override) > generate
     /// </summary>
     internal static class CorrelationPolicy
     {
@@ -15,20 +14,14 @@ namespace Traceability.Core.Services
         {
             public CorrelationDecision(
                 string headerName,
-                string correlationId,
-                ActivityContext parentFromTraceparent,
-                ActivityContext parentContext)
+                string correlationId)
             {
                 HeaderName = headerName;
                 CorrelationId = correlationId;
-                ParentFromTraceparent = parentFromTraceparent;
-                ParentContext = parentContext;
             }
 
             public string HeaderName { get; }
             public string CorrelationId { get; }
-            public ActivityContext ParentFromTraceparent { get; }
-            public ActivityContext ParentContext { get; }
         }
 
         public static string GetCorrelationIdHeaderName(TraceabilityOptions options)
@@ -51,15 +44,13 @@ namespace Traceability.Core.Services
         }
 
         /// <summary>
-        /// Resolve o correlation-id efetivo e o parentContext para criação de Activity.
+        /// Resolve o correlation-id efetivo.
         /// </summary>
         public static CorrelationDecision DecideInbound(
             TraceabilityOptions options,
             ICorrelationIdValidator validator,
             string? correlationIdFromHeader,
-            string? existingContextCorrelationId,
-            string? traceparent,
-            string? tracestate)
+            string? existingContextCorrelationId)
         {
             var headerName = GetCorrelationIdHeaderName(options);
 
@@ -73,19 +64,9 @@ namespace Traceability.Core.Services
                 overrideCorrelationId = existingContextCorrelationId;
             }
 
-            var parentFromTraceparent = TraceParentExtractor.Extract(traceparent, tracestate);
+            var effectiveCorrelationId = CorrelationIdResolver.Resolve(options, overrideCorrelationId);
 
-            var effectiveCorrelationId = CorrelationIdResolver.Resolve(options, overrideCorrelationId, parentFromTraceparent);
-
-            // If we used an override value (header or existing context), we must NOT keep the real parentFromTraceparent.
-            // Treat it as an explicit override for ActivityContextBuilder's purpose.
-            var parentContext = ActivityContextBuilder.BuildParentContext(
-                options,
-                effectiveCorrelationId,
-                overrideCorrelationId,
-                parentFromTraceparent);
-
-            return new CorrelationDecision(headerName, effectiveCorrelationId, parentFromTraceparent, parentContext);
+            return new CorrelationDecision(headerName, effectiveCorrelationId);
         }
     }
 }

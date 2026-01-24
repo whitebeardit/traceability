@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using Traceability;
 using Traceability.Configuration;
 
@@ -18,9 +17,8 @@ namespace Traceability.Core.Services
         /// </summary>
         /// <param name="options">Opções de configuração.</param>
         /// <param name="headerValue">Valor do header de correlation-id (pode ser null).</param>
-        /// <param name="parentFromTraceparent">Contexto pai extraído do traceparent (pode ser default).</param>
         /// <returns>O correlation-id efetivo a ser usado.</returns>
-        public static string Resolve(TraceabilityOptions options, string? headerValue, ActivityContext parentFromTraceparent)
+        public static string Resolve(TraceabilityOptions options, string? headerValue)
         {
             // Decide effective correlation-id for this request:
             // Priority: AlwaysGenerateNew > correlation header > generate

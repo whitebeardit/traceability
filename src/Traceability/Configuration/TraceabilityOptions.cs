@@ -145,12 +145,6 @@ namespace Traceability.Configuration
         public bool AutoConfigureHttpClient { get; set; } = true;
 
         /// <summary>
-        /// (NET8) Se true, o CorrelationIdHandler também cria spans (Activities) para chamadas HttpClient.
-        /// Padrão: false para evitar duplicação quando OpenTelemetry/System.Net.Http já instrumenta HttpClient.
-        /// </summary>
-        public bool Net8HttpClientSpansEnabled { get; set; } = false;
-
-        /// <summary>
         /// Se false, desabilita o uso do assembly name como fallback para Source quando nenhum Source for fornecido.
         /// Padrão: true (usa assembly name se nenhum Source estiver disponível).
         /// </summary>
