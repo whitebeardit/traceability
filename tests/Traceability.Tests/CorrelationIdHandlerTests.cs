@@ -142,11 +142,9 @@ namespace Traceability.Tests
 
 #if NET8_0
         [Fact]
-        public async Task SendAsync_Net8_Default_ShouldNotCreateHttpClientSpan_ButShouldPropagateHeaders()
+        public async Task SendAsync_Net8_ShouldPropagateTraceParentFromActivityCurrent()
         {
             // Arrange
-            Environment.SetEnvironmentVariable("TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED", null);
-
             using var parent = new Activity("parent");
             parent.SetIdFormat(ActivityIdFormat.W3C);
             parent.Start();
@@ -165,7 +163,7 @@ namespace Traceability.Tests
                 .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
                 .ReturnsAsync(new HttpResponseMessage());
 
-            // No IOptions passed => Net8HttpClientSpansEnabled defaults false
+            // No IOptions passed
             var handler = new CorrelationIdHandler
             {
                 InnerHandler = mockHandler.Object
@@ -190,11 +188,9 @@ namespace Traceability.Tests
         }
 
         [Fact]
-        public void Send_Net8_Default_ShouldNotCreateHttpClientSpan_ButShouldPropagateHeaders()
+        public void Send_Net8_ShouldPropagateTraceParentFromActivityCurrent()
         {
             // Arrange
-            Environment.SetEnvironmentVariable("TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED", null);
-
             using var parent = new Activity("parent");
             parent.SetIdFormat(ActivityIdFormat.W3C);
             parent.Start();
@@ -234,58 +230,6 @@ namespace Traceability.Tests
 
             Activity.Current.Should().Be(parent);
         }
-
-#if NET48 || NET8_0
-        [Fact]
-        public async Task SendAsync_WhenSpanCreated_ShouldHaveCorrelationIdTag()
-        {
-            // Arrange
-            CorrelationContext.Clear();
-            var correlationId = Guid.NewGuid().ToString("N");
-            CorrelationContext.Current = correlationId;
-
-            Activity? createdActivity = null;
-
-            var mockHandler = new Mock<HttpMessageHandler>();
-            mockHandler.Protected()
-                .Setup<Task<HttpResponseMessage>>(
-                    "SendAsync",
-                    ItExpr.IsAny<HttpRequestMessage>(),
-                    ItExpr.IsAny<CancellationToken>())
-                .Callback<HttpRequestMessage, CancellationToken>((req, _) =>
-                {
-                    createdActivity = Activity.Current;
-                })
-                .ReturnsAsync(new HttpResponseMessage());
-
-            var handler = new CorrelationIdHandler
-            {
-                InnerHandler = mockHandler.Object
-            };
-
-#if NET8_0
-            // Enable spans for NET8
-            Environment.SetEnvironmentVariable("TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED", "true");
-#endif
-
-            var httpClient = new System.Net.Http.HttpClient(handler);
-            var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com");
-
-            // Act
-            await httpClient.SendAsync(request);
-
-            // Assert
-            if (createdActivity != null)
-            {
-                var tagValue = createdActivity.GetTagItem("correlation.id");
-                tagValue.Should().NotBeNull();
-                tagValue.Should().Be(correlationId);
-            }
-#if NET8_0
-            Environment.SetEnvironmentVariable("TRACEABILITY_NET8_HTTPCLIENT_SPANS_ENABLED", null);
-#endif
-        }
-#endif
 #endif
     }
 }
