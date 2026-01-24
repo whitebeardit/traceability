@@ -12,10 +12,10 @@ using Traceability.Core.Services;
 #endif
 using Traceability;
 using Traceability.Core;
-#if NET48 || NET8_0
+#if NET48 || NET8_0 || NETSTANDARD2_0
 using Traceability.Utilities;
 #endif
-#if NET48 || NET8_0
+#if NET48 || NET8_0 || NETSTANDARD2_0
 using Traceability.OpenTelemetry;
 #endif
 
@@ -27,7 +27,7 @@ namespace Traceability.HttpClient
     /// </summary>
     public class CorrelationIdHandler : DelegatingHandler
     {
-#if NET48 || NET8_0
+#if NET48 || NET8_0 || NETSTANDARD2_0
         private static bool TryGetValidW3CTraceParent(Activity? activity, out string? traceParent)
         {
             traceParent = null;
@@ -148,7 +148,7 @@ namespace Traceability.HttpClient
             // Propagate trace context even when not creating span
             if (!request.Headers.Contains(Constants.HttpHeaders.TraceParent))
             {
-#if NET48 || NET8_0
+#if NET48 || NET8_0 || NETSTANDARD2_0
                 // Prefer the span we created; fallback to current parent activity.
                 if (TryGetValidW3CTraceParent(activity, out var traceParent) ||
                     TryGetValidW3CTraceParent(parentActivity, out traceParent))

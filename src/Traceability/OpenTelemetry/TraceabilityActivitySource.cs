@@ -1,4 +1,4 @@
-#if NET48 || NET8_0
+#if NET48 || NET8_0 || NETSTANDARD2_0
 using System.Diagnostics;
 
 namespace Traceability.OpenTelemetry
