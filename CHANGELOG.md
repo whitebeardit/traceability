@@ -1,3 +1,10 @@
+## [3.0.1](https://github.com/whitebeardit/traceability/compare/v3.0.0...v3.0.1) (2026-01-25)
+
+
+### Bug Fixes
+
+* licence file format to be recognized by GiyHub ([16510fa](https://github.com/whitebeardit/traceability/commit/16510faeec4fad173ef84559a5b72fca6a065235))
+
 # [3.0.0](https://github.com/whitebeardit/traceability/compare/v2.4.0...v3.0.0) (2026-01-24)
 
 
