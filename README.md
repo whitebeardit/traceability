@@ -2,7 +2,7 @@
 
 ![NuGet Version](https://img.shields.io/nuget/v/WhiteBeard.Traceability.svg?style=flat-square&label=version)
 ![Build Status](https://img.shields.io/github/actions/workflow/status/whitebeardit/traceability/.github/workflows/ci.yml?branch=main&label=build&style=flat-square)
-![License](https://img.shields.io/github/license/whitebeardit/traceability?style=flat-square)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![NuGet Downloads](https://img.shields.io/nuget/dt/WhiteBeard.Traceability?style=flat-square&label=downloads)
 ![.NET Version](https://img.shields.io/badge/.NET-Standard%202.0%20%7C%208.0%20%7C%20Framework%204.8-512BD4?style=flat-square&logo=dotnet)
 ![GitHub Stars](https://img.shields.io/github/stars/whitebeardit/traceability?style=flat-square&logo=github)
