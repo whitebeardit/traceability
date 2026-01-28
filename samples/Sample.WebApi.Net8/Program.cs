@@ -29,7 +29,7 @@ builder.Services.AddControllers();
 // Não precisa de .AddHttpMessageHandler<CorrelationIdHandler>()
 builder.Services.AddHttpClient("ExternalApi", client =>
 {
-    client.BaseAddress = new Uri("https://whitebeard.dev/");
+    client.BaseAddress = new Uri("https://jsonplaceholder.typicode.com/");
 });
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -58,9 +58,9 @@ app.MapGet("/weatherforecast", (ILogger<Program> logger) =>
 {
     // O correlation-id está automaticamente disponível no contexto
     var correlationId = Traceability.CorrelationContext.Current;
-    
+
     logger.LogInformation("Processando requisição de weather forecast com CorrelationId: {CorrelationId}", correlationId);
-    
+
     var summaries = new[]
     {
         "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
@@ -74,7 +74,7 @@ app.MapGet("/weatherforecast", (ILogger<Program> logger) =>
             summaries[Random.Shared.Next(summaries.Length)]
         ))
         .ToArray();
-    
+
     return forecast;
 })
 .WithName("GetWeatherForecast")
